@@ -360,6 +360,23 @@ LINKS <- list(
   contact = "https://forms.gle/shc6cGjBFNjqvkSw9"
 )
 
+# Sentry error tracking (no-op if DSN not set)
+sentry_enabled <- FALSE
+if (nzchar(Sys.getenv("SENTRY_DSN", ""))) {
+  tryCatch({
+    sentryR::configure_sentry(
+      dsn = Sys.getenv("SENTRY_DSN"),
+      app_name = "digilab",
+      app_version = "0.28.0",
+      environment = ifelse(.Platform$OS.type == "unix", "production", "development")
+    )
+    sentry_enabled <- TRUE
+    message("[sentry] Initialized successfully")
+  }, error = function(e) {
+    message("[sentry] Failed to initialize: ", conditionMessage(e))
+  })
+}
+
 # =============================================================================
 # Source Views
 # =============================================================================
@@ -880,6 +897,13 @@ ui <- page_fillable(
 # =============================================================================
 
 server <- function(input, output, session) {
+
+  # Global error handler for Sentry
+  if (sentry_enabled) {
+    options(shiny.error = function() {
+      tryCatch(sentryR::capture_exception(geterrmessage()), error = function(se) NULL)
+    })
+  }
 
   # ---------------------------------------------------------------------------
   # Reactive Values

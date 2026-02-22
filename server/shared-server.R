@@ -471,6 +471,11 @@ safe_query <- function(db_con, query, params = NULL, default = data.frame()) {
     query_preview <- substr(gsub("\\s+", " ", query), 1, 200)
     message("[safe_query] Error: ", msg, " | Query: ", query_preview)
 
+    # Send to Sentry if enabled
+    if (sentry_enabled) {
+      tryCatch(sentryR::capture_exception(e), error = function(se) NULL)
+    }
+
     # Attempt reconnection if connection is invalid
     if (!DBI::dbIsValid(db_con)) {
       message("[safe_query] Connection invalid, attempting reconnection...")
@@ -523,6 +528,10 @@ safe_execute <- function(db_con, query, params = NULL) {
   }, error = function(e) {
     message("[safe_execute] Error: ", conditionMessage(e))
     message("[safe_execute] Query: ", substr(gsub("\\s+", " ", query), 1, 200))
+    # Send to Sentry if enabled
+    if (sentry_enabled) {
+      tryCatch(sentryR::capture_exception(e), error = function(se) NULL)
+    }
     0  # Return 0 rows affected on error
   })
 }
