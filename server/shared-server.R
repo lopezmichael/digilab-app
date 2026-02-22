@@ -310,12 +310,6 @@ output$about_tournament_count <- renderText({
   as.character(count)
 })
 
-output$about_result_count <- renderText({
-  req(rv$db_con)
-  count <- dbGetQuery(rv$db_con, "SELECT COUNT(*) FROM results")[[1]]
-  as.character(count)
-})
-
 # ---------------------------------------------------------------------------
 # Authentication
 # ---------------------------------------------------------------------------
