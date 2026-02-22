@@ -218,6 +218,20 @@ observeEvent(input$faq_to_upload2, {
   nav_select("main_content", "submit")
   rv$current_nav <- "submit"
 })
+observeEvent(input$faq_to_upload3, {
+  nav_select("main_content", "submit")
+  rv$current_nav <- "submit"
+})
+
+# FAQ → For Organizers (multiple links on the page)
+observeEvent(input$faq_to_for_tos_new_scene, {
+  nav_select("main_content", "for_tos")
+  rv$current_nav <- "for_tos"
+})
+observeEvent(input$faq_to_for_tos2, {
+  nav_select("main_content", "for_tos")
+  rv$current_nav <- "for_tos"
+})
 
 # For Organizers → Upload Results (multiple links on the page)
 observeEvent(input$tos_to_upload, {
