@@ -75,6 +75,12 @@ test_image <- function(image_path, rounds = 4, verbose = TRUE) {
   assign(".last_ocr_text", ocr_text, envir = globalenv())
   assign(".last_ocr_result", ocr_result, envir = globalenv())
 
+  # Show annotation count
+  if (is.list(ocr_result) && !is.null(ocr_result$annotations) && nrow(ocr_result$annotations) > 0) {
+    message("\nAnnotations: ", nrow(ocr_result$annotations), " words")
+    message("Image dimensions: ", ocr_result$image_width, "x", ocr_result$image_height)
+  }
+
   # Save raw OCR text for debugging
   message("\n", strrep("-", 60))
   message("RAW OCR TEXT:")
@@ -87,7 +93,7 @@ test_image <- function(image_path, rounds = 4, verbose = TRUE) {
   message("PARSING RESULTS:")
   message(strrep("-", 60), "\n")
 
-  results <- parse_tournament_standings(ocr_text, total_rounds = rounds, verbose = verbose)
+  results <- parse_standings(ocr_result, total_rounds = rounds, verbose = verbose)
 
   # Step 3: Show raw parsed data
   message("\n", strrep("-", 60))
@@ -207,8 +213,105 @@ retest <- function(rounds = 4, verbose = TRUE) {
   if (!is.null(.last_ocr_type) && .last_ocr_type == "match_history") {
     test_parse_matches(.last_ocr_text, verbose = verbose)
   } else {
-    test_parse(.last_ocr_text, rounds = rounds, verbose = verbose)
+    # Use orchestrator if full result available, otherwise text parser
+    if (exists(".last_ocr_result", envir = globalenv())) {
+      ocr_result <- get(".last_ocr_result", envir = globalenv())
+      result <- parse_standings(ocr_result, total_rounds = rounds, verbose = verbose)
+    } else {
+      result <- parse_tournament_standings(.last_ocr_text, total_rounds = rounds, verbose = verbose)
+    }
+
+    # Show raw parsed data
+    message("\n", strrep("-", 60))
+    message("RAW PARSED DATA (", nrow(result), " players):")
+    message(strrep("-", 60))
+    if (nrow(result) > 0) {
+      print(result)
+    } else {
+      message("No results parsed!")
+    }
+
+    # Show UI preview format
+    message("\n", strrep("=", 60))
+    message("UI PREVIEW (as shown in Submit Results):")
+    message(strrep("=", 60))
+    if (nrow(result) > 0) {
+      ui_preview <- format_ui_preview(result)
+      print(ui_preview, row.names = FALSE)
+    } else {
+      message("No results to display")
+    }
+
+    invisible(result)
   }
+}
+
+#' Compare layout vs text parser on last OCR result
+#'
+#' Shows side-by-side output from both parsers for debugging.
+#' Run test_image() first to populate the saved OCR result.
+#'
+#' @param rounds Total rounds
+#' @param verbose Print debug messages
+test_compare <- function(rounds = 4, verbose = TRUE) {
+  if (!exists(".last_ocr_result", envir = globalenv())) {
+    message("No saved OCR result. Run test_image() first.")
+    return(invisible(NULL))
+  }
+
+  ocr_result <- get(".last_ocr_result", envir = globalenv())
+  if (is.null(ocr_result)) {
+    message("Saved OCR result is NULL. Run test_image() first.")
+    return(invisible(NULL))
+  }
+
+  ocr_text <- if (is.list(ocr_result)) ocr_result$text else ocr_result
+
+  message("\n", strrep("=", 60))
+  message("LAYOUT PARSER:")
+  message(strrep("=", 60))
+
+  if (is.list(ocr_result) && !is.null(ocr_result$annotations) && nrow(ocr_result$annotations) > 0) {
+    layout_result <- tryCatch({
+      parse_standings_layout(
+        ocr_result$annotations, ocr_result$image_width, ocr_result$image_height,
+        total_rounds = rounds, verbose = verbose
+      )
+    }, error = function(e) {
+      message("Layout parser error: ", e$message)
+      data.frame()
+    })
+
+    if (nrow(layout_result) > 0) {
+      message("\n", nrow(layout_result), " players found:")
+      print(format_ui_preview(layout_result))
+    } else {
+      message("No results from layout parser")
+    }
+  } else {
+    message("No annotation data available")
+  }
+
+  message("\n", strrep("=", 60))
+  message("TEXT PARSER:")
+  message(strrep("=", 60))
+
+  text_result <- tryCatch({
+    parse_tournament_standings(ocr_text, total_rounds = rounds, verbose = verbose)
+  }, error = function(e) {
+    message("Text parser error: ", e$message)
+    data.frame()
+  })
+
+  if (nrow(text_result) > 0) {
+    message("\n", nrow(text_result), " players found:")
+    print(format_ui_preview(text_result))
+  } else {
+    message("No results from text parser")
+  }
+
+  invisible(list(layout = if (exists("layout_result")) layout_result else NULL,
+                 text = text_result))
 }
 
 # =============================================================================
@@ -384,6 +487,7 @@ if (!interactive()) {
   message("  test_parse_matches(text)  - Test parser only (no API)")
   message("\nCOMMON:")
   message("  retest()              - Re-run parser on last OCR text")
+  message("  test_compare()        - Compare layout vs text parser")
   message("\nWorkflow:")
   message("  1. test_image('screenshot.png')  # or test_match_history()")
   message("  2. Edit R/ocr.R parser logic")
