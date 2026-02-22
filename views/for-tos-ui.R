@@ -316,15 +316,15 @@ for_tos_ui <- div(
         class = "contact-links",
         tags$a(
           class = "contact-link",
-          href = LINKS$contact,
+          href = LINKS$discord,
           target = "_blank",
-          bsicons::bs_icon("envelope"), "Request via Form"
+          bsicons::bs_icon("discord"), "Ask on Discord"
         ),
         tags$a(
           class = "contact-link",
-          href = paste0(LINKS$github, "/issues/new?title=New%20Scene%20Request"),
+          href = LINKS$contact,
           target = "_blank",
-          bsicons::bs_icon("github"), "Request via GitHub"
+          bsicons::bs_icon("envelope"), "Request via Form"
         )
       )
     ),
