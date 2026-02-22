@@ -285,6 +285,13 @@ observeEvent(input$goto_faq_score, {
 # About Page Stats
 # ---------------------------------------------------------------------------
 
+output$about_scene_count <- renderText({
+  req(rv$db_con)
+  count <- safe_query(rv$db_con, "SELECT COUNT(*) as n FROM scenes WHERE slug != 'all'",
+                      default = data.frame(n = 0))$n
+  as.character(count)
+})
+
 output$about_store_count <- renderText({
   req(rv$db_con)
   count <- dbGetQuery(rv$db_con, "SELECT COUNT(*) FROM stores WHERE is_active = TRUE")[[1]]
