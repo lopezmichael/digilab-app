@@ -286,7 +286,11 @@ observeEvent(input$submit_process_ocr, {
   parsed_count <- nrow(combined)
 
   # Rank-based validation against declared player count
-  max_rank <- if (nrow(combined) > 0) max(combined$placement, na.rm = TRUE) else 0
+  max_rank <- if (nrow(combined) > 0 && any(!is.na(combined$placement))) {
+    max(combined$placement, na.rm = TRUE)
+  } else {
+    0
+  }
 
   if (max_rank > total_players) {
     # Screenshots show more players than declared — auto-correct upward
@@ -321,6 +325,9 @@ observeEvent(input$submit_process_ocr, {
 
   # Re-sort after adding blank rows
   combined <- combined[order(combined$placement), ]
+
+  # Preserve original ranking before sequential re-assignment
+  combined$original_rank <- combined$placement
 
   # Re-assign placements sequentially (1 to N) for the review UI
   combined$placement <- seq_len(nrow(combined))

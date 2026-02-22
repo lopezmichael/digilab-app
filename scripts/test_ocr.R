@@ -310,7 +310,7 @@ test_compare <- function(rounds = 4, verbose = TRUE) {
     message("No results from text parser")
   }
 
-  invisible(list(layout = if (exists("layout_result")) layout_result else NULL,
+  invisible(list(layout = if (exists("layout_result", inherits = FALSE)) layout_result else NULL,
                  text = text_result))
 }
 

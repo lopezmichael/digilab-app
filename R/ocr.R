@@ -370,7 +370,6 @@ parse_standings_layout <- function(annotations, image_width, image_height,
   header_keywords <- c("ranking", "user", "name", "win", "points", "omw", "gw")
 
   header_rows <- which(tolower(ann$text) %in% header_keywords)
-  header_found <- FALSE
   ranking_max <- 15
   username_min <- 15
   username_max <- 60
@@ -381,7 +380,6 @@ parse_standings_layout <- function(annotations, image_width, image_height,
     # Find the Y-center of header row (median of header keyword Y-positions)
     header_y_centers <- ann$y_center_pct[header_rows]
     header_y <- median(header_y_centers)
-    header_found <- TRUE
 
     if (verbose) message("[LAYOUT] Header row detected at y=", round(header_y, 1), "%")
 
