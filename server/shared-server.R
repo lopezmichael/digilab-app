@@ -197,53 +197,64 @@ observeEvent(input$nav_for_tos, {
 observeEvent(input$about_to_for_tos, {
   nav_select("main_content", "for_tos")
   rv$current_nav <- "for_tos"
+  session$sendCustomMessage("updateSidebarNav", "nav_for_tos")
 })
 
 observeEvent(input$faq_to_for_tos, {
   nav_select("main_content", "for_tos")
   rv$current_nav <- "for_tos"
+  session$sendCustomMessage("updateSidebarNav", "nav_for_tos")
 })
 
 # FAQ → Upload Results
 observeEvent(input$faq_to_upload, {
   nav_select("main_content", "submit")
   rv$current_nav <- "submit"
+  session$sendCustomMessage("updateSidebarNav", "nav_submit")
 })
 observeEvent(input$faq_to_upload2, {
   nav_select("main_content", "submit")
   rv$current_nav <- "submit"
+  session$sendCustomMessage("updateSidebarNav", "nav_submit")
 })
 observeEvent(input$faq_to_upload3, {
   nav_select("main_content", "submit")
   rv$current_nav <- "submit"
+  session$sendCustomMessage("updateSidebarNav", "nav_submit")
 })
 
 # FAQ → For Organizers (multiple links on the page)
 observeEvent(input$faq_to_for_tos_new_scene, {
   nav_select("main_content", "for_tos")
   rv$current_nav <- "for_tos"
+  session$sendCustomMessage("updateSidebarNav", "nav_for_tos")
 })
 observeEvent(input$faq_to_for_tos2, {
   nav_select("main_content", "for_tos")
   rv$current_nav <- "for_tos"
+  session$sendCustomMessage("updateSidebarNav", "nav_for_tos")
 })
 
 # For Organizers → Upload Results (multiple links on the page)
 observeEvent(input$tos_to_upload, {
   nav_select("main_content", "submit")
   rv$current_nav <- "submit"
+  session$sendCustomMessage("updateSidebarNav", "nav_submit")
 })
 observeEvent(input$tos_to_upload_btn, {
   nav_select("main_content", "submit")
   rv$current_nav <- "submit"
+  session$sendCustomMessage("updateSidebarNav", "nav_submit")
 })
 observeEvent(input$tos_to_upload2, {
   nav_select("main_content", "submit")
   rv$current_nav <- "submit"
+  session$sendCustomMessage("updateSidebarNav", "nav_submit")
 })
 observeEvent(input$tos_to_upload3, {
   nav_select("main_content", "submit")
   rv$current_nav <- "submit"
+  session$sendCustomMessage("updateSidebarNav", "nav_submit")
 })
 
 # ---------------------------------------------------------------------------

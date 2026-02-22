@@ -147,6 +147,12 @@ for_tos_ui <- div(
         class = "contact-links",
         tags$a(
           class = "contact-link",
+          href = LINKS$discord,
+          target = "_blank",
+          bsicons::bs_icon("discord"), "Ask on Discord"
+        ),
+        tags$a(
+          class = "contact-link",
           href = LINKS$contact,
           target = "_blank",
           bsicons::bs_icon("envelope"), "Request via Form"
@@ -384,9 +390,15 @@ for_tos_ui <- div(
         class = "contact-links",
         tags$a(
           class = "contact-link",
+          href = LINKS$discord,
+          target = "_blank",
+          bsicons::bs_icon("discord"), "Ask on Discord"
+        ),
+        tags$a(
+          class = "contact-link",
           href = LINKS$contact,
           target = "_blank",
-          bsicons::bs_icon("envelope"), "Request Contributor Access"
+          bsicons::bs_icon("envelope"), "Request via Form"
         )
       )
     )
@@ -426,6 +438,12 @@ for_tos_ui <- div(
       ),
       div(
         class = "contact-links",
+        tags$a(
+          class = "contact-link",
+          href = LINKS$discord,
+          target = "_blank",
+          bsicons::bs_icon("discord"), "Report on Discord"
+        ),
         tags$a(
           class = "contact-link",
           href = LINKS$contact,
