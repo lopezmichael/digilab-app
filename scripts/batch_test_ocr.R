@@ -66,12 +66,15 @@ process_standings <- function(image_path, rounds = 4, verbose = FALSE) {
   )
 
   # Get OCR text
-  ocr_text <- tryCatch({
+  ocr_result <- tryCatch({
     gcv_detect_text(image_path, verbose = verbose)
   }, error = function(e) {
     result$warnings <<- c(result$warnings, paste("OCR error:", e$message))
     NULL
   })
+
+  # Extract text from structured result (backward compatible with plain string)
+  ocr_text <- if (is.list(ocr_result)) ocr_result$text else ocr_result
 
   if (is.null(ocr_text) || ocr_text == "") {
     result$warnings <- c(result$warnings, "OCR returned no text")
@@ -84,6 +87,12 @@ process_standings <- function(image_path, rounds = 4, verbose = FALSE) {
   # Save OCR text
   ocr_file <- file.path(RESULTS_DIR, "ocr_text", paste0(name_base, "_standings.txt"))
   writeLines(ocr_text, ocr_file)
+
+  # Save annotation data if available
+  if (is.list(ocr_result) && !is.null(ocr_result$annotations) && nrow(ocr_result$annotations) > 0) {
+    ann_file <- file.path(RESULTS_DIR, "ocr_text", paste0(name_base, "_annotations.rds"))
+    saveRDS(ocr_result, ann_file)
+  }
 
   # Parse
   parsed <- tryCatch({
@@ -141,12 +150,15 @@ process_match_history <- function(image_path, verbose = FALSE) {
   )
 
   # Get OCR text
-  ocr_text <- tryCatch({
+  ocr_result <- tryCatch({
     gcv_detect_text(image_path, verbose = verbose)
   }, error = function(e) {
     result$warnings <<- c(result$warnings, paste("OCR error:", e$message))
     NULL
   })
+
+  # Extract text from structured result (backward compatible with plain string)
+  ocr_text <- if (is.list(ocr_result)) ocr_result$text else ocr_result
 
   if (is.null(ocr_text) || ocr_text == "") {
     result$warnings <- c(result$warnings, "OCR returned no text")
@@ -159,6 +171,12 @@ process_match_history <- function(image_path, verbose = FALSE) {
   # Save OCR text
   ocr_file <- file.path(RESULTS_DIR, "ocr_text", paste0(name_base, "_match.txt"))
   writeLines(ocr_text, ocr_file)
+
+  # Save annotation data if available
+  if (is.list(ocr_result) && !is.null(ocr_result$annotations) && nrow(ocr_result$annotations) > 0) {
+    ann_file <- file.path(RESULTS_DIR, "ocr_text", paste0(name_base, "_match_annotations.rds"))
+    saveRDS(ocr_result, ann_file)
+  }
 
   # Parse
   parsed <- tryCatch({

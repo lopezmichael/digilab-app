@@ -9,7 +9,7 @@ library(base64enc)
 #' @param image_data Path to local image file OR raw bytes
 #' @param api_key Google Cloud Vision API key
 #' @param verbose Print debug messages
-#' @return Character string of detected text, or NULL on error
+#' @return List with text, annotations (data frame), image_width, image_height; or NULL on error
 gcv_detect_text <- function(image_data, api_key = Sys.getenv("GOOGLE_CLOUD_VISION_API_KEY"), verbose = TRUE) {
   if (verbose) message("[OCR] Starting text detection...")
 
@@ -64,11 +64,101 @@ gcv_detect_text <- function(image_data, api_key = Sys.getenv("GOOGLE_CLOUD_VISIO
     if (is.null(text)) {
       warning("No text detected in image")
       if (verbose) message("[OCR] No text detected in image")
-      return("")
+      return(list(
+        text = "",
+        annotations = data.frame(
+          text = character(),
+          x_min = numeric(),
+          y_min = numeric(),
+          x_max = numeric(),
+          y_max = numeric(),
+          stringsAsFactors = FALSE
+        ),
+        image_width = 0,
+        image_height = 0
+      ))
     }
 
     if (verbose) message("[OCR] Text extracted (", nchar(text), " chars)")
-    return(text)
+
+    # Extract word-level bounding box annotations from textAnnotations
+    text_annotations <- response$responses[[1]]$textAnnotations
+    image_width <- 0
+    image_height <- 0
+    annotations_df <- data.frame(
+      text = character(),
+      x_min = numeric(),
+      y_min = numeric(),
+      x_max = numeric(),
+      y_max = numeric(),
+      stringsAsFactors = FALSE
+    )
+
+    if (!is.null(text_annotations) && length(text_annotations) > 0) {
+      # First element is the full-page annotation - use its bounding box for image dimensions
+      full_page <- text_annotations[[1]]
+      if (!is.null(full_page$boundingPoly) && !is.null(full_page$boundingPoly$vertices)) {
+        fp_vertices <- full_page$boundingPoly$vertices
+        fp_xs <- sapply(fp_vertices, function(v) {
+          if (!is.null(v$x)) v$x else 0
+        })
+        fp_ys <- sapply(fp_vertices, function(v) {
+          if (!is.null(v$y)) v$y else 0
+        })
+        image_width <- max(fp_xs)
+        image_height <- max(fp_ys)
+      }
+
+      if (verbose) message("[OCR] Image dimensions from annotation: ", image_width, "x", image_height)
+
+      # Elements 2..N are individual word annotations
+      if (length(text_annotations) > 1) {
+        word_annotations <- text_annotations[2:length(text_annotations)]
+        ann_texts <- character(length(word_annotations))
+        ann_x_min <- numeric(length(word_annotations))
+        ann_y_min <- numeric(length(word_annotations))
+        ann_x_max <- numeric(length(word_annotations))
+        ann_y_max <- numeric(length(word_annotations))
+
+        for (w in seq_along(word_annotations)) {
+          ann <- word_annotations[[w]]
+          ann_texts[w] <- if (!is.null(ann$description)) ann$description else ""
+
+          if (!is.null(ann$boundingPoly) && !is.null(ann$boundingPoly$vertices)) {
+            vertices <- ann$boundingPoly$vertices
+            xs <- sapply(vertices, function(v) {
+              if (!is.null(v$x)) v$x else 0
+            })
+            ys <- sapply(vertices, function(v) {
+              if (!is.null(v$y)) v$y else 0
+            })
+            ann_x_min[w] <- min(xs)
+            ann_y_min[w] <- min(ys)
+            ann_x_max[w] <- max(xs)
+            ann_y_max[w] <- max(ys)
+          }
+          # else defaults to 0 from numeric() initialization
+        }
+
+        annotations_df <- data.frame(
+          text = ann_texts,
+          x_min = ann_x_min,
+          y_min = ann_y_min,
+          x_max = ann_x_max,
+          y_max = ann_y_max,
+          stringsAsFactors = FALSE
+        )
+
+        if (verbose) message("[OCR] Extracted ", nrow(annotations_df), " word annotations")
+      }
+    }
+
+    return(list(
+      text = text,
+      annotations = annotations_df,
+      image_width = image_width,
+      image_height = image_height
+    ))
   }, error = function(e) {
     warning(paste("OCR API error:", e$message))
     if (verbose) message("[OCR] EXCEPTION: ", e$message)

@@ -61,15 +61,19 @@ test_image <- function(image_path, rounds = 4, verbose = TRUE) {
   message(strrep("=", 60), "\n")
 
   # Step 1: Get raw OCR text
-  ocr_text <- gcv_detect_text(image_path, verbose = verbose)
+  ocr_result <- gcv_detect_text(image_path, verbose = verbose)
 
-  if (is.null(ocr_text)) {
+  if (is.null(ocr_result)) {
     message("\nOCR failed - check API key and image")
     return(NULL)
   }
 
+  # Extract text from structured result (backward compatible with plain string)
+  ocr_text <- if (is.list(ocr_result)) ocr_result$text else ocr_result
+
   # Save globally for easy re-testing
   assign(".last_ocr_text", ocr_text, envir = globalenv())
+  assign(".last_ocr_result", ocr_result, envir = globalenv())
 
   # Save raw OCR text for debugging
   message("\n", strrep("-", 60))
@@ -254,15 +258,19 @@ test_match_history <- function(image_path, verbose = TRUE) {
   message(strrep("=", 60), "\n")
 
   # Step 1: Get raw OCR text
-  ocr_text <- gcv_detect_text(image_path, verbose = verbose)
+  ocr_result <- gcv_detect_text(image_path, verbose = verbose)
 
-  if (is.null(ocr_text)) {
+  if (is.null(ocr_result)) {
     message("\nOCR failed - check API key and image")
     return(NULL)
   }
 
+  # Extract text from structured result (backward compatible with plain string)
+  ocr_text <- if (is.list(ocr_result)) ocr_result$text else ocr_result
+
   # Save globally for easy re-testing
   assign(".last_ocr_text", ocr_text, envir = globalenv())
+  assign(".last_ocr_result", ocr_result, envir = globalenv())
   assign(".last_ocr_type", "match_history", envir = globalenv())
 
   # Save raw OCR text for debugging

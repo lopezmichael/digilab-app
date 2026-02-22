@@ -172,13 +172,16 @@ observeEvent(input$submit_process_ocr, {
     file_name <- files$name[i]
 
     # Call OCR
-    ocr_text <- tryCatch({
+    ocr_result <- tryCatch({
       gcv_detect_text(file_path, verbose = TRUE)
     }, error = function(e) {
       ocr_errors <<- c(ocr_errors, paste(file_name, ":", e$message))
       message("[SUBMIT] OCR error for ", file_name, ": ", e$message)
       NULL
     })
+
+    # Extract text from structured result (backward compatible with plain string)
+    ocr_text <- if (is.list(ocr_result)) ocr_result$text else ocr_result
 
     if (!is.null(ocr_text) && ocr_text != "") {
       ocr_texts <- c(ocr_texts, ocr_text)
@@ -1272,12 +1275,15 @@ observeEvent(input$match_process_ocr, {
   message("[MATCH SUBMIT] File path: ", file$datapath)
 
   # Call OCR
-  ocr_text <- tryCatch({
+  ocr_result <- tryCatch({
     gcv_detect_text(file$datapath, verbose = TRUE)
   }, error = function(e) {
     message("[MATCH SUBMIT] OCR error: ", e$message)
     NULL
   })
+
+  # Extract text from structured result (backward compatible with plain string)
+  ocr_text <- if (is.list(ocr_result)) ocr_result$text else ocr_result
 
   if (is.null(ocr_text) || ocr_text == "") {
     removeModal()
