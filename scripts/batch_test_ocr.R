@@ -5,6 +5,8 @@
 #   source("scripts/batch_test_ocr.R")
 #   batch_test()                    # Process all screenshots, call API
 #   batch_retest()                  # Re-parse saved OCR text (no API)
+#   batch_test_folders()            # Process test folders with expected.csv (calls API)
+#   batch_retest_folders()          # Re-parse saved folder data (no API)
 #   review_flagged()                # Interactively review flagged items
 #
 # Folder structure:
@@ -327,6 +329,448 @@ batch_test <- function(rounds = 4, verbose = FALSE) {
   invisible(summary_df)
 }
 
+#' Compare parsed standings against expected ground truth
+#'
+#' @param parsed Data frame with parsed results (placement, username, member_number, points)
+#' @param expected Data frame from expected.csv (rank, username, member_number, points)
+#' @return List with comparison metrics
+compare_to_expected <- function(parsed, expected) {
+  n_expected <- nrow(expected)
+  rank_correct <- 0
+  username_correct <- 0
+  member_correct <- 0
+  points_correct <- 0
+
+  details <- list()
+
+  for (i in seq_len(n_expected)) {
+    exp_row <- expected[i, ]
+    exp_rank <- exp_row$rank
+
+    # Find matching rank in parsed results
+    match_idx <- which(parsed$placement == exp_rank)
+
+    if (length(match_idx) == 0) {
+      details[[i]] <- list(rank = exp_rank, found = FALSE)
+      next
+    }
+
+    # If multiple rows share the same rank, try to find the best match
+    parsed_match <- parsed[match_idx, , drop = FALSE]
+
+    # Score each candidate
+    best_score <- -1
+    best_row <- parsed_match[1, ]
+    for (j in seq_len(nrow(parsed_match))) {
+      row <- parsed_match[j, ]
+      score <- 0
+      if (tolower(trimws(row$username)) == tolower(trimws(exp_row$username))) score <- score + 1
+      # Strip leading zeros for member number comparison
+      parsed_mem <- gsub("^0+", "", tolower(trimws(row$member_number)))
+      exp_mem <- gsub("^0+", "", tolower(trimws(exp_row$member_number)))
+      if (parsed_mem == exp_mem) score <- score + 1
+      if (score > best_score) {
+        best_score <- score
+        best_row <- row
+      }
+    }
+
+    rank_correct <- rank_correct + 1
+
+    u_match <- tolower(trimws(best_row$username)) == tolower(trimws(exp_row$username))
+    if (u_match) username_correct <- username_correct + 1
+
+    parsed_mem <- gsub("^0+", "", tolower(trimws(best_row$member_number)))
+    exp_mem <- gsub("^0+", "", tolower(trimws(exp_row$member_number)))
+    m_match <- parsed_mem == exp_mem
+    if (m_match) member_correct <- member_correct + 1
+
+    p_match <- as.integer(best_row$points) == as.integer(exp_row$points)
+    if (!is.na(p_match) && p_match) points_correct <- points_correct + 1
+
+    details[[i]] <- list(
+      rank = exp_rank,
+      found = TRUE,
+      username_match = u_match,
+      member_match = m_match,
+      points_match = p_match,
+      expected_username = exp_row$username,
+      parsed_username = best_row$username,
+      expected_member = exp_row$member_number,
+      parsed_member = best_row$member_number,
+      expected_points = exp_row$points,
+      parsed_points = best_row$points
+    )
+  }
+
+  total_checks <- 4 * n_expected
+  total_correct <- rank_correct + username_correct + member_correct + points_correct
+  accuracy <- if (total_checks > 0) (total_correct / total_checks) * 100 else 0
+
+  list(
+    n_expected = n_expected,
+    n_parsed = nrow(parsed),
+    rank_correct = rank_correct,
+    username_correct = username_correct,
+    member_correct = member_correct,
+    points_correct = points_correct,
+    total_correct = total_correct,
+    total_checks = total_checks,
+    accuracy = accuracy,
+    details = details
+  )
+}
+
+#' Merge parsed standings from multiple screenshots
+#'
+#' Combines results, deduplicates by member_number (GUEST by username), sorts by placement.
+#'
+#' @param all_parsed List of data frames from individual screenshots
+#' @return Single merged data frame
+merge_parsed_standings <- function(all_parsed) {
+  merged <- do.call(rbind, all_parsed)
+  if (is.null(merged) || nrow(merged) == 0) return(merged)
+
+  # Dedup: for non-GUEST players, keep first occurrence by member_number
+  # For GUEST players, dedup by username
+  is_guest <- grepl("^GUEST", merged$member_number, ignore.case = TRUE) |
+              is.na(merged$member_number) | merged$member_number == ""
+
+  non_guest <- merged[!is_guest, ]
+  guest <- merged[is_guest, ]
+
+  if (nrow(non_guest) > 0) {
+    non_guest <- non_guest[!duplicated(non_guest$member_number), ]
+  }
+  if (nrow(guest) > 0) {
+    guest <- guest[!duplicated(tolower(guest$username)), ]
+  }
+
+  result <- rbind(non_guest, guest)
+  result <- result[order(result$placement), ]
+  rownames(result) <- NULL
+  result
+}
+
+#' Process all test folders in screenshots/standings/ (calls API)
+#'
+#' Each subfolder represents one tournament. Folder names encode metadata:
+#' Xplayers_Yrounds_Zscreenshots[_notes]
+#'
+#' If an expected.csv exists, results are compared to ground truth.
+#'
+#' @param verbose Print detailed OCR/parse logs
+#' @return Summary data frame (invisible)
+batch_test_folders <- function(verbose = FALSE) {
+  ensure_dirs()
+
+  # Find all subdirectories in standings folder
+  all_items <- list.dirs(STANDINGS_DIR, recursive = FALSE, full.names = TRUE)
+  folders <- all_items[file.info(all_items)$isdir]
+
+  if (length(folders) == 0) {
+    message("No test folders found in ", STANDINGS_DIR)
+    message("Create subfolders with format: Xplayers_Yrounds_Zscreenshots")
+    return(invisible(NULL))
+  }
+
+  message("\n", strrep("=", 60))
+  message("BATCH FOLDER TEST (calling API)")
+  message(strrep("=", 60))
+  message("Test folders found: ", length(folders))
+  message(strrep("=", 60), "\n")
+
+  folder_results <- list()
+
+  for (folder in folders) {
+    folder_name <- basename(folder)
+    images <- get_images(folder)
+
+    if (length(images) == 0) {
+      message("[", folder_name, "] No images found, skipping")
+      next
+    }
+
+    # Parse folder name for metadata
+    parts <- strsplit(folder_name, "_")[[1]]
+    total_players <- as.integer(gsub("[^0-9]", "", parts[1]))
+    total_rounds <- as.integer(gsub("[^0-9]", "", parts[2]))
+
+    message("\n[", folder_name, "] ",
+            length(images), " image(s), ",
+            total_players, " expected players, ",
+            total_rounds, " rounds")
+
+    # Process each image
+    all_parsed <- list()
+    for (img in images) {
+      img_name <- tools::file_path_sans_ext(basename(img))
+
+      ocr_result <- tryCatch({
+        gcv_detect_text(img, verbose = verbose)
+      }, error = function(e) {
+        message("  OCR error on ", basename(img), ": ", e$message)
+        NULL
+      })
+
+      if (is.null(ocr_result)) next
+
+      # Save annotations as .rds
+      ann_file <- file.path(RESULTS_DIR, "ocr_text",
+                            paste0(folder_name, "_", img_name, "_annotations.rds"))
+      saveRDS(ocr_result, ann_file)
+
+      # Save OCR text
+      ocr_text <- if (is.list(ocr_result)) ocr_result$text else ocr_result
+      txt_file <- file.path(RESULTS_DIR, "ocr_text",
+                            paste0(folder_name, "_", img_name, ".txt"))
+      writeLines(ocr_text, txt_file)
+
+      # Parse using orchestrator
+      parsed <- tryCatch({
+        parse_standings(ocr_result, total_rounds = total_rounds, verbose = verbose)
+      }, error = function(e) {
+        message("  Parse error on ", basename(img), ": ", e$message)
+        data.frame()
+      })
+
+      if (nrow(parsed) > 0) {
+        all_parsed[[length(all_parsed) + 1]] <- parsed
+        message("  ", basename(img), ": ", nrow(parsed), " players")
+      } else {
+        message("  ", basename(img), ": 0 players")
+      }
+    }
+
+    # Merge results from multiple screenshots
+    if (length(all_parsed) > 0) {
+      merged <- merge_parsed_standings(all_parsed)
+    } else {
+      merged <- data.frame(
+        placement = integer(), username = character(),
+        member_number = character(), points = integer(),
+        wins = integer(), losses = integer(), ties = integer(),
+        stringsAsFactors = FALSE
+      )
+    }
+
+    # Save merged CSV
+    csv_file <- file.path(RESULTS_DIR, "standings_parsed", paste0(folder_name, ".csv"))
+    if (nrow(merged) > 0) write.csv(merged, csv_file, row.names = FALSE)
+
+    # Compare against expected.csv if it exists
+    expected_file <- file.path(folder, "expected.csv")
+    comparison <- NULL
+    if (file.exists(expected_file)) {
+      expected <- read.csv(expected_file, stringsAsFactors = FALSE)
+      comparison <- compare_to_expected(merged, expected)
+
+      message("  Accuracy: ", sprintf("%.1f%%", comparison$accuracy),
+              " (", comparison$total_correct, "/", comparison$total_checks, ")")
+      message("    Rank: ", comparison$rank_correct, "/", comparison$n_expected,
+              "  Username: ", comparison$username_correct, "/", comparison$n_expected,
+              "  Member#: ", comparison$member_correct, "/", comparison$n_expected,
+              "  Points: ", comparison$points_correct, "/", comparison$n_expected)
+    } else {
+      message("  No expected.csv - skipping comparison")
+    }
+
+    folder_results[[folder_name]] <- list(
+      folder = folder_name,
+      n_images = length(images),
+      expected_players = total_players,
+      total_rounds = total_rounds,
+      n_parsed = nrow(merged),
+      comparison = comparison,
+      merged = merged
+    )
+  }
+
+  # Print overall summary
+  message("\n", strrep("=", 60))
+  message("OVERALL SUMMARY")
+  message(strrep("=", 60))
+
+  total_checks <- 0
+  total_correct <- 0
+  folders_with_expected <- 0
+
+  for (fr in folder_results) {
+    status <- if (!is.null(fr$comparison)) {
+      folders_with_expected <- folders_with_expected + 1
+      total_checks <- total_checks + fr$comparison$total_checks
+      total_correct <- total_correct + fr$comparison$total_correct
+      sprintf("%.1f%% accuracy", fr$comparison$accuracy)
+    } else {
+      "no ground truth"
+    }
+    message(sprintf("  %-50s %s (%d players)", fr$folder, status, fr$n_parsed))
+  }
+
+  if (total_checks > 0) {
+    overall_accuracy <- (total_correct / total_checks) * 100
+    message(sprintf("\nOverall accuracy: %.1f%% (%d/%d) across %d folder(s)",
+                    overall_accuracy, total_correct, total_checks, folders_with_expected))
+  }
+
+  message(strrep("=", 60), "\n")
+
+  invisible(folder_results)
+}
+
+#' Re-run parsing on saved annotation data for test folders (no API calls)
+#'
+#' Uses saved .rds files from previous batch_test_folders() runs.
+#'
+#' @param verbose Print detailed parse logs
+#' @return Summary data frame (invisible)
+batch_retest_folders <- function(verbose = TRUE) {
+  ensure_dirs()
+
+  # Find all subdirectories in standings folder
+  all_items <- list.dirs(STANDINGS_DIR, recursive = FALSE, full.names = TRUE)
+  folders <- all_items[file.info(all_items)$isdir]
+
+  if (length(folders) == 0) {
+    message("No test folders found in ", STANDINGS_DIR)
+    return(invisible(NULL))
+  }
+
+  message("\n", strrep("=", 60))
+  message("BATCH FOLDER RE-TEST (using saved annotations)")
+  message(strrep("=", 60))
+  message("Test folders found: ", length(folders))
+  message(strrep("=", 60), "\n")
+
+  folder_results <- list()
+
+  for (folder in folders) {
+    folder_name <- basename(folder)
+
+    # Parse folder name for metadata
+    parts <- strsplit(folder_name, "_")[[1]]
+    total_players <- as.integer(gsub("[^0-9]", "", parts[1]))
+    total_rounds <- as.integer(gsub("[^0-9]", "", parts[2]))
+
+    # Find saved .rds files for this folder
+    ocr_dir <- file.path(RESULTS_DIR, "ocr_text")
+    rds_pattern <- paste0("^", gsub("([\\[\\]\\(\\)\\.])", "\\\\\\1", folder_name), "_.*_annotations\\.rds$")
+    rds_files <- list.files(ocr_dir, pattern = rds_pattern, full.names = TRUE)
+
+    if (length(rds_files) == 0) {
+      message("[", folder_name, "] No saved .rds files found, skipping")
+      next
+    }
+
+    message("\n[", folder_name, "] ",
+            length(rds_files), " saved file(s), ",
+            total_players, " expected players, ",
+            total_rounds, " rounds")
+
+    # Process each saved result
+    all_parsed <- list()
+    for (rds_file in rds_files) {
+      ocr_result <- tryCatch({
+        readRDS(rds_file)
+      }, error = function(e) {
+        message("  Error loading ", basename(rds_file), ": ", e$message)
+        NULL
+      })
+
+      if (is.null(ocr_result)) next
+
+      # Parse using orchestrator
+      parsed <- tryCatch({
+        parse_standings(ocr_result, total_rounds = total_rounds, verbose = verbose)
+      }, error = function(e) {
+        message("  Parse error on ", basename(rds_file), ": ", e$message)
+        data.frame()
+      })
+
+      if (nrow(parsed) > 0) {
+        all_parsed[[length(all_parsed) + 1]] <- parsed
+        message("  ", basename(rds_file), ": ", nrow(parsed), " players")
+      } else {
+        message("  ", basename(rds_file), ": 0 players")
+      }
+    }
+
+    # Merge results from multiple screenshots
+    if (length(all_parsed) > 0) {
+      merged <- merge_parsed_standings(all_parsed)
+    } else {
+      merged <- data.frame(
+        placement = integer(), username = character(),
+        member_number = character(), points = integer(),
+        wins = integer(), losses = integer(), ties = integer(),
+        stringsAsFactors = FALSE
+      )
+    }
+
+    # Save merged CSV
+    csv_file <- file.path(RESULTS_DIR, "standings_parsed", paste0(folder_name, ".csv"))
+    if (nrow(merged) > 0) write.csv(merged, csv_file, row.names = FALSE)
+
+    # Compare against expected.csv if it exists
+    expected_file <- file.path(folder, "expected.csv")
+    comparison <- NULL
+    if (file.exists(expected_file)) {
+      expected <- read.csv(expected_file, stringsAsFactors = FALSE)
+      comparison <- compare_to_expected(merged, expected)
+
+      message("  Accuracy: ", sprintf("%.1f%%", comparison$accuracy),
+              " (", comparison$total_correct, "/", comparison$total_checks, ")")
+      message("    Rank: ", comparison$rank_correct, "/", comparison$n_expected,
+              "  Username: ", comparison$username_correct, "/", comparison$n_expected,
+              "  Member#: ", comparison$member_correct, "/", comparison$n_expected,
+              "  Points: ", comparison$points_correct, "/", comparison$n_expected)
+    } else {
+      message("  No expected.csv - skipping comparison")
+    }
+
+    folder_results[[folder_name]] <- list(
+      folder = folder_name,
+      n_rds = length(rds_files),
+      expected_players = total_players,
+      total_rounds = total_rounds,
+      n_parsed = nrow(merged),
+      comparison = comparison,
+      merged = merged
+    )
+  }
+
+  # Print overall summary
+  message("\n", strrep("=", 60))
+  message("OVERALL SUMMARY")
+  message(strrep("=", 60))
+
+  total_checks <- 0
+  total_correct <- 0
+  folders_with_expected <- 0
+
+  for (fr in folder_results) {
+    status <- if (!is.null(fr$comparison)) {
+      folders_with_expected <- folders_with_expected + 1
+      total_checks <- total_checks + fr$comparison$total_checks
+      total_correct <- total_correct + fr$comparison$total_correct
+      sprintf("%.1f%% accuracy", fr$comparison$accuracy)
+    } else {
+      "no ground truth"
+    }
+    message(sprintf("  %-50s %s (%d players)", fr$folder, status, fr$n_parsed))
+  }
+
+  if (total_checks > 0) {
+    overall_accuracy <- (total_correct / total_checks) * 100
+    message(sprintf("\nOverall accuracy: %.1f%% (%d/%d) across %d folder(s)",
+                    overall_accuracy, total_correct, total_checks, folders_with_expected))
+  }
+
+  message(strrep("=", 60), "\n")
+
+  invisible(folder_results)
+}
+
 #' Re-run parsing on saved OCR text (no API calls)
 #'
 #' @param rounds Default rounds for standings parsing
@@ -496,10 +940,13 @@ if (interactive()) {
   message(strrep("=", 60))
   message("\nFolder structure:")
   message("  screenshots/standings/      <- Tournament standings screenshots")
+  message("  screenshots/standings/*/    <- Test folders with expected.csv")
   message("  screenshots/match_history/  <- Match history screenshots")
   message("\nCommands:")
-  message("  batch_test()      - Process all screenshots (calls API)")
-  message("  batch_retest()    - Re-parse saved OCR text (no API)")
-  message("  review_flagged()  - Interactively review problem files")
+  message("  batch_test()           - Process all screenshots (calls API)")
+  message("  batch_retest()         - Re-parse saved OCR text (no API)")
+  message("  batch_test_folders()   - Process all test folders (calls API)")
+  message("  batch_retest_folders() - Re-parse saved data (no API)")
+  message("  review_flagged()       - Interactively review problem files")
   message(strrep("=", 60), "\n")
 }
