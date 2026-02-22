@@ -171,10 +171,6 @@ observeEvent(input$submit_process_ocr, {
     file_path <- files$datapath[i]
     file_name <- files$name[i]
 
-    message("[SUBMIT] Processing file ", i, ": ", file_name)
-    message("[SUBMIT] File path: ", file_path)
-    message("[SUBMIT] File exists: ", file.exists(file_path))
-
     # Call OCR
     ocr_text <- tryCatch({
       gcv_detect_text(file_path, verbose = TRUE)
@@ -185,7 +181,7 @@ observeEvent(input$submit_process_ocr, {
     })
 
     if (!is.null(ocr_text) && ocr_text != "") {
-      ocr_texts <- c(ocr_texts, paste0("File ", i, ": ", nchar(ocr_text), " chars"))
+      ocr_texts <- c(ocr_texts, ocr_text)
 
       # Parse results
       parsed <- tryCatch({
@@ -215,12 +211,14 @@ observeEvent(input$submit_process_ocr, {
   removeModal()
 
   if (length(all_results) == 0) {
+    message("[SUBMIT] OCR failed - ocr_errors: ", paste(ocr_errors, collapse = "; "))
+    message("[SUBMIT] OCR failed - ocr_texts: ", paste(ocr_texts, collapse = "; "))
     error_detail <- if (length(ocr_errors) > 0) {
       paste("\n\nDetails:", paste(ocr_errors, collapse = "\n"))
     } else if (length(ocr_texts) > 0) {
-      paste("\n\nOCR extracted text but parsing failed. Check R console for debug output.")
+      "\n\nWe extracted text from the image but couldn't identify player data. Make sure the screenshot shows the final standings with placements and usernames visible."
     } else {
-      "\n\nNo text was extracted. Check that GOOGLE_CLOUD_VISION_API_KEY is set in .env"
+      "\n\nCould not read the screenshots. Make sure the image is clear and shows the Bandai TCG+ standings screen. If this keeps happening, try a different screenshot or contact us."
     }
     notify(
       paste0("Could not extract player data from screenshots.", error_detail),
@@ -1283,7 +1281,7 @@ observeEvent(input$match_process_ocr, {
 
   if (is.null(ocr_text) || ocr_text == "") {
     removeModal()
-    notify("Could not extract text from screenshot. Check that GOOGLE_CLOUD_VISION_API_KEY is set.", type = "error")
+    notify("Could not read the screenshot. Make sure the image is clear and shows the match history screen.", type = "error")
     return()
   }
 

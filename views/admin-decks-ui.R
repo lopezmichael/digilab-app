@@ -44,6 +44,8 @@ admin_decks_ui <- tagList(
           selectInput("deck_secondary_color", "Secondary Color",
                       choices = c("None" = "", "Red", "Blue", "Yellow", "Green", "Purple", "Black", "White")),
           checkboxInput("deck_multi_color", "Multi-color deck (3+ colors)", value = FALSE),
+          div(class = "text-muted small mt-n2 mb-2",
+              "Check for decks with 3+ colors. For dual-color decks, use Primary and Secondary color instead."),
 
           hr(),
 

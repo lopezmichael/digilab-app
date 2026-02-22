@@ -9,6 +9,12 @@ admin_players_ui <- tagList(
                  class = "btn-outline-warning",
                  icon = icon("code-merge"))
   ),
+  div(class = "page-help-text",
+    div(class = "info-hint-box",
+      bsicons::bs_icon("info-circle", class = "info-hint-icon"),
+      "Select a player to edit their display name. Players are created automatically when tournament results are submitted."
+    )
+  ),
   # Scene filter indicator and override toggle for superadmins
   conditionalPanel(
     condition = "output.is_superadmin == true",

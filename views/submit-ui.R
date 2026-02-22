@@ -156,6 +156,15 @@ submit_ui <- tagList(
               )
             ),
 
+            # Player matching explanation
+            div(
+              class = "text-muted small mb-3",
+              bsicons::bs_icon("people", class = "me-1"),
+              "Players are matched by member number first, then by username. ",
+              tags$strong("Matched"), " = existing player in database. ",
+              tags$strong("New"), " = will be created on submit."
+            ),
+
             # Match summary badges - prominent
             uiOutput("submit_match_summary"),
 

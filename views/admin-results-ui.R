@@ -3,6 +3,12 @@
 
 admin_results_ui <- tagList(
   h2("Enter Tournament Results"),
+  div(class = "page-help-text",
+    div(class = "info-hint-box",
+      bsicons::bs_icon("info-circle", class = "info-hint-icon"),
+      "Create a new tournament and enter player results. Use the grid to add placements, player names, records, and deck archetypes."
+    )
+  ),
 
   # Wizard step indicator
   div(
@@ -63,7 +69,10 @@ admin_results_ui <- tagList(
             div(class = "col-md-6",
                 radioButtons("admin_record_format", "Record Format",
                              choices = c("Points" = "points", "W-L-T" = "wlt"),
-                             selected = "points", inline = TRUE))
+                             selected = "points", inline = TRUE),
+                div(class = "text-muted small mt-1",
+                    "Points: Total match points (e.g., from Bandai TCG+ standings). ",
+                    "W-L-T: Individual wins, losses, and ties."))
           ),
           div(
             class = "d-flex justify-content-end mt-3",
@@ -81,6 +90,16 @@ admin_results_ui <- tagList(
       class = "admin-panel",
       # Tournament summary bar
       uiOutput("tournament_summary_bar"),
+
+      # Release event notice (shown/hidden by server based on event type)
+      shinyjs::hidden(
+        div(
+          id = "release_event_deck_notice",
+          class = "alert alert-info d-flex mb-3",
+          bsicons::bs_icon("box-seam", class = "me-2 flex-shrink-0", size = "1.2em"),
+          "Release events use sealed product, so deck archetypes are set to Unknown automatically."
+        )
+      ),
 
       card(
         card_header(

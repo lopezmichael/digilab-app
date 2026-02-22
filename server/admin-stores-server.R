@@ -149,7 +149,7 @@ observeEvent(input$add_store, {
     } else {
       # Build full address for geocoding (physical stores only)
       address_parts <- c(input$store_address, store_city)
-      address_parts <- c(address_parts, if (nchar(input$store_state) > 0) input$store_state else "TX")
+      address_parts <- c(address_parts, if (nchar(input$store_state) > 0) input$store_state else NA_character_)
       if (nchar(input$store_zip) > 0) {
         address_parts <- c(address_parts, input$store_zip)
       }
@@ -171,7 +171,7 @@ observeEvent(input$add_store, {
       # Use NA instead of NULL for DuckDB parameterized queries
       zip_code <- if (nchar(input$store_zip) > 0) input$store_zip else NA_character_
       address <- if (nchar(input$store_address) > 0) input$store_address else NA_character_
-      state <- if (nchar(input$store_state) > 0) input$store_state else "TX"
+      state <- if (nchar(input$store_state) > 0) input$store_state else NA_character_
     }
 
     max_id <- dbGetQuery(rv$db_con, "SELECT COALESCE(MAX(store_id), 0) as max_id FROM stores")$max_id
@@ -488,7 +488,7 @@ observeEvent(input$update_store, {
     } else {
       # Build full address for geocoding
       address_parts <- c(input$store_address, store_city)
-      address_parts <- c(address_parts, if (nchar(input$store_state) > 0) input$store_state else "TX")
+      address_parts <- c(address_parts, if (nchar(input$store_state) > 0) input$store_state else NA_character_)
       if (nchar(input$store_zip) > 0) {
         address_parts <- c(address_parts, input$store_zip)
       }
@@ -512,7 +512,7 @@ observeEvent(input$update_store, {
 
       zip_code <- if (nchar(input$store_zip) > 0) input$store_zip else NA_character_
       address <- if (nchar(input$store_address) > 0) input$store_address else NA_character_
-      state <- if (nchar(input$store_state) > 0) input$store_state else "TX"
+      state <- if (nchar(input$store_state) > 0) input$store_state else NA_character_
       store_city_db <- store_city
     }
 

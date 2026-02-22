@@ -44,7 +44,23 @@ admin_stores_ui <- tagList(
             textInput("store_name", "Store Name"),
             textInput("store_address", "Street Address"),
             textInput("store_city", "City"),
-            selectInput("store_state", "State", choices = c("TX" = "TX"), selected = "TX"),
+            selectInput("store_state", "State",
+              choices = c(
+                "AL" = "AL", "AK" = "AK", "AZ" = "AZ", "AR" = "AR", "CA" = "CA",
+                "CO" = "CO", "CT" = "CT", "DE" = "DE", "DC" = "DC", "FL" = "FL",
+                "GA" = "GA", "HI" = "HI", "ID" = "ID", "IL" = "IL", "IN" = "IN",
+                "IA" = "IA", "KS" = "KS", "KY" = "KY", "LA" = "LA", "ME" = "ME",
+                "MD" = "MD", "MA" = "MA", "MI" = "MI", "MN" = "MN", "MS" = "MS",
+                "MO" = "MO", "MT" = "MT", "NE" = "NE", "NV" = "NV", "NH" = "NH",
+                "NJ" = "NJ", "NM" = "NM", "NY" = "NY", "NC" = "NC", "ND" = "ND",
+                "OH" = "OH", "OK" = "OK", "OR" = "OR", "PA" = "PA", "RI" = "RI",
+                "SC" = "SC", "SD" = "SD", "TN" = "TN", "TX" = "TX", "UT" = "UT",
+                "VT" = "VT", "VA" = "VA", "WA" = "WA", "WV" = "WV", "WI" = "WI",
+                "WY" = "WY"
+              ),
+              selected = "TX",
+              selectize = FALSE
+            ),
             textInput("store_zip", "ZIP Code")
           ),
 
@@ -75,7 +91,7 @@ admin_stores_ui <- tagList(
             condition = "!input.store_is_online",
             div(
               class = "text-muted small mb-2",
-              bsicons::bs_icon("geo-alt"), " Location will be automatically geocoded from address"
+              bsicons::bs_icon("geo-alt"), " Map coordinates will be set automatically from the address"
             )
           ),
 

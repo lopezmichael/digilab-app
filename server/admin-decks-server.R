@@ -373,9 +373,6 @@ observeEvent(input$update_archetype, {
     return()
   }
 
-  # Debug logging
-  message(sprintf("UPDATE archetype: id=%d, name=%s, color=%s", archetype_id, name, primary_color))
-
   tryCatch({
     dbExecute(rv$db_con, "
       UPDATE deck_archetypes
@@ -470,9 +467,6 @@ observeEvent(input$confirm_delete_archetype, {
   req(rv$is_admin, rv$db_con, input$editing_archetype_id)
   archetype_id <- as.integer(input$editing_archetype_id)
 
-  # Debug logging
-  message(sprintf("DELETE archetype triggered: id=%d", archetype_id))
-
   # Re-check for referential integrity before delete
   count <- dbGetQuery(rv$db_con, "
     SELECT COUNT(*) as cnt FROM results WHERE archetype_id = ?
@@ -485,7 +479,6 @@ observeEvent(input$confirm_delete_archetype, {
   }
 
   tryCatch({
-    message(sprintf("Executing DELETE for archetype_id=%d", archetype_id))
     dbExecute(rv$db_con, "DELETE FROM deck_archetypes WHERE archetype_id = ?",
               params = list(archetype_id))
     notify("Archetype deleted", type = "message")
