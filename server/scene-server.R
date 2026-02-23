@@ -104,6 +104,19 @@ observeEvent(input$scene_selector, {
   new_scene <- input$scene_selector
   if (is.null(new_scene)) return()
 
+  # Scene admins cannot switch scenes — force back to their assigned scene
+  if (rv$is_admin && !rv$is_superadmin && !is.null(rv$admin_user) && !is.null(rv$admin_user$scene_id)) {
+    scene_slug <- safe_query(rv$db_con,
+      "SELECT slug FROM scenes WHERE scene_id = ?",
+      params = list(rv$admin_user$scene_id),
+      default = data.frame())
+    if (nrow(scene_slug) > 0 && new_scene != scene_slug$slug[1]) {
+      updateSelectInput(session, "scene_selector", selected = scene_slug$slug[1])
+      notify("Scene admins can only manage their assigned scene", type = "warning")
+      return()
+    }
+  }
+
   # Update reactive value
   rv$current_scene <- new_scene
 
