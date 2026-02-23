@@ -30,6 +30,7 @@ APP_VERSION <- "0.28.0"
 
 # Load modules
 source("R/db_connection.R")
+source("R/admin_grid.R")
 source("R/digimoncard_api.R")
 source("R/ratings.R")
 source("R/geo_utils.R")
