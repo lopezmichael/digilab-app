@@ -77,12 +77,7 @@ submit_ui <- tagList(
                 layout_columns(
                   col_widths = c(4, 4, 2, 2),
                   selectInput("submit_event_type", "Event Type",
-                              choices = c("Select..." = "",
-                                          "Locals" = "locals",
-                                          "Evo Cup" = "evo_cup",
-                                          "Store Championship" = "store_championship",
-                                          "Regional" = "regional",
-                                          "Online" = "online"),
+                              choices = c("Select..." = "", EVENT_TYPES),
                               selectize = FALSE),
                   selectInput("submit_format", "Format",
                               choices = c("Loading..." = ""),
