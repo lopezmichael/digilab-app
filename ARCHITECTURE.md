@@ -2,7 +2,7 @@
 
 Technical reference for the DigiLab codebase. Consult this document before adding new server modules, reactive values, or modifying core patterns.
 
-**Last Updated:** February 2026 (v0.27.0)
+**Last Updated:** February 2026 (v1.0.0)
 
 > **Note:** Always keep this document in sync with code changes. Update when adding new reactive values, server modules, or patterns.
 
@@ -407,6 +407,45 @@ safe_query <- function(con, query, params = NULL, default = NULL) {
 result <- safe_query(rv$db_con, "SELECT * FROM players WHERE id = ?",
                      params = list(player_id),
                      default = data.frame())
+```
+
+### Transaction Safety (v1.0+)
+
+Inside explicit `BEGIN TRANSACTION` / `COMMIT` blocks, use `DBI::dbExecute()` directly — **not** `safe_execute()`. The `safe_execute()` wrapper swallows errors (returns 0), which prevents DuckDB from rolling back the aborted transaction. All subsequent statements fail silently.
+
+```r
+tryCatch({
+  dbExecute(rv$db_con, "BEGIN TRANSACTION")
+
+  # Use DBI::dbExecute() for writes inside transactions
+  DBI::dbExecute(rv$db_con, "INSERT INTO ...", params = list(...))
+  DBI::dbExecute(rv$db_con, "UPDATE ...", params = list(...))
+
+  # safe_query() is fine for SELECT (read-only, no rollback concern)
+  player <- safe_query(rv$db_con, "SELECT ...", params = list(...))
+
+  dbExecute(rv$db_con, "COMMIT")
+}, error = function(e) {
+  tryCatch(dbExecute(rv$db_con, "ROLLBACK"), error = function(re) NULL)
+  if (sentry_enabled) {
+    tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
+  }
+  notify(paste("Error:", e$message), type = "error")
+})
+```
+
+Outside of transactions, `safe_execute()` remains the correct choice — it prevents one failed write from crashing the session.
+
+### Lazy-Loaded Admin UI (v1.0+)
+
+Admin views are lazy-loaded via `renderUI()` after login. Any `observe` block in an admin server module that calls `updateSelectInput()` must include `rv$current_nav` as a reactive dependency. Without it, the update fires before the input exists in the DOM and gets silently dropped.
+
+```r
+observe({
+  rv$current_nav  # Re-fires when user navigates to this tab
+  req(rv$db_con, rv$is_admin)
+  updateSelectInput(session, "my_dropdown", choices = ...)
+})
 ```
 
 ### build_filters_param() Helper (v0.21.1+)

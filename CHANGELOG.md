@@ -33,10 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Extended bindCache**: Added `bindCache()` to Players, Meta, Tournaments, and Stores tab outputs for cross-session caching
 - **Responsive Top Decks & Rising Stars**: Dashboard grids show 4/6/8 items based on screen size (CSS nth-child breakpoints at 1600px/991px/640px)
 - **Rising Stars Top 6**: Expanded from 4 to 6 players (up to 8 on large screens)
-- **"Report an Error" Links**: Discord link in player, meta, tournament, and store modal footers
+- **"Report Error" Buttons**: Styled button in player, meta, tournament, and store modal footers linking to Google Form
 - **Clickable DigiLab Header**: App title navigates back to Dashboard
 - **`next_id()` Helper**: Atomic ID generation replacing `SELECT MAX(id) + 1` pattern
 - **`format_event_type()` Shared Helper**: Centralized event type display formatting (was duplicated 4x)
+- **Browser Credential Saving**: Login, bootstrap, and change password forms wrapped in `<form>` tags with `autocomplete` attributes for browser password managers
+- **iframe Permissions**: Added `clipboard-write` and `geolocation` to iframe `allow` attribute on digilab.cards
 
 ### Changed
 - **Version Badge**: BETA badge replaced with "v1.0" version indicator
@@ -51,11 +53,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 - **Public Submit Server Hardened**: All 28 raw `dbGetQuery`/`dbExecute` calls migrated to `safe_query()`/`safe_execute()` wrappers
-- **Transaction Safety**: Tournament and match history submissions wrapped in `BEGIN TRANSACTION`/`COMMIT`/`ROLLBACK`
+- **Transaction Safety**: Tournament and match history submissions wrapped in `BEGIN TRANSACTION`/`COMMIT`/`ROLLBACK`; write operations inside transactions use `DBI::dbExecute()` directly (not `safe_execute()`) so errors propagate and trigger clean rollback
+- **OCR Sanity Check**: Prevents username numbers (e.g., "Legobuilder96") from inflating player count — caps max_rank when wildly disproportionate to parsed row count
+- **Blank Row Filtering**: Public submission path now filters empty rows before database insert (matches admin path behavior)
 - **ID Race Condition Fix**: Replaced `SELECT MAX(id) + 1` with `next_id()` helper in submit and admin-results servers
 - **XSS Fix**: Scene map popup HTML now uses `htmltools::htmlEscape()` on user-facing names
 
 ### Fixed
+- **Lazy-Loaded Admin Dropdowns**: Added `rv$current_nav` dependency to 4 observe blocks that populate dropdowns in lazy-loaded admin UI — scene assignment, store/format, merge deck, and merge player dropdowns were empty because `updateSelectInput` fired before the input existed in the DOM
+- **Transaction Error Reporting**: Added Sentry reporting and logging to public submission transaction error handler
 - **Agumon SVG Scope Bug**: `agumonSvg` variable was scoped inside `$(document).ready()`, causing `ReferenceError` in disconnect overlay IIFE — hoisted to outer scope
 - **Agumon SVG Color/Size Swap**: `agumon_svg()` sprintf args were in wrong order (`size, size, color` instead of `color, size, size`), putting color value into height attribute
 - **Tournament Modal Store Link**: Removed clickable store name (was navigating away from modal context)

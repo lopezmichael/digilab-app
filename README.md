@@ -4,7 +4,7 @@ A regional tournament tracking application for the Digimon Trading Card Game com
 
 **Live App:** https://digilab.cards/
 
-**Current Version:** v0.24.0
+**Current Version:** v1.0.0
 
 ## Features
 
@@ -13,11 +13,15 @@ A regional tournament tracking application for the Digimon Trading Card Game com
 - **Tournament History**: Track your results, favorite decks, and performance trends
 - **Meta Analysis**: See what decks are winning and their conversion rates
 - **Store Directory**: Interactive map of local game stores with tournament schedules
+- **Scene Filtering**: Pick your region (or Online) and see leaderboards scoped to your area
+- **Installable PWA**: Add DigiLab to your home screen on mobile or desktop
 
 ### For Tournament Organizers
-- **Easy Data Entry**: Submit tournament results via screenshot upload with OCR
+- **Screenshot OCR**: Submit tournament results by uploading Bandai TCG+ standings screenshots (95% accuracy)
+- **Limitless Integration**: Online tournament results sync automatically with deck auto-classification
 - **Tournament Management**: Edit tournaments, results, and player data
 - **Store Management**: Add and manage store information
+- **Per-User Admin Accounts**: Role-based access with super admin and scene admin roles
 
 ### Dashboard & Analytics
 - **Interactive Dashboard**: Value boxes, charts, and tables showing tournament activity
@@ -27,6 +31,7 @@ A regional tournament tracking application for the Digimon Trading Card Game com
 
 ### Design
 - **Digital Digimon Aesthetic**: Custom UI with grid patterns, circuit accents, and cyan glow effects
+- **Agumon Mascot**: Loading spinner, disconnect screen, 404 modals, and empty states
 - **Responsive Design**: Optimized for both desktop and mobile devices
 - **Dark/Light Mode**: Full theme support with consistent styling
 
@@ -202,12 +207,7 @@ python scripts/sync_from_motherduck.py --yes
 
 See [ROADMAP.md](ROADMAP.md) for the full development roadmap.
 
-**Upcoming:**
-- v0.20: Public Submissions & OCR (in progress)
-- v0.21: Deep Linking (shareable URLs)
-- v0.22: User Accounts & Permissions
-- v0.23: Multi-Region & Online Scene support
-- v1.0: Public Launch
+DigiLab v1.0 is now live. See [ROADMAP.md](ROADMAP.md) for post-launch plans including full user accounts, achievement badges, and more.
 
 ## Contributing
 

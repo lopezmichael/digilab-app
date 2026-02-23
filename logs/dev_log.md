@@ -4,6 +4,31 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-02-23: Post-Launch Fixes & Hardening
+
+### OCR Parser "96 Players" Bug
+Player named "Legobuilder96" caused the parser to produce placement=96 in a 7-player tournament. `complete_ocr_processing()` auto-corrected the player count from 7 to 96 and padded 89 blank rows. Fix: sanity check — if `max_rank > 2× parsed_count` AND `max_rank > parsed_count + 8`, it's OCR noise. Cap it instead of inflating.
+
+### Blank Row Submission
+The public submission loop inserted ALL rows including blanks (admin path already filtered them). Added `results <- results[!is.na(results$username) & trimws(results$username) != "", ]` before the submission loop.
+
+### Transaction Cascade Failure
+`safe_execute()` swallows errors and returns 0. Inside a `BEGIN TRANSACTION` block, this is catastrophic — DuckDB marks the transaction as aborted, all subsequent inserts fail silently, and the final COMMIT fails. Fix: use `DBI::dbExecute()` directly inside transactions so errors propagate to the outer `tryCatch()` for clean ROLLBACK. Added Sentry reporting to the error handler.
+
+### Lazy-Loaded Admin Dropdowns
+All admin UI is lazy-loaded via `renderUI()` after login. Four `observe` blocks that call `updateSelectInput()` were firing before the inputs existed in the DOM — the updates were silently dropped. Fix: add `rv$current_nav` as a reactive dependency so the observe re-fires when the user navigates to the tab. Affected: scene assignment, store/format, merge deck, merge player dropdowns.
+
+### iframe Permissions
+Copy Link buttons weren't working on digilab.cards — the iframe was missing `clipboard-write` permission. Also added `geolocation` for the onboarding "Find My Scene" feature. `allow="fullscreen; clipboard-write; geolocation"`.
+
+### Browser Credential Saving
+Login form wasn't triggering "Save password?" prompt because Shiny modals don't use `<form>` tags. Wrapped login, bootstrap, and change password forms in `tags$form` with `autocomplete` attributes (`username`, `current-password`, `new-password`). Also added `onsubmit` handlers so Enter key submits the form.
+
+### Report Error Button
+Changed from plain text Discord link to styled `btn btn-outline-secondary` button linking to Google Form. Updated across all 4 modal footers (player, meta, tournament, store).
+
+---
+
 ## 2026-02-23: v1.0 Performance Optimizations & Launch
 
 ### Context
