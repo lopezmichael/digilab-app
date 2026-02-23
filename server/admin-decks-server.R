@@ -902,7 +902,9 @@ observeEvent(input$show_merge_deck_modal, {
 })
 
 # Update deck dropdowns when modal opens
+# Re-fires on tab navigation (ensures UI exists after lazy-load)
 observe({
+  rv$current_nav
   req(rv$db_con, rv$is_admin)
   # Trigger on modal show or data refresh
   input$show_merge_deck_modal

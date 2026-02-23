@@ -10,7 +10,9 @@ output$editing_admin <- reactive({ !is.null(editing_admin_id()) })
 outputOptions(output, "editing_admin", suspendWhenHidden = FALSE)
 
 # --- Load scene choices for dropdown ---
+# Re-fires when navigating to this tab (ensures UI exists after lazy-load)
 observe({
+  rv$current_nav
   req(rv$db_con, rv$is_superadmin)
   scenes <- safe_query(rv$db_con,
     "SELECT scene_id, display_name FROM scenes

@@ -343,7 +343,9 @@ observeEvent(input$show_merge_modal, {
 })
 
 # Update merge dropdowns when they're shown
+# Re-fires on tab navigation (ensures UI exists after lazy-load)
 observe({
+  rv$current_nav
   req(rv$db_con, rv$is_admin)
   choices <- get_player_choices(rv$db_con)
   updateSelectizeInput(session, "merge_source_player", choices = choices)
