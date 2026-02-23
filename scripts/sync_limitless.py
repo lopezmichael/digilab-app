@@ -520,8 +520,10 @@ def sync_tournament(conn, tournament, organizer_id, store_id, dry_run=False):
         # Resolve player
         player_id = resolve_player(conn, limitless_username, display_name, player_cache)
 
-        # Resolve deck
+        # Resolve deck — default to UNKNOWN if no deck info available
         archetype_id, pending_request_id = resolve_deck(conn, deck_info, deck_map_cache)
+        if archetype_id is None and pending_request_id is None:
+            archetype_id = UNKNOWN_ARCHETYPE_ID
         if pending_request_id:
             deck_requests_created += 1
 
@@ -906,8 +908,10 @@ def repair_tournament(conn, tournament_id, limitless_id):
         # Resolve player
         player_id = resolve_player(conn, limitless_username, display_name, player_cache)
 
-        # Resolve deck
+        # Resolve deck — default to UNKNOWN if no deck info available
         archetype_id, pending_request_id = resolve_deck(conn, deck_info, deck_map_cache)
+        if archetype_id is None and pending_request_id is None:
+            archetype_id = UNKNOWN_ARCHETYPE_ID
         if pending_request_id:
             deck_requests_created += 1
 
