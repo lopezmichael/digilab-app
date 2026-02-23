@@ -912,11 +912,26 @@ render_online_organizers_map <- function() {
     )
   }
 
-  # Convert to sf
-  stores_sf <- st_as_sf(stores_with_coords, coords = c("lng", "lat"), crs = 4326)
+  # Group stores that share the same coordinates into combined markers
+  stores_with_coords$coord_key <- paste(stores_with_coords$lat, stores_with_coords$lng)
+  grouped <- split(stores_with_coords, stores_with_coords$coord_key)
 
-  # Bubble size based on event count
-  stores_sf$bubble_size <- sapply(stores_with_coords$tournament_count, function(cnt) {
+  grouped_rows <- lapply(grouped, function(grp) {
+    data.frame(
+      lat = grp$lat[1],
+      lng = grp$lng[1],
+      tournament_count = sum(grp$tournament_count, na.rm = TRUE),
+      store_count = nrow(grp),
+      stringsAsFactors = FALSE
+    )
+  })
+  grouped_df <- do.call(rbind, grouped_rows)
+
+  # Convert to sf
+  stores_sf <- st_as_sf(grouped_df, coords = c("lng", "lat"), crs = 4326)
+
+  # Bubble size based on total event count at location
+  stores_sf$bubble_size <- sapply(grouped_df$tournament_count, function(cnt) {
     if (is.na(cnt) || cnt == 0) return(8)
     if (cnt < 10) return(12)
     if (cnt < 50) return(16)
@@ -924,23 +939,57 @@ render_online_organizers_map <- function() {
     return(24)
   })
 
-  # Popup content
-  stores_sf$popup <- sapply(1:nrow(stores_sf), function(i) {
-    store <- stores_with_coords[i, ]
-    metrics <- c()
-    if (!is.na(store$country)) metrics <- c(metrics, "Country" = store$country)
-    if (!is.na(store$region) && store$region != "") metrics <- c(metrics, "Region" = store$region)
-    if (store$tournament_count > 0) {
-      metrics <- c(metrics, "Events" = as.character(store$tournament_count))
-      metrics <- c(metrics, "Avg Players" = as.character(store$avg_players))
+  # Popup content — combined for stores sharing a location
+  stores_sf$popup <- sapply(names(grouped), function(key) {
+    grp <- grouped[[key]]
+    if (nrow(grp) == 1) {
+      # Single store — original popup
+      store <- grp[1, ]
+      metrics <- c()
+      if (!is.na(store$country)) metrics <- c(metrics, "Country" = store$country)
+      if (!is.na(store$region) && store$region != "") metrics <- c(metrics, "Region" = store$region)
+      if (store$tournament_count > 0) {
+        metrics <- c(metrics, "Events" = as.character(store$tournament_count))
+        metrics <- c(metrics, "Avg Players" = as.character(store$avg_players))
+      }
+      atom_popup_html_metrics(
+        title = store$name,
+        subtitle = "Online Organizer",
+        metrics = if (length(metrics) > 0) metrics else NULL,
+        theme = "light"
+      )
+    } else {
+      # Multiple stores at same location — combined popup
+      store_sections <- sapply(1:nrow(grp), function(j) {
+        store <- grp[j, ]
+        details <- c()
+        if (store$tournament_count > 0) {
+          details <- c(details, sprintf("%d events", store$tournament_count))
+          details <- c(details, sprintf("%.1f avg players", store$avg_players))
+        }
+        detail_str <- if (length(details) > 0) paste(details, collapse = " &middot; ") else "No events yet"
+        sprintf(
+          '<div style="padding:4px 0;%s">
+            <div style="font-weight:600;font-size:13px;">%s</div>
+            <div style="font-size:11px;opacity:0.7;">%s</div>
+          </div>',
+          if (j < nrow(grp)) "border-bottom:1px solid rgba(0,0,0,0.08);" else "",
+          htmltools::htmlEscape(store$name),
+          detail_str
+        )
+      })
+      country_label <- if (!is.na(grp$country[1])) grp$country[1] else ""
+      sprintf(
+        '<div style="text-align:center;padding:10px 14px;min-width:180px;font-family:system-ui,-apple-system,sans-serif;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;opacity:0.5;margin-bottom:4px;">%s</div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:8px;">%d Online Organizers</div>
+          <div style="text-align:left;">%s</div>
+        </div>',
+        htmltools::htmlEscape(country_label),
+        nrow(grp),
+        paste(store_sections, collapse = "")
+      )
     }
-
-    atom_popup_html_metrics(
-      title = store$name,
-      subtitle = "Online Organizer",
-      metrics = if (length(metrics) > 0) metrics else NULL,
-      theme = "light"
-    )
   })
 
   # Create world map
