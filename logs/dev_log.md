@@ -4,6 +4,29 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-02-23: Enter/Submit Results Parity (ADM2)
+
+### Problem
+The public Upload Results tab (Step 2 review grid) used a completely separate rendering implementation from the admin Enter Results grid. This meant bug fixes and features added to the admin grid (member # column, searchable deck dropdown, paste-from-spreadsheet, blur-based player matching) had to be duplicated. The two grids had drifted in behavior and appearance.
+
+### Solution
+Migrated the public submit review grid to use the shared `R/admin_grid.R` module, adding a `mode` parameter to distinguish entry vs review contexts. Key changes:
+- `render_grid_ui()` now accepts `mode = "entry"` (default, admin) or `mode = "review"` (OCR-populated submit) with `ocr_rows` parameter for CSS highlighting
+- Added `ocr_to_grid_data()` converter to map OCR result format → shared grid format
+- Extracted `complete_ocr_processing()` helper in submit server for OCR validation flow
+- Added OCR quality validation modal (warns if <50% of players parsed and no valid member numbers)
+
+### Key Decisions
+- **Review mode is visual-only**: The `mode = "review"` parameter only adds a CSS class (`ocr-populated`) to rows that came from OCR. All inputs remain editable — the distinction is purely visual so users know which data was machine-extracted.
+- **Paste-from-spreadsheet is admin-only**: Public submitters use OCR screenshots; paste is a power-user admin feature.
+- **Grid-to-OCR sync on submit**: The submission handler syncs edited grid values (including blur-matched player IDs) back to the OCR results data frame before writing to the database, keeping the existing submission logic intact.
+- **No reject buttons**: The old custom grid had inline reject-match buttons. The shared grid uses match status badges instead. Users can clear a name and retype to trigger a new match via blur.
+
+### Result
+~200 lines of custom grid rendering removed from `public-submit-server.R`. Both tabs now share identical grid behavior: member # column, selectize deck search, placement badges, player match badges.
+
+---
+
 ## 2026-02-22: OCR Layout-Aware Parser (REV2)
 
 ### Problem

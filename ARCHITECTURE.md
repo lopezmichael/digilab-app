@@ -129,7 +129,7 @@ Pattern: `selected_{entity}_id` for single selection, `selected_{entity}_ids` fo
 
 ### Admin Grid State
 
-Declared at top of respective server files. Both grids use shared functions from `R/admin_grid.R`.
+Declared at top of respective server files. All three grids use shared functions from `R/admin_grid.R`.
 
 **Enter Results** (prefix: `admin_`, declared in `admin-results-server.R`):
 
@@ -139,6 +139,20 @@ Declared at top of respective server files. Both grids use shared functions from
 | `admin_record_format` | string | "points" or "wlt" |
 | `admin_player_matches` | list | Player match status per row |
 | `admin_deck_request_row` | integer | Row requesting a new deck |
+
+**Upload Results** (prefix: `submit_`, declared in `public-submit-server.R`):
+
+| Name | Type | Description |
+|------|------|-------------|
+| `submit_grid_data` | data.frame | Grid rows for OCR review/edit |
+| `submit_player_matches` | list | Player match status per row |
+| `submit_ocr_row_indices` | integer[] | Row indices populated by OCR (for review mode CSS) |
+| `submit_ocr_results` | data.frame | Raw OCR results (synced from grid on submit) |
+| `submit_refresh_trigger` | integer | Refresh trigger for submit grid re-render |
+| `ocr_pending_combined` | data.frame | Pending OCR results awaiting quality confirmation |
+| `ocr_pending_total_players` | integer | Pending player count for quality check |
+| `ocr_pending_total_rounds` | integer | Pending round count for quality check |
+| `ocr_pending_parsed_count` | integer | Parsed player count for quality check |
 
 **Edit Tournaments** (prefix: `edit_`, declared in `admin-tournaments-server.R`):
 
