@@ -6,7 +6,7 @@ admin_tournaments_ui <- tagList(
   div(class = "page-help-text",
     div(class = "info-hint-box",
       bsicons::bs_icon("info-circle", class = "info-hint-icon"),
-      "Select a tournament from the list to edit details or manage results. Use 'View/Edit Results' to modify individual placements."
+      "Select a tournament from the list to edit details or manage results. Use 'View/Edit Results' to open the results grid for bulk editing."
     )
   ),
   # Scene filter indicator and override toggle for superadmins

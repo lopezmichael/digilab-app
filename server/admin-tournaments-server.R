@@ -202,6 +202,12 @@ observeEvent(input$admin_tournament_list_clicked, {
   shinyjs::show("update_tournament")
   shinyjs::show("delete_tournament")
 
+  # Hide edit grid if switching to a different tournament
+  shinyjs::hide("edit_results_grid_section")
+  rv$edit_grid_data <- NULL
+  rv$edit_player_matches <- list()
+  rv$edit_grid_tournament_id <- NULL
+
   notify(sprintf("Editing: %s - %s", tournament$store_name, tournament$event_date),
                    type = "message", duration = 2)
 })
@@ -291,6 +297,12 @@ observeEvent(input$update_tournament, {
 # Cancel edit tournament
 observeEvent(input$cancel_edit_tournament, {
   reset_tournament_form()
+  # Also hide the edit grid if open
+  shinyjs::hide("edit_results_grid_section")
+  rv$edit_grid_data <- NULL
+  rv$edit_player_matches <- list()
+  rv$edit_deleted_result_ids <- c()
+  rv$edit_grid_tournament_id <- NULL
 })
 
 # Helper function to reset form
@@ -359,9 +371,14 @@ observeEvent(input$confirm_delete_tournament, {
 
     notify("Tournament and results deleted", type = "message")
 
-    # Hide modal and reset form
+    # Hide modal, reset form, and hide edit grid
     removeModal()
     reset_tournament_form()
+    shinyjs::hide("edit_results_grid_section")
+    rv$edit_grid_data <- NULL
+    rv$edit_player_matches <- list()
+    rv$edit_deleted_result_ids <- c()
+    rv$edit_grid_tournament_id <- NULL
 
     # Trigger table refresh (admin + public tables)
     rv$tournament_refresh <- (rv$tournament_refresh %||% 0) + 1
