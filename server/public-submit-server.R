@@ -15,6 +15,9 @@ rv$ocr_pending_combined <- NULL
 rv$ocr_pending_total_players <- NULL
 rv$ocr_pending_total_rounds <- NULL
 rv$ocr_pending_parsed_count <- NULL
+rv$submit_grid_data <- NULL
+rv$submit_player_matches <- list()
+rv$submit_ocr_row_indices <- NULL
 
 # Populate store dropdown
 observe({
@@ -255,6 +258,26 @@ complete_ocr_processing <- function(combined, total_players, total_rounds, parse
   rv$submit_ocr_results <- combined
   rv$submit_parsed_count <- parsed_count
   rv$submit_total_players <- total_players
+
+  # Convert OCR results to shared grid format
+  ocr_rows <- which(nchar(trimws(combined$username)) > 0)
+  rv$submit_grid_data <- ocr_to_grid_data(combined)
+  rv$submit_ocr_row_indices <- ocr_rows
+
+  # Build player matches list for shared grid badges
+  matches_list <- list()
+  for (i in seq_len(nrow(combined))) {
+    if (combined$match_status[i] %in% c("matched", "possible")) {
+      matches_list[[as.character(i)]] <- list(
+        status = "matched",
+        player_id = combined$matched_player_id[i],
+        member_number = if (!is.na(combined$member_number[i])) combined$member_number[i] else ""
+      )
+    } else if (nchar(trimws(combined$username[i])) > 0) {
+      matches_list[[as.character(i)]] <- list(status = "new")
+    }
+  }
+  rv$submit_player_matches <- matches_list
 
   # Switch to step 2
   shinyjs::hide("submit_wizard_step1")
@@ -617,253 +640,97 @@ output$submit_match_summary <- renderUI({
   )
 })
 
-# Helper function for ordinal placement (1st, 2nd, 3rd, etc.)
-ordinal <- function(n) {
-  suffix <- c("th", "st", "nd", "rd", rep("th", 6))
-  if (n %% 100 >= 11 && n %% 100 <= 13) {
-    return(paste0(n, "th"))
-  }
-  return(paste0(n, suffix[(n %% 10) + 1]))
-}
-
-# Helper: sync current input values back into rv$submit_ocr_results
-# Called before mutations (delete row) so user edits survive re-render
-sync_submit_inputs <- function() {
-  results <- rv$submit_ocr_results
-  if (is.null(results) || nrow(results) == 0) return()
-
-  for (i in seq_len(nrow(results))) {
-    # Player name
-    player_val <- input[[paste0("submit_player_", i)]]
-    if (!is.null(player_val)) results$username[i] <- player_val
-
-    # Member number
-    member_val <- input[[paste0("submit_member_", i)]]
-    if (!is.null(member_val)) results$member_number[i] <- member_val
-
-    # Points
-    points_val <- input[[paste0("submit_points_", i)]]
-    if (!is.null(points_val) && !is.na(points_val)) results$points[i] <- as.integer(points_val)
-  }
-
-  rv$submit_ocr_results <- results
-}
-
 # Handle delete row in upload results review
 observeEvent(input$submit_delete_row, {
-  req(rv$submit_ocr_results)
+  req(rv$submit_grid_data)
 
   row_idx <- as.integer(input$submit_delete_row)
-  results <- rv$submit_ocr_results
   total_players <- rv$submit_total_players
-  total_rounds <- input$submit_rounds
 
-  if (is.null(row_idx) || row_idx < 1 || row_idx > nrow(results)) return()
+  if (is.null(row_idx) || row_idx < 1 || row_idx > nrow(rv$submit_grid_data)) return()
 
-  # Sync current input values before mutation
-  sync_submit_inputs()
-  results <- rv$submit_ocr_results
+  # Sync current inputs
+  rv$submit_grid_data <- sync_grid_inputs(input, rv$submit_grid_data, "points", "submit_")
+  grid <- rv$submit_grid_data
 
-  # Remove the row
-  results <- results[-row_idx, ]
+  grid <- grid[-row_idx, ]
 
-  # Pad with blank row at bottom to maintain total_players count
-  if (nrow(results) < total_players) {
+  if (nrow(grid) < total_players) {
     blank_row <- data.frame(
-      placement = nrow(results) + 1,
-      username = "",
-      member_number = "",
-      points = 0,
-      wins = 0,
-      losses = if (!is.null(total_rounds) && !is.na(total_rounds)) total_rounds else 4,
-      ties = 0,
-      deck_id = NA_integer_,
+      placement = nrow(grid) + 1,
+      player_name = "", member_number = "",
+      points = 0L, wins = 0L, losses = 0L, ties = 0L,
+      deck_id = NA_integer_, match_status = "new",
       matched_player_id = NA_integer_,
-      match_status = "new",
-      matched_player_name = NA_character_,
+      matched_member_number = NA_character_,
+      result_id = NA_integer_,
       stringsAsFactors = FALSE
     )
-    results <- rbind(results, blank_row)
+    grid <- rbind(grid, blank_row)
   }
 
-  # Re-assign placements sequentially
-  results$placement <- seq_len(nrow(results))
+  grid$placement <- seq_len(nrow(grid))
 
-  # Update reactive value (triggers re-render)
-  rv$submit_ocr_results <- results
+  # Shift player matches
+  new_matches <- list()
+  for (j in seq_len(nrow(grid))) {
+    old_idx <- if (j < row_idx) j else j + 1
+    if (!is.null(rv$submit_player_matches[[as.character(old_idx)]])) {
+      new_matches[[as.character(j)]] <- rv$submit_player_matches[[as.character(old_idx)]]
+    }
+  }
+  rv$submit_player_matches <- new_matches
+  rv$submit_grid_data <- grid
 
-  notify(
-    paste("Row removed. Players renumbered 1-", nrow(results), ".", sep = ""),
-    type = "message",
-    duration = 3
-  )
+  # Also update OCR results for submission handler
+  rv$submit_ocr_results <- rv$submit_ocr_results[-row_idx, ]
+  if (nrow(rv$submit_ocr_results) > 0) {
+    rv$submit_ocr_results$placement <- seq_len(nrow(rv$submit_ocr_results))
+  }
+
+  notify(paste0("Row removed. Players renumbered 1-", nrow(grid), "."), type = "message", duration = 3)
 })
 
-# Render results table using layout_columns
+# Render results table using shared grid module
 output$submit_results_table <- renderUI({
-  req(rv$submit_ocr_results)
+  req(rv$submit_grid_data)
 
   # Re-render when deck requests change
- rv$submit_refresh_trigger
+  rv$submit_refresh_trigger
 
-  results <- rv$submit_ocr_results
+  grid <- rv$submit_grid_data
+  deck_choices <- build_deck_choices(rv$db_con)
 
-  # Get deck choices
-  decks <- safe_query(rv$db_con, "
-    SELECT archetype_id, archetype_name FROM deck_archetypes
-    WHERE is_active = TRUE
-    ORDER BY archetype_name
-  ", default = data.frame(archetype_id = integer(), archetype_name = character()))
-
-  # Get pending deck requests
-  pending_requests <- safe_query(rv$db_con, "
-    SELECT request_id, deck_name FROM deck_requests
-    WHERE status = 'pending'
-    ORDER BY deck_name
-  ", default = data.frame(request_id = integer(), deck_name = character()))
-
-  # Build deck choices with request option and pending requests
-  deck_choices <- c("Unknown" = "")
-
-  # Add request new deck option at top
-
-  deck_choices <- c(deck_choices, "\U2795 Request new deck..." = "__REQUEST_NEW__")
-
-  # Add pending requests (if any)
-  if (nrow(pending_requests) > 0) {
-    pending_choices <- setNames(
-      paste0("pending_", pending_requests$request_id),
-      paste0("Pending: ", pending_requests$deck_name)
-    )
-    deck_choices <- c(deck_choices, pending_choices)
-  }
-
-  # Add separator and existing decks
-  deck_choices <- c(deck_choices, setNames(decks$archetype_id, decks$archetype_name))
-
-  tagList(
-    # Header row
-    layout_columns(
-      col_widths = c(1, 1, 3, 2, 2, 3),
-      class = "results-header-row",
-      div(""),
-      div("#"),
-      div("Player"),
-      div("Member #"),
-      div("Pts"),
-      div("Deck")
-    ),
-
-    # Data rows
-    lapply(seq_len(nrow(results)), function(i) {
-      row <- results[i, ]
-
-      # Placement class for coloring
-      place_class <- if (row$placement == 1) "place-1st"
-                     else if (row$placement == 2) "place-2nd"
-                     else if (row$placement == 3) "place-3rd"
-                     else ""
-
-      # Match indicator
-      match_indicator <- switch(row$match_status,
-        "matched" = div(
-          class = "player-match-indicator matched",
-          bsicons::bs_icon("check-circle-fill"),
-          span(class = "match-label", "Linked to:"),
-          span(class = "match-name", row$matched_player_name),
-          actionLink(paste0("reject_match_", i),
-                     bsicons::bs_icon("x-circle"),
-                     class = "reject-btn",
-                     title = "Reject match")
-        ),
-        "possible" = div(
-          class = "player-match-indicator possible",
-          bsicons::bs_icon("question-circle-fill"),
-          span(class = "match-label", "Possible:"),
-          span(class = "match-name", row$matched_player_name),
-          actionLink(paste0("reject_match_", i),
-                     bsicons::bs_icon("x-circle"),
-                     class = "reject-btn",
-                     title = "Reject match")
-        ),
-        div(
-          class = "player-match-indicator new",
-          bsicons::bs_icon("person-plus-fill"),
-          span(class = "match-label", "New player")
-        )
-      )
-
-      layout_columns(
-        col_widths = c(1, 1, 3, 2, 2, 3),
-        class = "upload-result-row",
-        # Delete button
-        div(
-          class = "upload-result-delete",
-          htmltools::tags$button(
-            onclick = sprintf("Shiny.setInputValue('submit_delete_row', %d, {priority: 'event'})", i),
-            class = "btn btn-sm btn-outline-danger p-0 result-action-btn",
-            title = "Remove row",
-            shiny::icon("xmark")
-          )
-        ),
-        # Placement + match status
-        div(
-          class = "upload-result-placement",
-          span(class = paste("placement-badge", place_class), ordinal(row$placement)),
-          match_indicator
-        ),
-        # Player name
-        div(
-          textInput(paste0("submit_player_", i), NULL,
-                    value = row$username)
-        ),
-        # Member number
-        div(
-          textInput(paste0("submit_member_", i), NULL,
-                    value = if (!is.na(row$member_number)) row$member_number else "",
-                    placeholder = "0000...")
-        ),
-        # Points
-        div(
-          numericInput(paste0("submit_points_", i), NULL,
-                       value = if (!is.na(row$points)) row$points else 0,
-                       min = 0, max = 99)
-        ),
-        # Deck
-        div(
-          selectInput(paste0("submit_deck_", i), NULL,
-                      choices = deck_choices,
-                      selectize = FALSE)
-        )
-      )
-    })
+  render_grid_ui(
+    grid_data = grid,
+    record_format = "points",
+    is_release = FALSE,
+    deck_choices = deck_choices,
+    player_matches = rv$submit_player_matches,
+    prefix = "submit_",
+    mode = "review",
+    ocr_rows = rv$submit_ocr_row_indices
   )
 })
 
-# Handle reject match buttons
-observe({
-  req(rv$submit_ocr_results)
-  results <- rv$submit_ocr_results
-
-  lapply(seq_len(nrow(results)), function(i) {
-    observeEvent(input[[paste0("reject_match_", i)]], {
-      rv$submit_ocr_results$match_status[i] <- "new"
-      rv$submit_ocr_results$matched_player_id[i] <- NA_integer_
-      rv$submit_ocr_results$matched_player_name[i] <- NA_character_
-      notify(paste("Match rejected - will create as new player"), type = "message")
-    }, ignoreInit = TRUE, once = TRUE)
-  })
+output$submit_filled_count <- renderUI({
+  req(rv$submit_grid_data)
+  grid <- rv$submit_grid_data
+  filled <- sum(nchar(trimws(grid$player_name)) > 0)
+  total <- nrow(grid)
+  span(class = "text-muted small", sprintf("Filled: %d/%d", filled, total))
 })
+
 
 # Track which row triggered the deck request modal
 rv$deck_request_row <- NULL
 
 # Handle deck dropdown selections - detect "Request new deck" option
 observe({
-  req(rv$submit_ocr_results)
-  results <- rv$submit_ocr_results
+  req(rv$submit_grid_data)
+  grid <- rv$submit_grid_data
 
-  lapply(seq_len(nrow(results)), function(i) {
+  lapply(seq_len(nrow(grid)), function(i) {
     observeEvent(input[[paste0("submit_deck_", i)]], {
       if (isTRUE(input[[paste0("submit_deck_", i)]] == "__REQUEST_NEW__")) {
         rv$deck_request_row <- i
@@ -901,7 +768,7 @@ observe({
           easyClose = TRUE
         ))
         # Reset dropdown to Unknown while modal is open
-        updateSelectInput(session, paste0("submit_deck_", i), selected = "")
+        updateSelectizeInput(session, paste0("submit_deck_", i), selected = "")
       }
     }, ignoreInit = TRUE)
   })
@@ -992,8 +859,8 @@ observeEvent(input$deck_request_submit, {
   updated_choices <- c(updated_choices, setNames(as.character(decks$archetype_id), decks$archetype_name))
 
   # Update all deck dropdowns with new choices, preserving existing selections
-  results <- rv$submit_ocr_results
-  for (i in seq_len(nrow(results))) {
+  grid <- rv$submit_grid_data
+  for (i in seq_len(nrow(grid))) {
     current_selection <- input[[paste0("submit_deck_", i)]]
     # For the row that triggered the request, select the new pending deck
     new_selection <- if (i == rv$deck_request_row) {
@@ -1003,9 +870,9 @@ observeEvent(input$deck_request_submit, {
     } else {
       ""
     }
-    updateSelectInput(session, paste0("submit_deck_", i),
-                      choices = updated_choices,
-                      selected = new_selection)
+    updateSelectizeInput(session, paste0("submit_deck_", i),
+                         choices = updated_choices,
+                         selected = new_selection)
   }
 
   notify(
@@ -1047,6 +914,19 @@ observeEvent(input$submit_tournament, {
 
   results <- rv$submit_ocr_results
 
+  # Sync grid inputs back to OCR results for submission
+  if (!is.null(rv$submit_grid_data)) {
+    rv$submit_grid_data <- sync_grid_inputs(input, rv$submit_grid_data, "points", "submit_")
+    grid <- rv$submit_grid_data
+    for (i in seq_len(min(nrow(grid), nrow(results)))) {
+      results$username[i] <- grid$player_name[i]
+      results$member_number[i] <- grid$member_number[i]
+      results$points[i] <- grid$points[i]
+    }
+    rv$submit_ocr_results <- results
+    results <- rv$submit_ocr_results
+  }
+
   # Check for duplicate tournament
   existing <- dbGetQuery(rv$db_con, "
     SELECT tournament_id FROM tournaments
@@ -1086,19 +966,15 @@ observeEvent(input$submit_tournament, {
     for (i in seq_len(nrow(results))) {
       row <- results[i, ]
 
-      # Get edited values
-      username <- input[[paste0("submit_player_", i)]]
-      if (is.null(username) || username == "") username <- row$username
-
-      member_input <- input[[paste0("submit_member_", i)]]
-      member_number <- if (!is.null(member_input) && trimws(member_input) != "") {
-        trimws(member_input)
+      # Get values from synced results (grid sync already applied above)
+      username <- if (!is.null(row$username) && row$username != "") row$username else ""
+      member_number <- if (!is.na(row$member_number) && trimws(row$member_number) != "") {
+        trimws(row$member_number)
       } else {
         NA_character_
       }
 
-      points_input <- input[[paste0("submit_points_", i)]]
-      points <- if (!is.null(points_input) && !is.na(points_input)) as.integer(points_input) else 0
+      points <- if (!is.na(row$points)) as.integer(row$points) else 0L
       wins <- points %/% 3
       ties <- points %% 3
       losses <- max(0, total_rounds - wins - ties)
@@ -1183,6 +1059,9 @@ observeEvent(input$submit_tournament, {
     rv$submit_uploaded_files <- NULL
     rv$submit_parsed_count <- 0
     rv$submit_total_players <- 0
+    rv$submit_grid_data <- NULL
+    rv$submit_player_matches <- list()
+    rv$submit_ocr_row_indices <- NULL
 
     # Switch back to step 1
     shinyjs::hide("submit_wizard_step2")

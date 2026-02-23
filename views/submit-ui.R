@@ -166,7 +166,21 @@ submit_ui <- tagList(
             # Results card
             card(
               class = "mt-3",
-              card_header("Player Results"),
+              card_header(
+                class = "d-flex justify-content-between align-items-center",
+                div(
+                  class = "d-flex align-items-center gap-2",
+                  span("Player Results"),
+                  span(class = "badge bg-info", "Points mode")
+                ),
+                div(
+                  class = "d-flex align-items-center gap-2",
+                  uiOutput("submit_filled_count", inline = TRUE),
+                  actionButton("submit_paste_btn", "Paste from Spreadsheet",
+                               class = "btn-sm btn-outline-primary",
+                               icon = icon("clipboard"))
+                )
+              ),
               card_body(
                 uiOutput("submit_results_table")
               )

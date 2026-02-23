@@ -398,3 +398,25 @@ match_player <- function(name, con) {
     list(status = "new")
   }
 }
+
+# -----------------------------------------------------------------------------
+# ocr_to_grid_data: Convert OCR results data frame to shared grid format
+# Maps column names: username -> player_name, etc.
+# -----------------------------------------------------------------------------
+ocr_to_grid_data <- function(ocr_results) {
+  data.frame(
+    placement = ocr_results$placement,
+    player_name = ocr_results$username,
+    member_number = ifelse(is.na(ocr_results$member_number), "", ocr_results$member_number),
+    points = as.integer(ocr_results$points),
+    wins = as.integer(ocr_results$wins),
+    losses = as.integer(ocr_results$losses),
+    ties = as.integer(ocr_results$ties),
+    deck_id = if ("deck_id" %in% names(ocr_results)) ocr_results$deck_id else rep(NA_integer_, nrow(ocr_results)),
+    match_status = ocr_results$match_status,
+    matched_player_id = ocr_results$matched_player_id,
+    matched_member_number = rep(NA_character_, nrow(ocr_results)),
+    result_id = rep(NA_integer_, nrow(ocr_results)),
+    stringsAsFactors = FALSE
+  )
+}
