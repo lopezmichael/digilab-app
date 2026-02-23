@@ -4313,7 +4313,7 @@
   },
   "files": {
     ".claude/settings.local.json": {
-      "checksum": "3db0bda4b3d1ebdedf72b6e3fd96871e"
+      "checksum": "a11190e361136aec863357e6c4fa228e"
     },
     ".env": {
       "checksum": "75647938b53bd9d90e5e53bc3a85c1dc"
@@ -4328,7 +4328,7 @@
       "checksum": "2209b31b91119dd05fb80ff1a2c13be2"
     },
     ".Rprofile": {
-      "checksum": "69a699bf1a928fe539fe56debc022ae0"
+      "checksum": "00aa45a6e15b90885b2ad5dca5608594"
     },
     ".vscode/settings.json": {
       "checksum": "4aa85c6acde752675b31b354987521ce"
@@ -5356,6 +5356,9 @@
     "screenshots/standings/18players_4rounds_2screenshots_02/IMG_8660.webp": {
       "checksum": "7731e56912fa6ad40846e17f4e26c21b"
     },
+    "screenshots/standings/7players_3rounds_1screenshot_lastplayerhasa96intheirnametoolthoughttherewere96players/Screenshot_20260222-175750_Bandai_TCG_Plus.jpg": {
+      "checksum": "bfb5d13bf8bb080e1a37b2d288dd085e"
+    },
     "screenshots/standings/8players_3rounds_1screenshot/expected.csv": {
       "checksum": "db49eb2c6d576ced470fb25b9981784a"
     },
@@ -5468,16 +5471,16 @@
       "checksum": "6e4257f0526951d0ff9ff73aa3c02a1f"
     },
     "server/public-stores-server.R": {
-      "checksum": "e07c57db5b205492a5bbb2e745612d64"
+      "checksum": "5ee3cf2302ceba357d51004e9fe049af"
     },
     "server/public-submit-server.R": {
-      "checksum": "b6ebe760663565417495febd099a1e35"
+      "checksum": "36aaad66995e7d0f63b8d75cd065928a"
     },
     "server/public-tournaments-server.R": {
       "checksum": "0bdc0946e0d67a142936c79e8c0cd00f"
     },
     "server/scene-server.R": {
-      "checksum": "37dbb6abae69982e91abaeb931f1dbe5"
+      "checksum": "6d1c04028d63453c33c5bf165245e286"
     },
     "server/shared-server.R": {
       "checksum": "9fd5bb7f6d9e122598e0c52618304e44"
@@ -5531,7 +5534,7 @@
       "checksum": "8c165258b031047a29983d7a23e7f430"
     },
     "views/onboarding-modal-ui.R": {
-      "checksum": "4f9b6df985b940ef6b3f3a3f05bae075"
+      "checksum": "b2ecae7f134d2b51881d0f6bf687f82a"
     },
     "views/players-ui.R": {
       "checksum": "16b912352f213fe5c1f389afc1c3c6cc"
@@ -5549,7 +5552,7 @@
       "checksum": "a818f2eb5b2b020f441e192fdc33d998"
     },
     "www/custom.css": {
-      "checksum": "c231c58571f9fb8b4d8beefa39aa01dc"
+      "checksum": "e39e5a12bf02522a8b645ce5ada2ab4f"
     },
     "www/digimon-logo.png": {
       "checksum": "ddca514ef04028bd6ffbea8ec2276db5"
