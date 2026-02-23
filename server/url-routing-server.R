@@ -271,11 +271,20 @@ open_entity_from_url <- function(entity_type, slug = NULL, id = NULL) {
   }
 
   if (is.null(entity_id)) {
-    notify(
-      sprintf("%s not found", tools::toTitleCase(entity_type)),
-      type = "warning",
-      duration = 3
-    )
+    entity_label <- tools::toTitleCase(entity_type)
+    showModal(modalDialog(
+      div(
+        class = "not-found-modal",
+        div(class = "not-found-mascot", agumon_svg(size = "72px", color = "#F7941D")),
+        h4(class = "not-found-title", paste0(entity_label, " Not Found")),
+        p(class = "not-found-message",
+          paste0("The ", tolower(entity_label), " you're looking for doesn't exist or may have been removed."))
+      ),
+      title = NULL,
+      footer = modalButton("Close"),
+      size = "s",
+      easyClose = TRUE
+    ))
     return()
   }
 
