@@ -1495,11 +1495,20 @@ body.bslib-gap-spacing {
 /* Rising Stars Grid */
 .rising-stars-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.75rem;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1600px) {
+  .rising-stars-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .rising-stars-grid > .rising-star-card:nth-child(n+7) {
+    display: none;
+  }
+}
+
+@media (max-width: 991px) {
   .rising-stars-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -1508,6 +1517,9 @@ body.bslib-gap-spacing {
 @media (max-width: 640px) {
   .rising-stars-grid {
     grid-template-columns: 1fr;
+  }
+  .rising-stars-grid > .rising-star-card:nth-child(n+5) {
+    display: none;
   }
 }
 
@@ -3264,8 +3276,17 @@ a:hover, .nav-link:hover {
 
 .top-decks-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 0.75rem;
+}
+
+@media (max-width: 1600px) {
+  .top-decks-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .top-decks-grid > .deck-item:nth-child(n+7) {
+    display: none;
+  }
 }
 
 @media (max-width: 991px) {
@@ -3376,6 +3397,9 @@ a:hover, .nav-link:hover {
 @media (max-width: 640px) {
   .top-decks-grid {
     grid-template-columns: 1fr;
+  }
+  .top-decks-grid > .deck-item:nth-child(n+5) {
+    display: none;
   }
 
   .deck-card-img {

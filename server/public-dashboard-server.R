@@ -602,9 +602,9 @@ output$top_decks_with_images <- renderUI({
     return(digital_empty_state("No tournament data", "// awaiting results", "inbox", mascot = "agumon"))
   }
 
-  # Sort by first places then entries, take top 6
+  # Sort by first places then entries, take top 8
   top_data <- top_data[order(-top_data$first_places, -top_data$entries), ]
-  result <- head(top_data, 6)
+  result <- head(top_data, 8)
 
   # Calculate win rate = 1st places / total tournaments
   result$win_rate <- round(result$first_places / total_tournaments * 100, 1)
@@ -1147,7 +1147,7 @@ output$rising_stars_cards <- renderUI({
       COUNT(CASE WHEN r.placement = 1 THEN 1 END) DESC,
       COUNT(CASE WHEN r.placement <= 3 THEN 1 END) DESC,
       COUNT(*) DESC
-    LIMIT 6
+    LIMIT 8
   "), params = query_params, default = data.frame())
 
   if (nrow(result) == 0) {
