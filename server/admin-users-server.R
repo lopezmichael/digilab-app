@@ -13,7 +13,9 @@ outputOptions(output, "editing_admin", suspendWhenHidden = FALSE)
 observe({
   req(rv$db_con, rv$is_superadmin)
   scenes <- safe_query(rv$db_con,
-    "SELECT scene_id, display_name FROM scenes WHERE slug != 'all' AND is_active = TRUE ORDER BY display_name",
+    "SELECT scene_id, display_name FROM scenes
+     WHERE scene_type IN ('metro', 'online') AND is_active = TRUE
+     ORDER BY display_name",
     default = data.frame())
   if (nrow(scenes) > 0) {
     choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
@@ -117,6 +119,21 @@ observeEvent(input$clear_admin_form_btn, {
   updateSelectInput(session, "admin_scene", selected = "")
   updateReactable("admin_users_table", selected = NA)
   shinyjs::html("admin_form_title", "Add Admin")
+})
+
+# --- Generate Random Password ---
+observeEvent(input$generate_password_btn, {
+  # Generate a 12-character alphanumeric password
+  chars <- c(letters, LETTERS, 0:9)
+  pwd <- paste0(sample(chars, 12, replace = TRUE), collapse = "")
+  # Show it in the password field as plain text so admin can copy it
+  updateTextInput(session, "admin_password", value = pwd)
+  # Temporarily switch to text input so password is visible for copying
+  shinyjs::runjs("
+    var el = document.getElementById('admin_password');
+    if (el) { el.type = 'text'; setTimeout(function(){ el.select(); }, 50); }
+  ")
+  notify("Password generated — copy it now, it won't be shown again", type = "message", duration = 5)
 })
 
 # --- Save Admin (Create or Update) ---
