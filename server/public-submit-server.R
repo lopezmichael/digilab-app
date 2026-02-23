@@ -11,6 +11,10 @@ rv$submit_parsed_count <- 0
 rv$submit_total_players <- 0
 rv$deck_request_row <- NULL
 rv$submit_refresh_trigger <- NULL
+rv$ocr_pending_combined <- NULL
+rv$ocr_pending_total_players <- NULL
+rv$ocr_pending_total_rounds <- NULL
+rv$ocr_pending_parsed_count <- NULL
 
 # Populate store dropdown
 observe({
@@ -117,6 +121,167 @@ output$submit_screenshot_preview <- renderUI({
     })
   )
 })
+
+# Helper: Complete OCR processing after validation
+# Handles rank validation, padding, player matching, and step 2 transition
+complete_ocr_processing <- function(combined, total_players, total_rounds, parsed_count) {
+  # Rank-based validation against declared player count
+  max_rank <- if (nrow(combined) > 0 && any(!is.na(combined$placement))) {
+    max(combined$placement, na.rm = TRUE)
+  } else {
+    0
+  }
+
+  if (max_rank > total_players) {
+    # Screenshots show more players than declared — auto-correct upward
+    message("[SUBMIT] Auto-correcting player count: ", total_players, " -> ", max_rank,
+            " (screenshots show rank ", max_rank, ")")
+    total_players <- max_rank
+  }
+
+  # Enforce exactly total_players rows
+  if (nrow(combined) > total_players) {
+    # Truncate to declared count (keep top N after sort by placement)
+    combined <- combined[1:total_players, ]
+  } else if (nrow(combined) < total_players) {
+    # Pad with blank rows for missing ranks
+    existing_ranks <- combined$placement
+    for (p in seq_len(total_players)) {
+      if (!(p %in% existing_ranks)) {
+        blank_row <- data.frame(
+          placement = p,
+          username = "",
+          member_number = "",
+          points = 0,
+          wins = 0,
+          losses = total_rounds,
+          ties = 0,
+          stringsAsFactors = FALSE
+        )
+        combined <- rbind(combined, blank_row)
+      }
+    }
+  }
+
+  # Re-sort after adding blank rows
+  combined <- combined[order(combined$placement), ]
+
+  # Preserve original ranking before sequential re-assignment
+  combined$original_rank <- combined$placement
+
+  # Re-assign placements sequentially (1 to N) for the review UI
+  combined$placement <- seq_len(nrow(combined))
+
+  # Add deck column
+  combined$deck_id <- NA_integer_
+
+  # Pre-match players against database
+  combined$matched_player_id <- NA_integer_
+  combined$match_status <- "new"  # "matched", "possible", "new"
+  combined$matched_player_name <- NA_character_
+
+  if (!is.null(rv$db_con) && dbIsValid(rv$db_con)) {
+    for (i in seq_len(nrow(combined))) {
+      member_num <- combined$member_number[i]
+      username <- combined$username[i]
+
+      # Check if this is a GUEST ID (not a real member number - used for manually added players)
+      is_guest_id <- !is.null(member_num) && !is.na(member_num) &&
+                     grepl("^GUEST\\d+$", member_num, ignore.case = TRUE)
+
+      # First try to match by member number (skip if GUEST ID - those aren't real)
+      if (!is_guest_id && !is.null(member_num) && !is.na(member_num) && nchar(member_num) > 0) {
+        player_by_member <- safe_query(rv$db_con, "
+          SELECT player_id, display_name FROM players
+          WHERE member_number = ?
+          LIMIT 1
+        ", params = list(member_num))
+
+        if (nrow(player_by_member) > 0) {
+          combined$matched_player_id[i] <- player_by_member$player_id[1]
+          combined$matched_player_name[i] <- player_by_member$display_name[1]
+          combined$match_status[i] <- "matched"
+          next
+        }
+      }
+
+      # GUEST IDs aren't real member numbers — try to find this player by username
+      if (is_guest_id) {
+        combined$member_number[i] <- ""
+
+        # Look up by username to find their real member number
+        if (!is.null(username) && !is.na(username) && nchar(username) > 0) {
+          guest_lookup <- safe_query(rv$db_con, "
+            SELECT player_id, display_name, member_number FROM players
+            WHERE LOWER(display_name) = LOWER(?)
+            LIMIT 1
+          ", params = list(username))
+
+          if (nrow(guest_lookup) > 0) {
+            combined$matched_player_id[i] <- guest_lookup$player_id[1]
+            combined$matched_player_name[i] <- guest_lookup$display_name[1]
+
+            # If the DB has their real member number, pre-fill it
+            if (!is.na(guest_lookup$member_number[1]) && nchar(guest_lookup$member_number[1]) > 0) {
+              combined$member_number[i] <- guest_lookup$member_number[1]
+              combined$match_status[i] <- "matched"
+              message("[SUBMIT] GUEST '", username, "' matched to player with member number: ", guest_lookup$member_number[1])
+            } else {
+              combined$match_status[i] <- "matched"
+              message("[SUBMIT] GUEST '", username, "' matched to existing player (no member number)")
+            }
+            next
+          }
+        }
+      }
+
+      # Try to match by username
+      if (!is.null(username) && !is.na(username) && nchar(username) > 0) {
+        player_by_name <- safe_query(rv$db_con, "
+          SELECT player_id, display_name, member_number FROM players
+          WHERE LOWER(display_name) = LOWER(?)
+          LIMIT 1
+        ", params = list(username))
+
+        if (nrow(player_by_name) > 0) {
+          combined$matched_player_id[i] <- player_by_name$player_id[1]
+          combined$matched_player_name[i] <- player_by_name$display_name[1]
+          combined$match_status[i] <- "possible"
+        }
+      }
+    }
+  }
+
+  rv$submit_ocr_results <- combined
+  rv$submit_parsed_count <- parsed_count
+  rv$submit_total_players <- total_players
+
+  # Switch to step 2
+  shinyjs::hide("submit_wizard_step1")
+  shinyjs::show("submit_wizard_step2")
+  shinyjs::removeClass("submit_step1_indicator", "active")
+  shinyjs::addClass("submit_step2_indicator", "active")
+
+  # Show appropriate notification based on parsed vs expected
+  if (parsed_count == total_players) {
+    notify(
+      paste("All", total_players, "players found"),
+      type = "message"
+    )
+  } else if (parsed_count < total_players) {
+    notify(
+      paste("Parsed", parsed_count, "of", total_players, "players - fill in remaining manually"),
+      type = "warning",
+      duration = 8
+    )
+  } else {
+    notify(
+      paste("Found", parsed_count, "players, showing top", total_players),
+      type = "warning",
+      duration = 8
+    )
+  }
+}
 
 # Process OCR when button clicked
 observeEvent(input$submit_process_ocr, {
@@ -285,162 +450,41 @@ observeEvent(input$submit_process_ocr, {
   # Track how many were parsed from OCR
   parsed_count <- nrow(combined)
 
-  # Rank-based validation against declared player count
-  max_rank <- if (nrow(combined) > 0 && any(!is.na(combined$placement))) {
-    max(combined$placement, na.rm = TRUE)
-  } else {
-    0
+  # Quality validation: warn if very few players found with no valid member numbers
+  has_valid_members <- any(!is.na(combined$member_number) & combined$member_number != "" &
+                           !grepl("^GUEST", combined$member_number, ignore.case = TRUE))
+
+  if (parsed_count < ceiling(total_players * 0.5) && !has_valid_members) {
+    # Store state for "proceed anyway" handler
+    rv$ocr_pending_combined <- combined
+    rv$ocr_pending_total_players <- total_players
+    rv$ocr_pending_total_rounds <- total_rounds
+    rv$ocr_pending_parsed_count <- parsed_count
+
+    showModal(modalDialog(
+      title = tagList(bsicons::bs_icon("exclamation-triangle-fill", class = "text-warning me-2"),
+                      "Low Confidence Results"),
+      div(
+        p(sprintf("Only %d of %d expected players could be read from the screenshot(s).",
+                  parsed_count, total_players)),
+        p("This might mean:"),
+        tags$ul(
+          tags$li("The screenshot doesn't show Bandai TCG+ standings"),
+          tags$li("The image is too blurry or cropped"),
+          tags$li("The standings span multiple pages (upload all screenshots)")
+        ),
+        p("You can proceed and fill in the rest manually, or go back and try different screenshots.")
+      ),
+      footer = tagList(
+        actionButton("ocr_proceed_anyway", "Proceed Anyway", class = "btn-warning"),
+        actionButton("ocr_reupload", "Re-upload Screenshots", class = "btn-primary")
+      ),
+      easyClose = FALSE
+    ))
+    return()
   }
 
-  if (max_rank > total_players) {
-    # Screenshots show more players than declared — auto-correct upward
-    message("[SUBMIT] Auto-correcting player count: ", total_players, " -> ", max_rank,
-            " (screenshots show rank ", max_rank, ")")
-    total_players <- max_rank
-  }
-
-  # Enforce exactly total_players rows
-  if (nrow(combined) > total_players) {
-    # Truncate to declared count (keep top N after sort by placement)
-    combined <- combined[1:total_players, ]
-  } else if (nrow(combined) < total_players) {
-    # Pad with blank rows for missing ranks
-    existing_ranks <- combined$placement
-    for (p in seq_len(total_players)) {
-      if (!(p %in% existing_ranks)) {
-        blank_row <- data.frame(
-          placement = p,
-          username = "",
-          member_number = "",
-          points = 0,
-          wins = 0,
-          losses = total_rounds,
-          ties = 0,
-          stringsAsFactors = FALSE
-        )
-        combined <- rbind(combined, blank_row)
-      }
-    }
-  }
-
-  # Re-sort after adding blank rows
-  combined <- combined[order(combined$placement), ]
-
-  # Preserve original ranking before sequential re-assignment
-  combined$original_rank <- combined$placement
-
-  # Re-assign placements sequentially (1 to N) for the review UI
-  combined$placement <- seq_len(nrow(combined))
-
-  # Add deck column
-  combined$deck_id <- NA_integer_
-
-  # Pre-match players against database
-  combined$matched_player_id <- NA_integer_
-  combined$match_status <- "new"  # "matched", "possible", "new"
-  combined$matched_player_name <- NA_character_
-
-  if (!is.null(rv$db_con) && dbIsValid(rv$db_con)) {
-    for (i in seq_len(nrow(combined))) {
-      member_num <- combined$member_number[i]
-      username <- combined$username[i]
-
-      # Check if this is a GUEST ID (not a real member number - used for manually added players)
-      is_guest_id <- !is.null(member_num) && !is.na(member_num) &&
-                     grepl("^GUEST\\d+$", member_num, ignore.case = TRUE)
-
-      # First try to match by member number (skip if GUEST ID - those aren't real)
-      if (!is_guest_id && !is.null(member_num) && !is.na(member_num) && nchar(member_num) > 0) {
-        player_by_member <- safe_query(rv$db_con, "
-          SELECT player_id, display_name FROM players
-          WHERE member_number = ?
-          LIMIT 1
-        ", params = list(member_num))
-
-        if (nrow(player_by_member) > 0) {
-          combined$matched_player_id[i] <- player_by_member$player_id[1]
-          combined$matched_player_name[i] <- player_by_member$display_name[1]
-          combined$match_status[i] <- "matched"
-          next
-        }
-      }
-
-      # GUEST IDs aren't real member numbers — try to find this player by username
-      if (is_guest_id) {
-        combined$member_number[i] <- ""
-
-        # Look up by username to find their real member number
-        if (!is.null(username) && !is.na(username) && nchar(username) > 0) {
-          guest_lookup <- safe_query(rv$db_con, "
-            SELECT player_id, display_name, member_number FROM players
-            WHERE LOWER(display_name) = LOWER(?)
-            LIMIT 1
-          ", params = list(username))
-
-          if (nrow(guest_lookup) > 0) {
-            combined$matched_player_id[i] <- guest_lookup$player_id[1]
-            combined$matched_player_name[i] <- guest_lookup$display_name[1]
-
-            # If the DB has their real member number, pre-fill it
-            if (!is.na(guest_lookup$member_number[1]) && nchar(guest_lookup$member_number[1]) > 0) {
-              combined$member_number[i] <- guest_lookup$member_number[1]
-              combined$match_status[i] <- "matched"
-              message("[SUBMIT] GUEST '", username, "' matched to player with member number: ", guest_lookup$member_number[1])
-            } else {
-              combined$match_status[i] <- "matched"
-              message("[SUBMIT] GUEST '", username, "' matched to existing player (no member number)")
-            }
-            next
-          }
-        }
-      }
-
-      # Try to match by username
-      if (!is.null(username) && !is.na(username) && nchar(username) > 0) {
-        player_by_name <- safe_query(rv$db_con, "
-          SELECT player_id, display_name, member_number FROM players
-          WHERE LOWER(display_name) = LOWER(?)
-          LIMIT 1
-        ", params = list(username))
-
-        if (nrow(player_by_name) > 0) {
-          combined$matched_player_id[i] <- player_by_name$player_id[1]
-          combined$matched_player_name[i] <- player_by_name$display_name[1]
-          combined$match_status[i] <- "possible"
-        }
-      }
-    }
-  }
-
-  rv$submit_ocr_results <- combined
-  rv$submit_parsed_count <- parsed_count
-  rv$submit_total_players <- total_players
-
-  # Switch to step 2
-  shinyjs::hide("submit_wizard_step1")
-  shinyjs::show("submit_wizard_step2")
-  shinyjs::removeClass("submit_step1_indicator", "active")
-  shinyjs::addClass("submit_step2_indicator", "active")
-
-  # Show appropriate notification based on parsed vs expected
-  if (parsed_count == total_players) {
-    notify(
-      paste("All", total_players, "players found"),
-      type = "message"
-    )
-  } else if (parsed_count < total_players) {
-    notify(
-      paste("Parsed", parsed_count, "of", total_players, "players - fill in remaining manually"),
-      type = "warning",
-      duration = 8
-    )
-  } else {
-    notify(
-      paste("Found", parsed_count, "players, showing top", total_players),
-      type = "warning",
-      duration = 8
-    )
-  }
+  complete_ocr_processing(combined, total_players, total_rounds, parsed_count)
 })
 
 # Back button - return to step 1
@@ -449,6 +493,35 @@ observeEvent(input$submit_back, {
   shinyjs::show("submit_wizard_step1")
   shinyjs::removeClass("submit_step2_indicator", "active")
   shinyjs::addClass("submit_step1_indicator", "active")
+})
+
+# Handle "Proceed Anyway" from OCR quality warning
+observeEvent(input$ocr_proceed_anyway, {
+  removeModal()
+  combined <- rv$ocr_pending_combined
+  total_players <- rv$ocr_pending_total_players
+  total_rounds <- rv$ocr_pending_total_rounds
+  parsed_count <- rv$ocr_pending_parsed_count
+
+  # Clear pending state
+  rv$ocr_pending_combined <- NULL
+  rv$ocr_pending_total_players <- NULL
+  rv$ocr_pending_total_rounds <- NULL
+  rv$ocr_pending_parsed_count <- NULL
+
+  if (!is.null(combined)) {
+    complete_ocr_processing(combined, total_players, total_rounds, parsed_count)
+  }
+})
+
+# Handle "Re-upload" from OCR quality warning
+observeEvent(input$ocr_reupload, {
+  removeModal()
+  rv$ocr_pending_combined <- NULL
+  rv$ocr_pending_total_players <- NULL
+  rv$ocr_pending_total_rounds <- NULL
+  rv$ocr_pending_parsed_count <- NULL
+  # User stays on step 1 - they can upload new screenshots
 })
 
 # Render summary banner
