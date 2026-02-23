@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] - Mascot, Branding & Mobile Polish
 
 ### Added
+- **Enter/Submit Results Parity (ADM2)**: Migrated public Upload Results review grid to shared grid module from Enter Results
+  - Member # column in shared grid (visible in both admin and public flows)
+  - Searchable selectize deck dropdown replaces static select in both tabs
+  - OCR quality validation with warning modal (proceed anyway / re-upload)
+  - Blur-based player matching on public submit review grid
+  - Entry vs review mode CSS for OCR-populated rows (subtle blue highlight)
+  - Format and event type shown in both summary bars
+  - Event types synced to shared `EVENT_TYPES` constant
+  - Admin form validation (event type, format) and field reset after submit
 - **Agumon Loading Spinner (DM9)**: Agumon SVG centered inside the circular loading gate animation with `gate-agumon-pulse` scale/opacity animation
 - **Agumon Disconnect Overlay (DM3)**: Agumon SVG in the "Connection Lost" reconnect screen with `disconnect-agumon` bounce animation
 - **Agumon 404 Not Found (DM7)**: Bad deep link URLs now show a modal with Agumon mascot, entity-specific title, and descriptive message instead of a toast notification

@@ -13,10 +13,8 @@ This document outlines the planned features, improvements, and bug fixes for the
 | ID | Type | Status | Description |
 |----|------|--------|-------------|
 | MOB1 | REVIEW | ✅ Done | Full mobile UX audit — layout breakpoints, column hiding, tap targets, value box fonts |
-| MOB2 | UX | | Mobile table improvements — responsive columns, horizontal scroll UX, touch-friendly rows |
-| MOB3 | UX | | Mobile submit results review — camera upload flow, form layout on small screens |
-| ADM1 | UX | | Edit tournaments flow — reuse grid entry, paste-from-spreadsheet, and player matching from Enter Results |
-| ADM2 | REVIEW | | Enter Results & Submit Results tabs UX review — audit flow after OCR improvements |
+| ADM1 | UX | ✅ Done | Edit tournaments flow — reuse grid entry, paste-from-spreadsheet, and player matching from Enter Results |
+| ADM2 | REVIEW | ✅ Done | Enter Results & Submit Results tabs UX review — shared grid migration, OCR validation, parity polish |
 | DM3 | UI | ✅ Done | Agumon in disconnect overlay — bounce animation in reconnect UI |
 | DM9 | UI | ✅ Done | Agumon in loading spinner — centered inside the circular loading gate |
 | DM7 | UI | ✅ Done | Agumon 404/not found state — modal with mascot for bad deep link URLs |
@@ -87,6 +85,8 @@ Items for future consideration, not scheduled:
 
 | ID | Type | Description | Notes |
 |----|------|-------------|-------|
+| MOB2 | UX | Mobile table improvements | Responsive columns, horizontal scroll UX, touch-friendly rows |
+| MOB3 | UX | Mobile submit results review | Camera upload flow, form layout on small screens |
 | FD1 | IMPROVEMENT | Smart format default | Default to current format group instead of "All Formats" |
 | W2 | FEATURE | Methodology pages | Simple rating overview + detailed formula breakdown |
 | W3 | FEATURE | Weekly Meta Report page | Auto-generated from tournament data |
@@ -156,6 +156,9 @@ The React PoC on `explore/react-rewrite` branch serves as a reference for future
 - Agumon mascot: loading spinner (DM9), disconnect overlay (DM3), 404 not-found modal (DM7)
 - Digivice branding: logo/icon refresh (DM10), OG image with watermark (DM11)
 - Mobile UX audit (MOB1): admin layout breakpoints, column hiding, tap targets, value box fonts, admin-results col-md fixes
+- Edit tournaments grid (ADM1): shared grid module, step-transition UX, paste-from-spreadsheet, inline player matching, update/insert/delete diff save
+- Enter/Submit Results parity (ADM2): migrated public submit to shared grid, member # column, selectize deck dropdown, OCR quality validation, blur player matching, summary bar format, admin validation + form reset
+- Security audit: parameterized all SQL queries with user-controllable values (scene filters, search terms)
 
 ### v0.29.0 - Admin Auth & Automation
 - Per-user admin accounts: `admin_users` table with bcrypt password hashing, role (super_admin / scene_admin), scene assignment
