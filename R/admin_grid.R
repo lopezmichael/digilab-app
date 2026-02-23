@@ -123,7 +123,7 @@ sync_grid_inputs <- function(input, grid_data, record_format, prefix) {
 # Returns: tagList with optional release notice, header row, and data rows
 # -----------------------------------------------------------------------------
 render_grid_ui <- function(grid_data, record_format, is_release, deck_choices,
-                           player_matches, prefix) {
+                           player_matches, prefix, mode = "entry", ocr_rows = NULL) {
   # Column widths depend on format and release event
   if (is_release) {
     if (record_format == "points") {
@@ -171,6 +171,14 @@ render_grid_ui <- function(grid_data, record_format, is_release, deck_choices,
   rows <- lapply(seq_len(nrow(grid_data)), function(i) {
     row <- grid_data[i, ]
     place_class <- if (i == 1) "place-1st" else if (i == 2) "place-2nd" else if (i == 3) "place-3rd" else ""
+
+    # Row CSS class — add ocr-populated for review mode
+    row_class <- "upload-result-row"
+    if (mode == "review" && !is.null(ocr_rows) && i %in% ocr_rows) {
+      row_class <- "upload-result-row grid-row ocr-populated"
+    } else if (mode == "review") {
+      row_class <- "upload-result-row grid-row"
+    }
 
     # Player match badge
     match_info <- player_matches[[as.character(i)]]
@@ -229,13 +237,13 @@ render_grid_ui <- function(grid_data, record_format, is_release, deck_choices,
     if (is_release) {
       if (record_format == "points") {
         pts_col <- div(numericInput(paste0(prefix, "pts_", i), NULL, value = row$points, min = 0, max = 99))
-        layout_columns(col_widths = col_widths, class = "upload-result-row",
+        layout_columns(col_widths = col_widths, class = row_class,
                        delete_btn, placement_col, player_col, member_col, pts_col)
       } else {
         w_col <- div(numericInput(paste0(prefix, "w_", i), NULL, value = row$wins, min = 0))
         l_col <- div(numericInput(paste0(prefix, "l_", i), NULL, value = row$losses, min = 0))
         t_col <- div(numericInput(paste0(prefix, "t_", i), NULL, value = row$ties, min = 0))
-        layout_columns(col_widths = col_widths, class = "upload-result-row",
+        layout_columns(col_widths = col_widths, class = row_class,
                        delete_btn, placement_col, player_col, member_col, w_col, l_col, t_col)
       }
     } else {
@@ -248,13 +256,13 @@ render_grid_ui <- function(grid_data, record_format, is_release, deck_choices,
 
       if (record_format == "points") {
         pts_col <- div(numericInput(paste0(prefix, "pts_", i), NULL, value = row$points, min = 0, max = 99))
-        layout_columns(col_widths = col_widths, class = "upload-result-row",
+        layout_columns(col_widths = col_widths, class = row_class,
                        delete_btn, placement_col, player_col, member_col, pts_col, deck_col)
       } else {
         w_col <- div(numericInput(paste0(prefix, "w_", i), NULL, value = row$wins, min = 0))
         l_col <- div(numericInput(paste0(prefix, "l_", i), NULL, value = row$losses, min = 0))
         t_col <- div(numericInput(paste0(prefix, "t_", i), NULL, value = row$ties, min = 0))
-        layout_columns(col_widths = col_widths, class = "upload-result-row",
+        layout_columns(col_widths = col_widths, class = row_class,
                        delete_btn, placement_col, player_col, member_col, w_col, l_col, t_col, deck_col)
       }
     }

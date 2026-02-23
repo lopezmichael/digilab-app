@@ -5790,6 +5790,14 @@ select,
   border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
+/* Review mode: OCR-populated rows have subtle background */
+.grid-row.ocr-populated input,
+.grid-row.ocr-populated select,
+.grid-row.ocr-populated .selectize-input {
+  background-color: rgba(var(--bs-info-rgb), 0.05);
+  border-color: rgba(var(--bs-info-rgb), 0.2);
+}
+
 [data-bs-theme="dark"] .results-header-row {
   color: rgba(255, 255, 255, 0.6);
   border-bottom-color: rgba(34, 211, 238, 0.2);
