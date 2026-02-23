@@ -97,6 +97,20 @@ observeEvent(input$create_tournament, {
     return()
   }
 
+  # Event type validation
+  if (is.null(event_type) || nchar(trimws(event_type)) == 0) {
+    show_field_error(session, "tournament_type")
+    notify("Please select an event type", type = "error")
+    return()
+  }
+
+  # Format validation
+  if (is.null(format) || nchar(trimws(format)) == 0) {
+    show_field_error(session, "tournament_format")
+    notify("Please select a format", type = "error")
+    return()
+  }
+
   # Check for duplicate tournament (same store and date)
   existing <- dbGetQuery(rv$db_con, "
     SELECT t.tournament_id, t.player_count, t.event_type,
@@ -811,6 +825,15 @@ observeEvent(input$admin_submit_results, {
     rv$current_results <- data.frame()
     rv$admin_grid_data <- NULL
     rv$admin_player_matches <- list()
+
+    # Clear Step 1 form fields
+    updateSelectInput(session, "tournament_store", selected = "")
+    updateDateInput(session, "tournament_date", value = NA)
+    updateSelectInput(session, "tournament_type", selected = "")
+    updateSelectInput(session, "tournament_format", selected = "")
+    updateNumericInput(session, "tournament_players", value = 8)
+    updateNumericInput(session, "tournament_rounds", value = 3)
+    updateRadioButtons(session, "admin_record_format", selected = "points")
 
   }, error = function(e) {
     notify(paste("Error submitting results:", e$message), type = "error")
