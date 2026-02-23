@@ -452,6 +452,19 @@ def sync_tournament(conn, tournament, organizer_id, store_id, dry_run=False):
             "dry_run": True,
         }
 
+    # Fetch standings before inserting tournament (to check deck coverage)
+    print("      Fetching standings...", end=" ", flush=True)
+    standings = fetch_tournament_standings(limitless_id)
+    print(f"got {len(standings)}")
+
+    # Check deck coverage — skip tournaments where top 3 have no deck data
+    if standings:
+        top_3 = [s for s in standings if s.get("placing") and s["placing"] <= 3]
+        top_3_with_deck = sum(1 for s in top_3 if s.get("deck") and s["deck"].get("id"))
+        if top_3 and top_3_with_deck == 0:
+            print(f"      SKIPPED: No deck data for top 3 players (tournament doesn't track decks)")
+            return None
+
     # Insert tournament
     next_tournament_id = conn.execute(
         "SELECT COALESCE(MAX(tournament_id), 0) + 1 FROM tournaments"
@@ -474,11 +487,6 @@ def sync_tournament(conn, tournament, organizer_id, store_id, dry_run=False):
     ])
 
     print(f"      Inserted tournament_id={next_tournament_id}")
-
-    # Process standings
-    print("      Fetching standings...", end=" ", flush=True)
-    standings = fetch_tournament_standings(limitless_id)
-    print(f"got {len(standings)}")
 
     player_cache = {}  # limitless_username -> player_id
     deck_map_cache = {}  # limitless_deck_id -> archetype_id or None
