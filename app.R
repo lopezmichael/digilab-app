@@ -17,6 +17,7 @@ library(atomtemplates)
 library(mapgl)
 library(sf)
 library(highcharter)
+library(bcrypt)
 
 # Removed after audit (unused or optional atomtemplates dependencies):
 # - tidygeocoder: Not used (custom Mapbox geocoding in admin-stores-server.R)
@@ -326,19 +327,6 @@ admin_empty_state <- function(title = "No records found",
 # =============================================================================
 # Configuration
 # =============================================================================
-
-# Admin password - MUST be set via environment variable
-ADMIN_PASSWORD <- Sys.getenv("ADMIN_PASSWORD")
-if (ADMIN_PASSWORD == "") {
-  warning("ADMIN_PASSWORD environment variable not set - admin login disabled")
-  ADMIN_PASSWORD <- NULL
-}
-
-# Super admin password - optional, grants access to Edit Stores and Edit Formats
-SUPERADMIN_PASSWORD <- Sys.getenv("SUPERADMIN_PASSWORD")
-if (SUPERADMIN_PASSWORD == "") {
-  SUPERADMIN_PASSWORD <- NULL
-}
 
 # Event type choices
 EVENT_TYPES <- c(
@@ -915,6 +903,8 @@ server <- function(input, output, session) {
     db_con = NULL,
     is_admin = FALSE,
     is_superadmin = FALSE,
+    admin_user = NULL,          # List: user_id, username, display_name, role, scene_id
+    needs_bootstrap = FALSE,    # TRUE when admin_users table is empty
 
     # === NAVIGATION ===
     current_nav = "dashboard",
