@@ -285,7 +285,7 @@ output$store_list <- renderReactable({
       store_id = colDef(show = FALSE)
     )
   )
-})
+}) |> bindCache(rv$current_scene, rv$community_filter, rv$data_refresh)
 
 # Store cards view (replaces table for both physical and online)
 output$stores_cards_content <- renderUI({
@@ -321,7 +321,7 @@ output$stores_cards_content <- renderUI({
   }
 
   render_store_cards(stores, is_online = FALSE)
-})
+}) |> bindCache(rv$current_scene, rv$community_filter, rv$data_refresh)
 
 # Helper: Render store cards grid
 render_store_cards <- function(stores, is_online = FALSE) {
@@ -817,7 +817,7 @@ output$online_stores_section <- renderUI({
       )
     )
   )
-})
+}) |> bindCache(rv$current_scene, rv$data_refresh)
 
 # Reactive: All stores data with activity metrics (for filtering and map)
 stores_data <- reactive({
@@ -1071,4 +1071,4 @@ output$stores_map <- renderMapboxgl({
     mapgl::fit_bounds(stores_sf, padding = 50)
 
   map
-})
+}) |> bindCache(rv$current_scene, rv$community_filter, input$dark_mode, rv$data_refresh)

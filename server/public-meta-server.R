@@ -106,7 +106,14 @@ output$archetype_stats <- renderReactable({
       `Win %` = colDef(minWidth = 60, align = "center")
     )
   )
-})
+}) |> bindCache(
+  input$meta_format,
+  meta_search_debounced(),
+  input$meta_min_entries,
+  rv$current_scene,
+  rv$community_filter,
+  rv$data_refresh
+)
 
 # Handle archetype row click - open detail modal
 observeEvent(input$archetype_clicked, {

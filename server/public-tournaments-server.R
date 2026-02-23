@@ -118,7 +118,14 @@ output$tournament_history <- renderReactable({
       `Winning Deck` = colDef(minWidth = 120)
     )
   )
-})
+}) |> bindCache(
+  input$tournaments_format,
+  input$tournaments_event_type,
+  tournaments_search_debounced(),
+  rv$current_scene,
+  rv$community_filter,
+  rv$data_refresh
+)
 
 # Handle tournament row click - open detail modal
 observeEvent(input$tournament_clicked, {

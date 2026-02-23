@@ -269,7 +269,14 @@ output$player_standings <- renderReactable({
       )
     )
   )
-})
+}) |> bindCache(
+  input$players_format,
+  players_search_debounced(),
+  input$players_min_events,
+  rv$current_scene,
+  rv$community_filter,
+  rv$data_refresh
+)
 
 # Handle player row click - open detail modal
 observeEvent(input$player_clicked, {
