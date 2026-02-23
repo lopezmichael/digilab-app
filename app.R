@@ -377,14 +377,6 @@ source("views/players-ui.R", local = TRUE)
 source("views/meta-ui.R", local = TRUE)
 source("views/tournaments-ui.R", local = TRUE)
 source("views/submit-ui.R", local = TRUE)
-source("views/admin-results-ui.R", local = TRUE)
-source("views/admin-tournaments-ui.R", local = TRUE)
-source("views/admin-decks-ui.R", local = TRUE)
-source("views/admin-stores-ui.R", local = TRUE)
-source("views/admin-formats-ui.R", local = TRUE)
-source("views/admin-players-ui.R", local = TRUE)
-source("views/admin-users-ui.R", local = TRUE)
-source("views/admin-scenes-ui.R", local = TRUE)
 source("views/about-ui.R", local = TRUE)
 source("views/faq-ui.R", local = TRUE)
 source("views/for-tos-ui.R", local = TRUE)
@@ -830,14 +822,14 @@ ui <- page_fillable(
         nav_panel_hidden(value = "meta", meta_ui),
         nav_panel_hidden(value = "tournaments", tournaments_ui),
         nav_panel_hidden(value = "submit", submit_ui),
-        nav_panel_hidden(value = "admin_results", admin_results_ui),
-        nav_panel_hidden(value = "admin_tournaments", admin_tournaments_ui),
-        nav_panel_hidden(value = "admin_decks", admin_decks_ui),
-        nav_panel_hidden(value = "admin_stores", admin_stores_ui),
-        nav_panel_hidden(value = "admin_formats", admin_formats_ui),
-        nav_panel_hidden(value = "admin_players", admin_players_ui),
-        nav_panel_hidden(value = "admin_users", admin_users_ui),
-        nav_panel_hidden(value = "admin_scenes", admin_scenes_ui),
+        nav_panel_hidden(value = "admin_results", uiOutput("admin_results_ui")),
+        nav_panel_hidden(value = "admin_tournaments", uiOutput("admin_tournaments_ui")),
+        nav_panel_hidden(value = "admin_decks", uiOutput("admin_decks_ui")),
+        nav_panel_hidden(value = "admin_stores", uiOutput("admin_stores_ui")),
+        nav_panel_hidden(value = "admin_formats", uiOutput("admin_formats_ui")),
+        nav_panel_hidden(value = "admin_players", uiOutput("admin_players_ui")),
+        nav_panel_hidden(value = "admin_users", uiOutput("admin_users_ui")),
+        nav_panel_hidden(value = "admin_scenes", uiOutput("admin_scenes_ui")),
 
         # Content pages (accessed via footer)
         nav_panel_hidden(value = "about", about_ui),
@@ -1027,6 +1019,27 @@ server <- function(input, output, session) {
 
   observeEvent(rv$is_admin, {
     if (rv$is_admin && !admin_modules_loaded()) {
+      # Source admin UI views (defines admin_*_ui variables)
+      source("views/admin-results-ui.R", local = TRUE)
+      source("views/admin-tournaments-ui.R", local = TRUE)
+      source("views/admin-decks-ui.R", local = TRUE)
+      source("views/admin-stores-ui.R", local = TRUE)
+      source("views/admin-formats-ui.R", local = TRUE)
+      source("views/admin-players-ui.R", local = TRUE)
+      source("views/admin-users-ui.R", local = TRUE)
+      source("views/admin-scenes-ui.R", local = TRUE)
+
+      # Render admin UI into placeholders
+      output$admin_results_ui <- renderUI(admin_results_ui)
+      output$admin_tournaments_ui <- renderUI(admin_tournaments_ui)
+      output$admin_decks_ui <- renderUI(admin_decks_ui)
+      output$admin_stores_ui <- renderUI(admin_stores_ui)
+      output$admin_formats_ui <- renderUI(admin_formats_ui)
+      output$admin_players_ui <- renderUI(admin_players_ui)
+      output$admin_users_ui <- renderUI(admin_users_ui)
+      output$admin_scenes_ui <- renderUI(admin_scenes_ui)
+
+      # Source admin server modules
       source("server/admin-results-server.R", local = TRUE)
       source("server/admin-tournaments-server.R", local = TRUE)
       source("server/admin-decks-server.R", local = TRUE)
