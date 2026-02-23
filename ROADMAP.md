@@ -8,23 +8,42 @@ This document outlines the planned features, improvements, and bug fixes for the
 
 ---
 
-## v0.29 - Website & SEO
+## v0.29 - Admin Auth & Automation
 
 | ID | Type | Description |
 |----|------|-------------|
-| WS1 | FEATURE | Static website at digilab.cards (GitHub Pages) — landing page, About, FAQ, For Organizers |
-| WS2 | FEATURE | Shiny app footer links redirect to static site pages (parent frame navigation) |
+| AUTH1 | FEATURE | `admin_users` table — username, password_hash, role (super_admin / scene_admin), scene assignment |
+| AUTH2 | FEATURE | Admin login form — simple username/password check, reactive session state |
+| AUTH3 | FEATURE | Permission-scoped admin tabs — hidden unless logged in with appropriate role |
+| AUTH4 | FEATURE | Permission check on admin mutations — verify role before any data write |
+| AUTH5 | FEATURE | Super admin "Add Admin" form — manually create/remove admin accounts |
+| LI8 | FEATURE | GitHub Actions scheduled Limitless sync + deck classification |
+| LI8b | FEATURE | Review and update GitHub Actions card sync schedule |
+| SENTRY1 | OPS | Verify Sentry dashboard receives events, set up alert rules (email on error spikes) |
+| SENTRY2 | OPS | Add context tags to Sentry errors (active tab, scene, user action) |
 | UX10 | UX | Custom GA4 events (track tab visits, filter usage, modal opens) |
-| SEO1 | SEO | Crawlable static pages (replaces iframe-trapped content) |
-| SEO2 | SEO | Structured data (JSON-LD) on static site |
-| SEO3 | SEO | Search Console integration |
-| REV2 | ~~REVIEW~~ | ~~Review OCR setup and screenshot parsing pipeline — audit accuracy, error handling, and UX~~ ✅ Layout-aware parser (95% accuracy), rank inference, points validation, noise filtering |
 
-**Website Architecture:**
-- digilab.cards becomes a hub: `/app` (Shiny iframe), `/about`, `/faq`, `/organizers`, `/meta-report` (future)
-- Static site built with GitHub Pages (free, fast, crawlable by Google)
-- Shiny app stays on Posit Connect unchanged — static site wraps it
-- Future apps/reports (e.g., weekly meta report) get their own routes
+**Admin Auth Architecture:**
+- Simple password-based auth (no Discord OAuth for v1.0 — only ~5 admin users)
+- Super admin (you) manages all data and admin accounts
+- Scene admins manage data for their assigned scene only (existing scene filtering)
+- No cookies/session persistence — re-login on page refresh (acceptable at this scale)
+- Full Discord OAuth, invite links, audit log deferred to post-v1.0
+
+---
+
+## v0.30 - Mobile & Polish
+
+| ID | Type | Description |
+|----|------|-------------|
+| MOB1 | REVIEW | Full mobile UX audit — tables, modals, filters, navigation, tap targets |
+| MOB2 | UX | Mobile table improvements — responsive columns, horizontal scroll UX, touch-friendly rows |
+| MOB3 | UX | Mobile submit results review — camera upload flow, form layout on small screens |
+| ADM1 | UX | Edit tournaments flow — reuse grid entry, paste-from-spreadsheet, and player matching from Enter Results |
+| ADM2 | REVIEW | Enter Results & Submit Results tabs UX review — audit flow after OCR improvements |
+| DM3 | UI | Agumon in disconnect overlay — worried pose with sweat drop in reconnect UI |
+| DM9 | UI | Agumon in loading spinner — centered inside the circular loading animation |
+| DM7 | UI | Agumon 404/not found state — lost/searching pose for bad deep link URLs |
 
 ---
 
@@ -32,48 +51,31 @@ This document outlines the planned features, improvements, and bug fixes for the
 
 | ID | Type | Description |
 |----|------|-------------|
-| W2 | FEATURE | Methodology pages — simple rating overview + detailed formula breakdown |
-| W3 | FEATURE | Weekly Meta Report page — auto-generated from tournament data |
-| X1 | IMPROVEMENT | Remove BETA badge |
-| PWA1 | FEATURE | PWA manifest + service worker for mobile "install" and offline shell |
+| X1 | IMPROVEMENT | Replace BETA badge with version badge ("v1.0") — keep the visual element, update text |
+| PWA1 | FEATURE | PWA manifest + service worker — "Add to Home Screen" on mobile, offline Agumon screen |
+| F2c | UX | "Report an error" link in modals → directs to Discord #feedback channel |
+| FORM1 | UX | Link to Google feedback form in footer/help — Bug Report, Feature Request, General Feedback |
+| LAUNCH1 | OPS | Final review pass — verify all tabs, modals, admin flows, mobile experience |
 
 ---
 
 ## Post-v1.0 / Deferred
 
-### User Accounts & Permissions
+### User Accounts (Full)
 
 **Design:** `docs/plans/2026-02-05-user-accounts-design.md`
+
+Upgrade from simple password auth to full user account system:
 
 | ID | Type | Description |
 |----|------|-------------|
 | UA1 | FEATURE | Discord OAuth login ("Login with Discord") via `httr2` |
-| UA2 | FEATURE | Users table with Discord ID, username, role, scene assignment |
-| UA3 | FEATURE | Permission levels: Viewer (default, no login), Scene Admin, Super Admin |
-| UA4 | FEATURE | Scene Admin can manage data for their assigned scene only |
-| UA5 | FEATURE | Super Admin can manage all data, users, and scenes |
 | UA6 | FEATURE | Admin invite links (Super Admin generates link → Scene Admin) |
 | UA7 | FEATURE | Direct user promotion (Super Admin promotes existing users) |
-| UA8 | UI | Permission-scoped admin tabs (hidden unless logged in with role) |
 | UA9 | SECURITY | Cookie-based session persistence (survives page refresh) |
-| UA10 | SECURITY | Permission middleware — check auth on every admin mutation |
 | UA11 | SECURITY | `admin_actions` audit log table (who, what, when, before/after) |
 | UA12 | SECURITY | Rate limiting on admin mutations |
-
-### Self-Service Extras
-
-| ID | Type | Description |
-|----|------|-------------|
-| F10 | FEATURE | Player achievement badges — auto-calculated, displayed in player modal |
-| UX11 | UX | Player modal: head-to-head teaser ("Best record vs: PlayerX (3-0)") |
-| UX12 | UX | Tournament table: result distribution mini-chart (top 3 deck colors inline) |
-
-### Modal Enhancements
-
-| ID | Type | Description |
-|----|------|-------------|
-| UX4 | UX | Player modal: deck history (which decks they've played) |
-| UX5 | UX | Deck modal: matchup matrix (win/loss vs top 5 other decks) |
+| RA1 | FEATURE | Admin role review — evaluate if Regional Admin tier is needed at scale |
 
 ### Multi-Region Extras
 
@@ -81,16 +83,22 @@ This document outlines the planned features, improvements, and bug fixes for the
 |----|------|-------------|
 | MR8 | SCHEMA | Add `tier` to tournaments table (local, regional, national, international) |
 | MR9 | FEATURE | Player "home scene" inference (mode of tournament scenes played) |
-| MR10 | FEATURE | Scene comparison page (DFW vs Houston side-by-side stats) |
 | MR11 | FEATURE | Cross-scene badges in player modal ("Competed in: DFW, Houston, Austin") |
-| MR12 | FEATURE | Scene health dashboard for Scene Admins (trends, retention, store activity) |
+
+### Mascot & Branding
+
+| ID | Type | Description |
+|----|------|-------------|
+| DM6 | UI | Digivice footer watermark — subtle branding element |
+| DM8 | UI | Agumon achievement unlocked — celebrating pose (needs F10) |
+| DM-COMM | BRANDING | Commission custom Digimon SVG set — multi-character, multi-mood |
+
+See `docs/digimon-mascots.md` for full spec and art style guidelines.
 
 ### Infrastructure
 
 | ID | Type | Description |
 |----|------|-------------|
-| LI8 | FEATURE | GitHub Actions daily automated Limitless sync |
-| MR16 | PERFORMANCE | Pre-computed dashboard stats cache table (recalc on data change) |
 | MR17 | PERFORMANCE | Profile with `shinyloadtest` and size Posit Connect tier |
 
 ---
@@ -102,23 +110,18 @@ Items for future consideration, not scheduled:
 | ID | Type | Description | Notes |
 |----|------|-------------|-------|
 | FD1 | IMPROVEMENT | Smart format default | Default to current format group instead of "All Formats" |
-| F2c | FEATURE | Error flagging | "Report Error" link in modals → creates admin notification |
-| F8 | FEATURE | Embed widgets for stores | Let stores embed tournament history on their sites |
-| P2 | FEATURE | Discord bot for result reporting | Could integrate with user accounts system |
+| W2 | FEATURE | Methodology pages | Simple rating overview + detailed formula breakdown |
+| W3 | FEATURE | Weekly Meta Report page | Auto-generated from tournament data |
+| F10 | FEATURE | Player achievement badges | Auto-calculated, displayed in player modal |
+| UX4 | UX | Player modal: deck history | Timeline of which decks they've played across formats |
+| UX5 | UX | Deck modal: matchup matrix | Win/loss vs top decks — needs match-level data (not currently tracked) |
+| UX11 | UX | Player modal: head-to-head teaser | "Best record vs: PlayerX (3-0)" |
+| UX12 | UX | Tournament result distribution mini-chart | Top 3 deck colors shown inline per tournament row |
+| MR10 | FEATURE | Scene comparison page | DFW vs Houston side-by-side stats |
+| MR12 | FEATURE | Scene health dashboard | Admin trends, retention, store activity |
 | P4 | FEATURE | One Piece TCG support | Multi-game expansion |
 | P5 | FEATURE | Mobile-first data entry PWA | Consider after v1.0 platform evaluation |
-| RA1 | FEATURE | Regional Admin role | Middle tier between Scene Admin and Super Admin |
-| UX7 | UX | Stores tab: "Next Event" prominently shown per store | Needs store schedule data |
-| UX8 | UX | Dashboard: community pulse ("3 tournaments this week, 47 active players") | Nice-to-have |
-| UX9 | UX | Dashboard: new format callout banner when a new set drops | Nice-to-have |
-| UX13 | UX | Distance-based store sorting | Sort stores by proximity using localStorage scene |
-| UX14 | UX | Tournament "upcoming" section | Show future events from store schedules above recent results |
-| LI12 | FEATURE | Online store links (Discord/YouTube instead of address/map) | Partially done with community links |
-| DM3 | UI | Agumon error/offline state — worried pose with sweat drop | See `docs/digimon-mascots.md` |
-| DM6 | UI | Digivice footer watermark — subtle branding element | See `docs/digimon-mascots.md` |
-| DM7 | UI | Agumon 404/not found state — lost/searching pose | See `docs/digimon-mascots.md` |
-| DM8 | UI | Agumon achievement unlocked — celebrating pose | Needs achievement system (F10) first |
-| DM-COMM | BRANDING | Commission custom Digimon SVG set — multi-character, multi-mood | See `docs/digimon-mascots.md` for full spec |
+| LI12 | FEATURE | Online store links | Discord/YouTube instead of address/map (partially done) |
 
 ---
 
@@ -126,6 +129,16 @@ Items for future consideration, not scheduled:
 
 | Description | Reason |
 |-------------|--------|
+| Static website at digilab.cards (WS1/WS2/SEO1) | Deferred — community grows via Discord, not Google search. Revisit if organic traffic becomes a priority |
+| Structured data JSON-LD (SEO2) | Only useful with static site — deferred with it |
+| Search Console integration (SEO3) | Low value without SEO strategy — revisit with static site |
+| Embed widgets for stores (F8) | Share links in store/organizer modals already cover this |
+| Discord bot for result reporting (P2) | Over-engineered — screenshot OCR + manual entry is sufficient |
+| Store "Next Event" / upcoming section (UX7, UX14) | Bandai TCG Plus already covers event discovery |
+| Community pulse dashboard (UX8) | Nice-to-have, not essential |
+| Format callout banner (UX9) | Nice-to-have, not essential |
+| Distance-based store sorting (UX13) | Scene filtering is sufficient |
+| Pre-computed dashboard stats cache (MR16) | Partially done in v0.21.1 (ratings cache + bindCache). Revisit if performance degrades |
 | Global search bar in header | Not needed — tabs and modals provide sufficient navigation |
 | Guided tour (standalone) | Replaced by revamped onboarding modal carousel (OH1) |
 | Deck modal: pilots leaderboard | Already covered by Deck Meta tab "top pilots" section |
