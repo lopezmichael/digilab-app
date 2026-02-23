@@ -81,6 +81,7 @@ screenshots/
 
 # Load testing artifacts
 loadtest/
+*.jar
 
 # renv local settings
 renv/settings.json
