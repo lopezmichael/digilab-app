@@ -365,6 +365,24 @@ CREATE TABLE IF NOT EXISTS limitless_sync_state (
 );
 
 -- =============================================================================
+-- ADMIN USERS TABLE
+-- Per-user admin accounts with bcrypt password hashes and role-based access
+-- Replaces shared ADMIN_PASSWORD/SUPERADMIN_PASSWORD env vars
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS admin_users (
+    user_id INTEGER PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'scene_admin',
+    scene_id INTEGER,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_users_username ON admin_users(username);
+
+-- =============================================================================
 -- VIEWS FOR COMMON QUERIES
 -- =============================================================================
 
