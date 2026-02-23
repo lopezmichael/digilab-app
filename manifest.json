@@ -4328,7 +4328,7 @@
       "checksum": "2209b31b91119dd05fb80ff1a2c13be2"
     },
     ".Rprofile": {
-      "checksum": "dfe0ac5dbd76a91deebb4a350a326f4c"
+      "checksum": "caec2d3e0e96a1dc956731b5090427b1"
     },
     ".vscode/settings.json": {
       "checksum": "4aa85c6acde752675b31b354987521ce"
@@ -4337,13 +4337,13 @@
       "checksum": "adfe9ebb234cf98011117227749e7b13"
     },
     "app.R": {
-      "checksum": "d704883e0e65a628df684e7a51b6fa07"
+      "checksum": "b2e945c1b4285dab85e74c206429a5a6"
     },
     "ARCHITECTURE.md": {
-      "checksum": "6564cd1cb9998964799379bd0f95b8d3"
+      "checksum": "2e2283a0d8ac88aeeb3993e6d590acea"
     },
     "CHANGELOG.md": {
-      "checksum": "0ffa735d6f744eb593a9bea9bc35cc6d"
+      "checksum": "823f014d11d58ae243c29aecc1b8ea22"
     },
     "CLAUDE.md": {
       "checksum": "358eefcbc5da80674b16dd32158b2c0b"
@@ -5126,7 +5126,7 @@
       "checksum": "ba048eb1e602346b5b055848cb7f84c2"
     },
     "logs/dev_log.md": {
-      "checksum": "64891a62ac002f8081797249a46e1af5"
+      "checksum": "cd0edefc095b8412bcc83ce09734b2b8"
     },
     "R/admin_grid.R": {
       "checksum": "d5227f54be0d61441bac1ce22b61a657"
@@ -5147,7 +5147,7 @@
       "checksum": "b5860c5e6d33eb3102cde546818b6026"
     },
     "README.md": {
-      "checksum": "328ca3601873a958c14918db9b86319b"
+      "checksum": "9b039354b30945f9802f3e43a4c4218a"
     },
     "renv.lock": {
       "checksum": "5bce555b96ddb3be36be56e54e55c99f"
