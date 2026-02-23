@@ -952,7 +952,6 @@ server <- function(input, output, session) {
     active_tournament_id = NULL,
     current_results = data.frame(),
     duplicate_tournament = NULL,
-    modal_tournament_id = NULL,
     editing_store = NULL,
     editing_archetype = NULL,
     card_search_results = NULL,
@@ -964,7 +963,6 @@ server <- function(input, output, session) {
     results_refresh = 0,
     format_refresh = 0,
     tournament_refresh = 0,
-    modal_results_refresh = 0,
     schedules_refresh = 0,
 
     # === STORE FORM STATE ===
