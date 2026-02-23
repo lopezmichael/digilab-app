@@ -183,12 +183,7 @@ output$tournament_detail_modal <- renderUI({
     title = div(
       class = "d-flex align-items-center gap-2",
       bsicons::bs_icon("trophy"),
-      tags$a(
-        href = "#",
-        class = "text-primary text-decoration-none clickable-row",
-        onclick = sprintf("Shiny.setInputValue('modal_store_clicked', %d, {priority: 'event'}); return false;", tournament$store_id),
-        tournament$store_name
-      ),
+      span(tournament$store_name),
       span(class = "text-muted", "-"),
       span(format(as.Date(tournament$event_date), "%B %d, %Y"))
     ),
@@ -200,6 +195,11 @@ output$tournament_detail_modal <- renderUI({
         class = "btn btn-outline-secondary me-auto",
         onclick = "copyCurrentUrl()",
         bsicons::bs_icon("link-45deg"), " Copy Link"
+      ),
+      tags$a(
+        href = LINKS$discord, target = "_blank",
+        class = "text-muted small me-2",
+        bsicons::bs_icon("flag"), " Report an error"
       ),
       modalButton("Close")
     ),

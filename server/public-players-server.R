@@ -392,6 +392,11 @@ output$player_detail_modal <- renderUI({
         onclick = "copyCurrentUrl()",
         bsicons::bs_icon("link-45deg"), " Copy Link"
       ),
+      tags$a(
+        href = LINKS$discord, target = "_blank",
+        class = "text-muted small me-2",
+        bsicons::bs_icon("flag"), " Report an error"
+      ),
       modalButton("Close")
     ),
 

@@ -61,6 +61,12 @@ onStop(function() {
 # Navigation
 # ---------------------------------------------------------------------------
 
+observeEvent(input$header_home_click, {
+  nav_select("main_content", "dashboard")
+  rv$current_nav <- "dashboard"
+  session$sendCustomMessage("updateSidebarNav", "nav_dashboard")
+})
+
 observeEvent(input$nav_dashboard, {
   nav_select("main_content", "dashboard")
   rv$current_nav <- "dashboard"

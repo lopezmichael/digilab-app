@@ -1147,7 +1147,7 @@ output$rising_stars_cards <- renderUI({
       COUNT(CASE WHEN r.placement = 1 THEN 1 END) DESC,
       COUNT(CASE WHEN r.placement <= 3 THEN 1 END) DESC,
       COUNT(*) DESC
-    LIMIT 4
+    LIMIT 6
   "), params = query_params, default = data.frame())
 
   if (nrow(result) == 0) {

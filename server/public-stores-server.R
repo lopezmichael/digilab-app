@@ -556,6 +556,11 @@ output$store_detail_modal <- renderUI({
         onclick = sprintf("copyCommunityUrl('%s')", store_slug),
         bsicons::bs_icon("share"), " Share Community View"
       ),
+      tags$a(
+        href = LINKS$discord, target = "_blank",
+        class = "text-muted small me-2",
+        bsicons::bs_icon("flag"), " Report an error"
+      ),
       modalButton("Close")
     ),
 
