@@ -1,20 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#0A3055"/>
       <stop offset="100%" style="stop-color:#0F4C81"/>
     </linearGradient>
   </defs>
 
   <!-- Background -->
-  <rect width="32" height="32" fill="url(#bg)" rx="6"/>
+  <rect width="32" height="32" fill="url(#bgGradient)" rx="6"/>
 
-  <!-- Simple "D" letter -->
-  <text x="16" y="23" font-family="'Segoe UI', Arial, sans-serif" font-size="20" font-weight="700" fill="#FFFFFF" text-anchor="middle">D</text>
-
-  <!-- Orange accent dot -->
-  <circle cx="24" cy="8" r="3" fill="#F7941D"/>
-
-  <!-- Cyan corner accent -->
-  <path d="M 2 8 L 2 6 Q 2 2 6 2 L 8 2" fill="none" stroke="#00C8FF" stroke-width="2"/>
+  <!-- Digivice icon (simplified and centered) -->
+  <g transform="translate(1.5, 2) scale(1.2)">
+    <g transform="matrix(0.83 0 0 0.83 12 12)">
+      <!-- Left button -->
+      <g transform="matrix(1 0 0 1 -7.85 0)"><path style="stroke: #F7941D; stroke-width: 2; fill: none;" transform=" translate(-4.15, -12)" d="M 4.33798 12.3775 C 4.13088 12.3775 3.96298 12.2096 3.96298 12.0025 C 3.96298 11.7953 4.13088 11.6275 4.33798 11.6275" stroke-linecap="round"/></g>
+      <g transform="matrix(1 0 0 1 -7.47 0)"><path style="stroke: #F7941D; stroke-width: 2; fill: none;" transform=" translate(-4.53, -12)" d="M 4.33798 12.3775 C 4.54509 12.3775 4.71298 12.2096 4.71298 12.0025 C 4.71298 11.7953 4.54509 11.6275 4.33798 11.6275" stroke-linecap="round"/></g>
+      <!-- Right buttons -->
+      <g transform="matrix(1 0 0 1 6.88 -1.64)"><path style="stroke: #F7941D; stroke-width: 2; fill: none;" transform=" translate(-18.88, -10.36)" d="M 19.067 10.73 C 18.8599 10.73 18.692 10.5621 18.692 10.355 C 18.692 10.1479 18.8599 9.98 19.067 9.98" stroke-linecap="round"/></g>
+      <g transform="matrix(1 0 0 1 7.25 -1.64)"><path style="stroke: #F7941D; stroke-width: 2; fill: none;" transform=" translate(-19.25, -10.36)" d="M 19.067 10.73 C 19.2741 10.73 19.442 10.5621 19.442 10.355 C 19.442 10.1479 19.2741 9.98 19.067 9.98" stroke-linecap="round"/></g>
+      <g transform="matrix(1 0 0 1 6.88 1.88)"><path style="stroke: #F7941D; stroke-width: 2; fill: none;" transform=" translate(-18.88, -13.88)" d="M 19.067 14.254 C 18.8599 14.254 18.692 14.0861 18.692 13.879 C 18.692 13.6719 18.8599 13.504 19.067 13.504" stroke-linecap="round"/></g>
+      <g transform="matrix(1 0 0 1 7.25 1.88)"><path style="stroke: #F7941D; stroke-width: 2; fill: none;" transform=" translate(-19.25, -13.88)" d="M 19.067 14.254 C 19.2741 14.254 19.442 14.0861 19.442 13.879 C 19.442 13.6719 19.2741 13.504 19.067 13.504" stroke-linecap="round"/></g>
+      <!-- Main body outline -->
+      <g transform="matrix(1 0 0 1 0 0)"><path style="stroke: #FFFFFF; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none;" transform=" translate(-12, -12)" d="M 23.25 12 C 23.2495 13.135 23.1492 14.2677 22.95 15.385 C 22.9142 15.5861 22.8177 15.7715 22.6734 15.9161 C 22.5291 16.0608 22.344 16.1577 22.143 16.194 C 21.099 16.3854 20.1225 16.8442 19.3087 17.5256 C 18.495 18.2071 17.8718 19.0879 17.5 20.082 C 17.4416 20.2395 17.3445 20.3798 17.2176 20.49 C 17.0908 20.6001 16.9382 20.6764 16.774 20.712 C 15.2045 21.0445 13.6043 21.2097 12 21.205 C 10.3957 21.2097 8.79544 21.0445 7.22599 20.712 C 7.0618 20.6764 6.90921 20.6001 6.78233 20.49 C 6.65544 20.3798 6.55834 20.2395 6.49999 20.082 C 6.12786 19.0873 5.50407 18.2062 4.68956 17.5248 C 3.87506 16.8433 2.8977 16.3848 1.85299 16.194 C 1.65194 16.1577 1.46683 16.0608 1.32255 15.9161 C 1.17828 15.7715 1.08176 15.5861 1.04599 15.385 C 0.651256 13.1456 0.651256 10.8544 1.04599 8.615 C 1.08176 8.41387 1.17828 8.22851 1.32255 8.08388 C 1.46683 7.93925 1.65194 7.84227 1.85299 7.806 C 2.8977 7.61523 3.87506 7.15671 4.68956 6.47524 C 5.50407 5.79377 6.12786 4.91266 6.49999 3.918 C 6.55834 3.76046 6.65544 3.62016 6.78233 3.51005 C 6.90921 3.39994 7.0618 3.32357 7.22599 3.288 C 8.79562 2.9572 10.3959 2.79362 12 2.8 C 13.6043 2.79526 15.2045 2.96052 16.774 3.293 C 16.9382 3.32857 17.0908 3.40494 17.2176 3.51505 C 17.3445 3.62516 17.4416 3.76546 17.5 3.923 C 17.8721 4.91766 18.4959 5.79877 19.3104 6.48024 C 20.1249 7.16171 21.1023 7.62023 22.147 7.811 C 22.348 7.84727 22.5331 7.94425 22.6774 8.08888 C 22.8217 8.23351 22.9182 8.41887 22.954 8.62 C 23.1515 9.73581 23.2506 10.8668 23.25 12 L 23.25 12 Z"/></g>
+      <!-- Screen -->
+      <g transform="matrix(1 0 0 1 0 0)"><path style="stroke: #00C8FF; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none;" transform=" translate(-12, -12)" d="M 14.974 9.5 L 9.02499 9.5 L 9.02499 14.5 L 14.974 14.5 L 14.974 9.5 Z"/></g>
+      <!-- Antenna -->
+      <g transform="matrix(1 0 0 1 -8.37 -6.85)"><path style="stroke: #FFFFFF; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; fill: none;" transform=" translate(-3.63, -5.15)" d="M 2.53799 3.846 L 4.71299 6.456"/></g>
+    </g>
+  </g>
 </svg>

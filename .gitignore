@@ -67,6 +67,9 @@ tmp/
 temp/
 *.tmp
 
+# Node.js (for icon generation scripts)
+node_modules/
+
 # Python
 __pycache__/
 *.py[cod]

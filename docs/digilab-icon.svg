@@ -51,8 +51,8 @@
   </g>
 
   <!-- Digivice icon (centered) -->
-  <g transform="translate(55, 48)" filter="url(#glow)">
-    <g transform="scale(4.5)">
+  <g transform="translate(10, 10)" filter="url(#glow)">
+    <g transform="scale(7.5)">
       <g transform="matrix(0.83 0 0 0.83 12 12)">
         <g>
           <g transform="matrix(1 0 0 1 -7.85 0)"><path style="stroke: #F7941D; stroke-width: 1.5; fill: none;" transform=" translate(-4.15, -12)" d="M 4.33798 12.3775 C 4.13088 12.3775 3.96298 12.2096 3.96298 12.0025 C 3.96298 11.7953 4.13088 11.6275 4.33798 11.6275" stroke-linecap="round"/></g>
@@ -71,11 +71,4 @@
     </g>
   </g>
 
-  <!-- Circuit line below icon -->
-  <g transform="translate(100, 160)">
-    <line x1="-50" y1="0" x2="50" y2="0" stroke="rgba(0,200,255,0.3)" stroke-width="1"/>
-    <line x1="-25" y1="0" x2="25" y2="0" stroke="#00C8FF" stroke-width="2" filter="url(#glow)"/>
-    <circle cx="-25" cy="0" r="4" fill="#00C8FF" filter="url(#strongGlow)"/>
-    <circle cx="25" cy="0" r="4" fill="#F7941D" filter="url(#glow)"/>
-  </g>
 </svg>
