@@ -53,35 +53,21 @@ geocode_with_mapbox <- function(address) {
 }
 
 # --- Load scene choices for store dropdown ---
-# Helper to fetch and update scene choices
-.update_store_scene_choices <- function() {
-  scenes <- tryCatch(
-    dbGetQuery(rv$db_con,
-      "SELECT scene_id, display_name FROM scenes
-       WHERE is_active = TRUE
-       ORDER BY scene_type, display_name"),
-    error = function(e) data.frame()
-  )
-  if (nrow(scenes) > 0) {
-    choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
-    updateSelectInput(session, "store_scene",
-                      choices = c("Select scene..." = "", choices))
-  }
-}
-
-# Populate on initial load (after renderUI flushes the DOM)
-session$onFlushed(function() {
-  if (isTRUE(rv$is_admin) && !is.null(rv$db_con)) {
-    .update_store_scene_choices()
-  }
-}, once = TRUE)
-
-# Re-populate when navigating tabs or after data changes
 observe({
   rv$current_nav
   rv$data_refresh
   req(rv$db_con, rv$is_admin)
-  .update_store_scene_choices()
+  tryCatch({
+    scenes <- dbGetQuery(rv$db_con,
+      "SELECT scene_id, display_name FROM scenes
+       WHERE is_active = TRUE
+       ORDER BY scene_type, display_name")
+    if (nrow(scenes) > 0) {
+      choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
+      updateSelectInput(session, "store_scene",
+                        choices = c("Select scene..." = "", choices))
+    }
+  }, error = function(e) NULL)
 })
 
 # Add store
