@@ -53,9 +53,10 @@ geocode_with_mapbox <- function(address) {
 }
 
 # --- Load scene choices for store dropdown ---
-# Re-fires when navigating to this tab (ensures UI exists after lazy-load)
+# Only fires when on admin_stores tab (prevents race condition with lazy-loaded UI)
 observe({
   rv$current_nav
+  req(rv$current_nav == "admin_stores")
   rv$data_refresh
   req(db_pool, rv$is_admin)
   scenes <- tryCatch(

@@ -10,9 +10,10 @@ rv$edit_deleted_result_ids <- c()
 rv$edit_grid_tournament_id <- NULL
 
 # Update edit form dropdowns when data changes
-# Re-fires on tab navigation (ensures UI exists after lazy-load)
+# Only fires when on admin_tournaments tab (prevents race condition with lazy-loaded UI)
 observe({
   rv$current_nav
+  req(rv$current_nav == "admin_tournaments")
 
   rv$format_refresh
 

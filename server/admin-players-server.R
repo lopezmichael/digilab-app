@@ -344,9 +344,10 @@ observeEvent(input$show_merge_modal, {
 })
 
 # Update merge dropdowns when they're shown
-# Re-fires on tab navigation (ensures UI exists after lazy-load)
+# Only fires when on admin_players tab (prevents race condition with lazy-loaded UI)
 observe({
   rv$current_nav
+  req(rv$current_nav == "admin_players")
   req(db_pool, rv$is_admin)
   choices <- get_player_choices(db_pool)
   # Preserve current selections when repopulating choices

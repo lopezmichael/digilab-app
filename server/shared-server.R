@@ -618,9 +618,11 @@ observeEvent(input$bootstrap_btn, {
   }
 })
 
-# Keep store dropdown populated (re-fires on tab switch to handle lazy-loaded UI)
+# Keep store dropdown populated for Enter Results wizard
+# Only fires when on admin_results tab (prevents race condition with lazy-loaded UI)
 observe({
   rv$current_nav
+  req(rv$current_nav == "admin_results")
   rv$data_refresh
   req(rv$is_admin)
   # Preserve current selection when repopulating choices
