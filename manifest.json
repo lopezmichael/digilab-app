@@ -918,6 +918,41 @@
         "RemoteSha": "2.0.0"
       }
     },
+    "countrycode": {
+      "Source": "CRAN",
+      "Repository": "https://cran.rstudio.com",
+      "description": {
+        "Type": "Package",
+        "Package": "countrycode",
+        "Title": "Convert Country Names and Country Codes",
+        "Version": "1.6.1",
+        "Authors@R": "\n    c(person(given = \"Vincent\",\n             family = \"Arel-Bundock\",\n             role = c(\"aut\", \"cre\"),\n             email = \"vincent.arel-bundock@umontreal.ca\",\n             comment = c(ORCID = \"0000-0003-2042-7063\")),\n      person(given = \"CJ\",\n             family = \"Yetman\",\n             role = \"ctb\",\n             email = \"cj@cjyetman.com\",\n             comment = c(ORCID = \"0000-0001-5099-9500\")),\n      person(given = \"Nils\",\n             family = \"Enevoldsen\",\n             role = \"ctb\",\n             email = \"nils@wlonk.com\",\n             comment = c(ORCID = \"0000-0001-7195-4117\")),\n      person(\"Etienne\", \"Bacher\",\n             email = \"etienne.bacher@protonmail.com\",\n             role = \"ctb\",\n             comment = c(ORCID = \"0000-0002-9271-5075\")),\n      person(given = \"Samuel\",\n             family = \"Meichtry\",\n             role = \"ctb\",\n             email = \"samuel.meichtry@bj.admin.ch\",\n             comment = c(ORCID = \"0000-0003-2165-791X\")))",
+        "Description": "Standardize country names, convert them into one of 40\n    different coding schemes, convert between coding schemes, and assign\n    region descriptors.",
+        "License": "GPL-3",
+        "URL": "https://vincentarelbundock.github.io/countrycode/",
+        "BugReports": "https://github.com/vincentarelbundock/countrycode/issues",
+        "Depends": "R (>= 2.10)",
+        "Suggests": "altdoc, eurostat, testthat, tibble, ISOcodes, utf8",
+        "Encoding": "UTF-8",
+        "LazyData": "yes",
+        "LazyLoad": "yes",
+        "RoxygenNote": "7.3.2",
+        "NeedsCompilation": "no",
+        "Packaged": "2025-03-31 19:29:48 UTC; vincent",
+        "Author": "Vincent Arel-Bundock [aut, cre]\n    (<https://orcid.org/0000-0003-2042-7063>),\n  CJ Yetman [ctb] (<https://orcid.org/0000-0001-5099-9500>),\n  Nils Enevoldsen [ctb] (<https://orcid.org/0000-0001-7195-4117>),\n  Etienne Bacher [ctb] (<https://orcid.org/0000-0002-9271-5075>),\n  Samuel Meichtry [ctb] (<https://orcid.org/0000-0003-2165-791X>)",
+        "Maintainer": "Vincent Arel-Bundock <vincent.arel-bundock@umontreal.ca>",
+        "Repository": "CRAN",
+        "Date/Publication": "2025-03-31 20:00:02 UTC",
+        "Built": "R 4.5.2; ; 2026-02-22 01:42:10 UTC; windows",
+        "RemoteType": "standard",
+        "RemoteRef": "countrycode",
+        "RemotePkgRef": "countrycode",
+        "RemoteRepos": "https://cran.rstudio.com",
+        "RemoteReposName": "CRAN",
+        "RemotePkgPlatform": "x86_64-w64-mingw32",
+        "RemoteSha": "1.6.1"
+      }
+    },
     "cpp11": {
       "Source": "CRAN",
       "Repository": "https://cran.rstudio.com",
@@ -4313,7 +4348,7 @@
   },
   "files": {
     ".claude/settings.local.json": {
-      "checksum": "f1b4096aa30ae83d02264bcbdf2ee2e0"
+      "checksum": "f5e9f1d1f4ce3787d574e8d14ce79a81"
     },
     ".env": {
       "checksum": "75647938b53bd9d90e5e53bc3a85c1dc"
@@ -4328,7 +4363,7 @@
       "checksum": "2209b31b91119dd05fb80ff1a2c13be2"
     },
     ".Rprofile": {
-      "checksum": "caec2d3e0e96a1dc956731b5090427b1"
+      "checksum": "943c2e631c93adaf6901e7a371703ffc"
     },
     ".vscode/settings.json": {
       "checksum": "4aa85c6acde752675b31b354987521ce"
@@ -4337,16 +4372,16 @@
       "checksum": "adfe9ebb234cf98011117227749e7b13"
     },
     "app.R": {
-      "checksum": "b2e945c1b4285dab85e74c206429a5a6"
+      "checksum": "dad54f3f6282d55b9c39f54e8cd4ba7b"
     },
     "ARCHITECTURE.md": {
       "checksum": "2e2283a0d8ac88aeeb3993e6d590acea"
     },
     "CHANGELOG.md": {
-      "checksum": "823f014d11d58ae243c29aecc1b8ea22"
+      "checksum": "33d45ae6c8ec496613434bd678c55334"
     },
     "CLAUDE.md": {
-      "checksum": "358eefcbc5da80674b16dd32158b2c0b"
+      "checksum": "b555d227cfffda8e9ddc1f6b91da982c"
     },
     "CNAME": {
       "checksum": "87ff68e0569e2429eb4219929ef53399"
@@ -4364,7 +4399,7 @@
       "checksum": "10c1ca8a11d8cede4769654fa6c14406"
     },
     "db/schema.sql": {
-      "checksum": "e268dc6efceea628f3d48165f1335963"
+      "checksum": "107d77b3f83a97081d35ae27a3b45110"
     },
     "docs/card-sync.md": {
       "checksum": "0a718cb7a0105cc5dada8a601b27581b"
@@ -4530,6 +4565,9 @@
     },
     "docs/plans/2026-02-23-enter-submit-results-ux-implementation.md": {
       "checksum": "b6549d324d18c7b0f13ab7466c0146b1"
+    },
+    "docs/plans/2026-02-23-international-stores-design.md": {
+      "checksum": "6272e50d787ba7bb8e1a0dfe6e84b71d"
     },
     "docs/plans/2026-02-23-performance-optimizations-design.md": {
       "checksum": "89b76a34f8ab0c67f497f912a5a79979"
@@ -5126,10 +5164,13 @@
       "checksum": "ba048eb1e602346b5b055848cb7f84c2"
     },
     "logs/dev_log.md": {
-      "checksum": "cd0edefc095b8412bcc83ce09734b2b8"
+      "checksum": "7f8bd306492436f99e6e832459eda616"
     },
     "R/admin_grid.R": {
       "checksum": "d5227f54be0d61441bac1ce22b61a657"
+    },
+    "R/constants.R": {
+      "checksum": "668e26bf63c936596a34bedd48bb1d7e"
     },
     "R/db_connection.R": {
       "checksum": "95d8c5f5f87ad24f19a57b6be2e773bd"
@@ -5147,13 +5188,13 @@
       "checksum": "b5860c5e6d33eb3102cde546818b6026"
     },
     "README.md": {
-      "checksum": "9b039354b30945f9802f3e43a4c4218a"
+      "checksum": "4db178b91f8bbcc1b1cb5d051b730b7e"
     },
     "renv.lock": {
-      "checksum": "5bce555b96ddb3be36be56e54e55c99f"
+      "checksum": "3db96be2200bedb6d813696a6ee19cc3"
     },
     "ROADMAP.md": {
-      "checksum": "9499ca5d97718c31db16199bb13825bd"
+      "checksum": "ef536237a677bdbf80a9a2807021c1d8"
     },
     "screenshots/results/flagged/IMG_3780.PNG": {
       "checksum": "eb24442e720bc95a3fccbd03c05e1f4e"
@@ -5453,7 +5494,7 @@
       "checksum": "b357ed4c70272f6ea47e3ca8e72b4da6"
     },
     "server/admin-stores-server.R": {
-      "checksum": "b15cda98403e43f0d5bf7b7faa1b24dc"
+      "checksum": "391ceeee00be36ead6b6ba29576a0375"
     },
     "server/admin-tournaments-server.R": {
       "checksum": "6568351faec876387315974c3185bf8d"
@@ -5510,7 +5551,7 @@
       "checksum": "d4974841c8336fc16f754c358b857108"
     },
     "views/admin-stores-ui.R": {
-      "checksum": "e7cc06cb99cb269676a8550e95d74d65"
+      "checksum": "7990b2be94a10a1f36cc1d86aaba9c50"
     },
     "views/admin-tournaments-ui.R": {
       "checksum": "0c4ad3cb6eb1d287caafe11b79613631"
