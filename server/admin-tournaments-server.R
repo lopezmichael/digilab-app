@@ -825,17 +825,36 @@ observeEvent(input$edit_grid_save, {
       row <- filled_rows[idx, ]
       name <- trimws(row$player_name)
 
-      # Resolve player
-      player <- dbGetQuery(db_pool, "
-        SELECT player_id FROM players WHERE LOWER(display_name) = LOWER($1) LIMIT 1
-      ", params = list(name))
+      # Resolve player - prioritize existing result's player to preserve data
+      player_id <- NULL
 
-      if (nrow(player) > 0) {
-        player_id <- player$player_id
-      } else {
-        new_player <- dbGetQuery(db_pool, "INSERT INTO players (display_name) VALUES ($1) RETURNING player_id",
-                     params = list(name))
-        player_id <- new_player$player_id[1]
+      # If this is an existing result, get the original player and update their name
+      if (!is.na(row$result_id)) {
+        original <- dbGetQuery(db_pool, "
+          SELECT player_id FROM results WHERE result_id = $1
+        ", params = list(row$result_id))
+        if (nrow(original) > 0) {
+          player_id <- original$player_id[1]
+          # Update the player's display_name if it changed
+          dbExecute(db_pool, "
+            UPDATE players SET display_name = $1 WHERE player_id = $2
+          ", params = list(name, player_id))
+        }
+      }
+
+      # If no existing result, try to match by name or create new
+      if (is.null(player_id)) {
+        player <- dbGetQuery(db_pool, "
+          SELECT player_id FROM players WHERE LOWER(display_name) = LOWER($1) LIMIT 1
+        ", params = list(name))
+
+        if (nrow(player) > 0) {
+          player_id <- player$player_id
+        } else {
+          new_player <- dbGetQuery(db_pool, "INSERT INTO players (display_name) VALUES ($1) RETURNING player_id",
+                       params = list(name))
+          player_id <- new_player$player_id[1]
+        }
       }
 
       # Convert record
