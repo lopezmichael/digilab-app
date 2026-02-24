@@ -783,7 +783,8 @@ safe_query <- function(db_con, query, params = NULL, default = data.frame(), max
       # Retry on MotherDuck "catalog changed" errors
       if (attempt < max_retries && grepl("catalog", msg, ignore.case = TRUE)) {
         message("[safe_query] Catalog changed, retrying (attempt ", attempt, "/", max_retries, ")")
-        Sys.sleep(0.1 * attempt)
+        Sys.sleep(0.5 * attempt)
+        tryCatch(DBI::dbGetQuery(db_con, "SELECT 1"), error = function(re) NULL)
         return("__RETRY__")
       }
 
@@ -848,10 +849,12 @@ safe_execute <- function(db_con, query, params = NULL, max_retries = 3) {
         DBI::dbExecute(db_con, query)
       }
     }, error = function(e) {
-      # Retry on MotherDuck "catalog changed" errors (remote catalog updated between queries)
+      # Retry on MotherDuck "catalog changed" errors
       if (attempt < max_retries && grepl("catalog", conditionMessage(e), ignore.case = TRUE)) {
         message("[safe_execute] Catalog changed, retrying (attempt ", attempt, "/", max_retries, ")")
-        Sys.sleep(0.1 * attempt)
+        Sys.sleep(0.5 * attempt)
+        # Force catalog refresh before retry
+        tryCatch(DBI::dbGetQuery(db_con, "SELECT 1"), error = function(re) NULL)
         return("__RETRY__")
       }
       message("[safe_execute] Error: ", conditionMessage(e))

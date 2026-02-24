@@ -651,12 +651,27 @@ observeEvent(input$confirm_delete_store, {
   req(rv$is_admin, rv$db_con, input$editing_store_id)
   store_id <- as.integer(input$editing_store_id)
 
-  rows1 <- safe_execute(rv$db_con, "DELETE FROM store_schedules WHERE store_id = ?",
-                        params = list(store_id))
-  rows2 <- safe_execute(rv$db_con, "DELETE FROM stores WHERE store_id = ?",
-                        params = list(store_id))
+  # Wrap in transaction so both DELETEs share one catalog snapshot.
+  # Without this, MotherDuck's catalog updates after the first DELETE and
+  # the second DELETE fails with "Remote catalog has changed".
+  delete_ok <- tryCatch({
+    DBI::dbWithTransaction(rv$db_con, {
+      DBI::dbExecute(rv$db_con, "DELETE FROM store_schedules WHERE store_id = ?",
+                     params = list(store_id))
+      DBI::dbExecute(rv$db_con, "DELETE FROM stores WHERE store_id = ?",
+                     params = list(store_id))
+    })
+    TRUE
+  }, error = function(e) {
+    message("[store-delete] Error: ", conditionMessage(e))
+    if (sentry_enabled) {
+      tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()),
+               error = function(se) NULL)
+    }
+    FALSE
+  })
 
-  if (rows2 == 0) {
+  if (!delete_ok) {
     notify("Failed to delete store. Check logs for details.", type = "error")
     return()
   }
