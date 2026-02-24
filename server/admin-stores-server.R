@@ -53,19 +53,35 @@ geocode_with_mapbox <- function(address) {
 }
 
 # --- Load scene choices for store dropdown ---
-observe({
-  rv$current_nav
-  rv$data_refresh
-  req(rv$db_con, rv$is_superadmin)
-  scenes <- dbGetQuery(rv$db_con,
-    "SELECT scene_id, display_name FROM scenes
-     WHERE is_active = TRUE
-     ORDER BY scene_type, display_name")
+# Helper to fetch and update scene choices
+.update_store_scene_choices <- function() {
+  scenes <- tryCatch(
+    dbGetQuery(rv$db_con,
+      "SELECT scene_id, display_name FROM scenes
+       WHERE is_active = TRUE
+       ORDER BY scene_type, display_name"),
+    error = function(e) data.frame()
+  )
   if (nrow(scenes) > 0) {
     choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
     updateSelectInput(session, "store_scene",
                       choices = c("Select scene..." = "", choices))
   }
+}
+
+# Populate on initial load (after renderUI flushes the DOM)
+session$onFlushed(function() {
+  if (isTRUE(rv$is_superadmin) && !is.null(rv$db_con)) {
+    .update_store_scene_choices()
+  }
+}, once = TRUE)
+
+# Re-populate when navigating tabs or after data changes
+observe({
+  rv$current_nav
+  rv$data_refresh
+  req(rv$db_con, rv$is_superadmin)
+  .update_store_scene_choices()
 })
 
 # Add store
@@ -643,12 +659,13 @@ observeEvent(input$confirm_delete_store, {
   store_id <- as.integer(input$editing_store_id)
 
   tryCatch({
-    # Also delete associated schedules
+    # Wrap in transaction to avoid "remote catalog changed" DuckDB error
+    dbExecute(rv$db_con, "BEGIN TRANSACTION")
     dbExecute(rv$db_con, "DELETE FROM store_schedules WHERE store_id = ?",
               params = list(store_id))
-
     dbExecute(rv$db_con, "DELETE FROM stores WHERE store_id = ?",
               params = list(store_id))
+    dbExecute(rv$db_con, "COMMIT")
     notify("Store deleted", type = "message")
 
     # Hide modal and reset form
@@ -681,6 +698,7 @@ observeEvent(input$confirm_delete_store, {
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
   }, error = function(e) {
+    tryCatch(dbExecute(rv$db_con, "ROLLBACK"), error = function(re) NULL)
     notify(paste("Error:", e$message), type = "error")
   })
 })
