@@ -651,16 +651,16 @@ observeEvent(input$confirm_delete_store, {
   req(rv$is_admin, rv$db_con, input$editing_store_id)
   store_id <- as.integer(input$editing_store_id)
 
-  # Wrap in transaction so both DELETEs share one catalog snapshot.
-  # Without this, MotherDuck's catalog updates after the first DELETE and
-  # the second DELETE fails with "Remote catalog has changed".
+  # Use a fresh connection for writes to avoid MotherDuck "catalog changed"
+  # errors. The long-lived rv$db_con accumulates stale catalog state from
+  # reactive observers; a new connection always has the current catalog.
   delete_ok <- tryCatch({
-    DBI::dbWithTransaction(rv$db_con, {
-      DBI::dbExecute(rv$db_con, "DELETE FROM store_schedules WHERE store_id = ?",
-                     params = list(store_id))
-      DBI::dbExecute(rv$db_con, "DELETE FROM stores WHERE store_id = ?",
-                     params = list(store_id))
-    })
+    write_con <- connect_db()
+    on.exit(tryCatch(DBI::dbDisconnect(write_con, shutdown = TRUE), error = function(e) NULL))
+    DBI::dbExecute(write_con, "DELETE FROM store_schedules WHERE store_id = ?",
+                   params = list(store_id))
+    DBI::dbExecute(write_con, "DELETE FROM stores WHERE store_id = ?",
+                   params = list(store_id))
     TRUE
   }, error = function(e) {
     message("[store-delete] Error: ", conditionMessage(e))
