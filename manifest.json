@@ -4348,22 +4348,22 @@
   },
   "files": {
     ".claude/settings.local.json": {
-      "checksum": "34c1a11596ecaec566dab9b6a38a71b9"
+      "checksum": "7fdff625867fb815e20f39a3a50a990e"
     },
     ".env": {
-      "checksum": "75647938b53bd9d90e5e53bc3a85c1dc"
+      "checksum": "c3576248cce99c6dce93b2bde27781c7"
     },
     ".env.example": {
-      "checksum": "fda84f6aad200594e07806dedb410d62"
+      "checksum": "a3baf2bbe4166b4383e40a13748e072b"
     },
     ".github/workflows/sync-cards.yml": {
-      "checksum": "edff493833b6cfc4e9c680cb3b50c79b"
+      "checksum": "aedf4c660e14b06fff969effa1e7f41a"
     },
     ".github/workflows/sync-limitless.yml": {
-      "checksum": "2209b31b91119dd05fb80ff1a2c13be2"
+      "checksum": "ef6455aa0ebd2ad7489e4448c66a5e15"
     },
     ".Rprofile": {
-      "checksum": "daaf50bbd075eb5c51d124b989fc554e"
+      "checksum": "287a15469912665252d1bc6259800bfb"
     },
     ".vscode/settings.json": {
       "checksum": "4aa85c6acde752675b31b354987521ce"
@@ -4372,16 +4372,16 @@
       "checksum": "adfe9ebb234cf98011117227749e7b13"
     },
     "app.R": {
-      "checksum": "4291a425569b03636e20f0943cd2ab86"
+      "checksum": "053817f36e825e5d4fa981c73e3bbe2b"
     },
     "ARCHITECTURE.md": {
       "checksum": "2e2283a0d8ac88aeeb3993e6d590acea"
     },
     "CHANGELOG.md": {
-      "checksum": "33d45ae6c8ec496613434bd678c55334"
+      "checksum": "1ddb0aa1fa6cceb2528b944e821ad56c"
     },
     "CLAUDE.md": {
-      "checksum": "b555d227cfffda8e9ddc1f6b91da982c"
+      "checksum": "b1b3cfa6ba0b2fdc0882f435715c28dd"
     },
     "CNAME": {
       "checksum": "87ff68e0569e2429eb4219929ef53399"
@@ -4390,10 +4390,7 @@
       "checksum": "ac76f9b9ad950f6e3a524c10a7c43b8a"
     },
     "data/local.duckdb": {
-      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
-    },
-    "data/local.duckdb.wal": {
-      "checksum": "d41d8cd98f00b204e9800998ecf8427e"
+      "checksum": "323e21a7e47a059a01444c1c919b4430"
     },
     "db/migrations/002_limitless_integration.sql": {
       "checksum": "24669a90807862edbf2c200caad55fb5"
@@ -4402,6 +4399,9 @@
       "checksum": "10c1ca8a11d8cede4769654fa6c14406"
     },
     "db/schema.sql": {
+      "checksum": "07a2c0af677b45eb7a83acb8056d8df1"
+    },
+    "db/schema_duckdb.sql.bak": {
       "checksum": "17fff33a20aeb679a86da623ffcc75bb"
     },
     "docs/card-sync.md": {
@@ -4586,6 +4586,12 @@
     },
     "docs/plans/2026-02-23-shinyloadtest-design.md": {
       "checksum": "f7fbd4e057949d3c9c11fbad393e6bf7"
+    },
+    "docs/plans/2026-02-24-neon-postgres-migration-design.md": {
+      "checksum": "58f3ea5a399d4314b1ce3338ce73f491"
+    },
+    "docs/plans/2026-02-24-neon-postgres-migration-implementation.md": {
+      "checksum": "07c0bfb483c46db75ab2ba37a4b978ce"
     },
     "docs/profiling-report.md": {
       "checksum": "c5bb056f09d3e98c784db002709fc409"
@@ -5170,13 +5176,13 @@
       "checksum": "7f8bd306492436f99e6e832459eda616"
     },
     "R/admin_grid.R": {
-      "checksum": "d5227f54be0d61441bac1ce22b61a657"
+      "checksum": "748cf8588fcb952ff23291a1a05712b0"
     },
     "R/constants.R": {
       "checksum": "668e26bf63c936596a34bedd48bb1d7e"
     },
     "R/db_connection.R": {
-      "checksum": "95d8c5f5f87ad24f19a57b6be2e773bd"
+      "checksum": "9c9776d2350bd4f27cdd307cd6e836cb"
     },
     "R/digimoncard_api.R": {
       "checksum": "56f05b0dd513c99e8e8720cb63cbb800"
@@ -5188,7 +5194,7 @@
       "checksum": "bbc567d48e82a91b4fcbe64cd4c6e6e7"
     },
     "R/ratings.R": {
-      "checksum": "b5860c5e6d33eb3102cde546818b6026"
+      "checksum": "ad56d462be260843e687e5f9aa30567a"
     },
     "README.md": {
       "checksum": "4db178b91f8bbcc1b1cb5d051b730b7e"
@@ -5415,6 +5421,9 @@
     "screenshots/standings/9players_4rounds_1screenshot/Screenshot_20260221_203617_Bandai_TCG_Plus.webp": {
       "checksum": "a004494620ce721193d120f78a3fef81"
     },
+    "scripts/__pycache__/migrate_to_neon.cpython-312.pyc": {
+      "checksum": "c0140fa716eea32d77a35aff8a69e186"
+    },
     "scripts/__pycache__/sync_limitless.cpython-312.pyc": {
       "checksum": "e9e721e286ffbc5fca5d249f5348209e"
     },
@@ -5433,17 +5442,17 @@
     "scripts/delete_mock_data.R": {
       "checksum": "fa70c59bf877260beaf82bca859f0ea2"
     },
-    "scripts/drop_fk_constraints.py": {
-      "checksum": "91d4a562c2a306b07d66db4f3cc59722"
-    },
     "scripts/generate_pwa_icons.py": {
       "checksum": "ebe7ea40f223bca584202ffbb1ce1160"
     },
     "scripts/init_database.R": {
-      "checksum": "37359bd255b2684ed1c733ab0cddafc6"
+      "checksum": "1b0f9870ea5c07f36ca8e960517eecb0"
+    },
+    "scripts/migrate_to_neon.py": {
+      "checksum": "a34a6333be08bf72f288fcea49719ff4"
     },
     "scripts/populate_ratings_cache.R": {
-      "checksum": "cba2b3c8418187bdd581da9d07fd021a"
+      "checksum": "5d9d060bcc189d3502579eca35a8dd72"
     },
     "scripts/profile_app.R": {
       "checksum": "f98b22253cf48e06bc2fb85ee420f912"
@@ -5467,73 +5476,67 @@
       "checksum": "d720a297a0bb369e487a59eda51df681"
     },
     "scripts/seed_test_deck_requests.R": {
-      "checksum": "bcc40806a5360bb65a2e67b1a95a4082"
+      "checksum": "dc85b67659eb52e9446a3bc05ec3475f"
     },
     "scripts/sync_cards.py": {
-      "checksum": "e521ace0e1af279243dddf7557853cb3"
-    },
-    "scripts/sync_from_motherduck.py": {
-      "checksum": "ab321b6a32bca4bf4b046f64f4367721"
+      "checksum": "323d357b62519fe28a2be2a17962eb86"
     },
     "scripts/sync_limitless.py": {
-      "checksum": "5dce028d49da971cfedf476a3ca88fd2"
-    },
-    "scripts/sync_to_motherduck.py": {
-      "checksum": "7e9ec37d3ab8bc95426db0bfe1254338"
+      "checksum": "30e8bb5953a29f2923a038572e83031e"
     },
     "scripts/test_ocr.R": {
       "checksum": "a0eead3832e097fa17e76ee840be0716"
     },
     "server/admin-decks-server.R": {
-      "checksum": "d362907035d6ce913b00c278c3dfb7f4"
+      "checksum": "e38ce4c187c7427ae2a361ea576dce8f"
     },
     "server/admin-formats-server.R": {
-      "checksum": "afe0d0d88a07c159c6fe7060c933a492"
+      "checksum": "f2c81c26216815e3daec326dae791933"
     },
     "server/admin-players-server.R": {
-      "checksum": "258e01cd273c22a70a1e13fd156defc4"
+      "checksum": "91639b26b38a1ae711be2987d0311103"
     },
     "server/admin-results-server.R": {
-      "checksum": "86ccdd9a6f5f7412b14d888ff99b5e06"
+      "checksum": "eaa71e73aaa7b78309f8393e19689e14"
     },
     "server/admin-scenes-server.R": {
-      "checksum": "b357ed4c70272f6ea47e3ca8e72b4da6"
+      "checksum": "38f5be21345bb2f9205871f5ff0622b2"
     },
     "server/admin-stores-server.R": {
-      "checksum": "332cd8657911d4fd52ddf883027f3666"
+      "checksum": "5968b10abb606be4aaa6c715995d25fc"
     },
     "server/admin-tournaments-server.R": {
-      "checksum": "6568351faec876387315974c3185bf8d"
+      "checksum": "938b0b81a784841fb36756b98938c83c"
     },
     "server/admin-users-server.R": {
-      "checksum": "ecc770c854280ab6b072fd0c129e644b"
+      "checksum": "6d7c8f78b4b0690e2c793d7f28154d9b"
     },
     "server/public-dashboard-server.R": {
-      "checksum": "6fe5800db7aef1ea29f4a47204e53b96"
+      "checksum": "1fa167fc68ea44b2eee04402d50f5389"
     },
     "server/public-meta-server.R": {
-      "checksum": "8d3b86776b0c793b82f23bf4c203c448"
+      "checksum": "a2f3dfbd5ea70d2c1e0d111ce9e1de72"
     },
     "server/public-players-server.R": {
-      "checksum": "ad6db3e4f13da2f79f1b6b0d77643a32"
+      "checksum": "edd378c7c2ebbf2bace4d347e96e96c3"
     },
     "server/public-stores-server.R": {
-      "checksum": "2fa0e6bef5b143c1107847fe8b40abbd"
+      "checksum": "fe1161fca3c39be247c98a3d37cce2e0"
     },
     "server/public-submit-server.R": {
-      "checksum": "36aaad66995e7d0f63b8d75cd065928a"
+      "checksum": "c1f41e4608e18913d01ac52fc704130a"
     },
     "server/public-tournaments-server.R": {
-      "checksum": "832c0d79a710056e86da75e0b005c764"
+      "checksum": "ab99c9c3ba45a0e624a639b807068de4"
     },
     "server/scene-server.R": {
-      "checksum": "6d1c04028d63453c33c5bf165245e286"
+      "checksum": "0da77f670223f9e66d0c8dc4f6318ba4"
     },
     "server/shared-server.R": {
-      "checksum": "79db78e04aa3940412dfb1eb0fba4b9e"
+      "checksum": "f5804c9260bf4fa35d7e6addf9dce935"
     },
     "server/url-routing-server.R": {
-      "checksum": "e9cfcaccc10048b10291db6ede464522"
+      "checksum": "63ba04a7c21b64f25f0d48f191160c86"
     },
     "shinycannon-1.2.0-85f280d.jar": {
       "checksum": "0de3ededf1119b3173c0587621b60c47"
