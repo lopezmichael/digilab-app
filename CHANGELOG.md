@@ -5,6 +5,15 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2] - 2026-02-24 - Dropdown Selection Fix
+
+### Fixed
+- **Admin form dropdown selections silently resetting**: Observers that repopulate dropdown choices on data refresh were not preserving the current selection, causing data loss when users saved forms after a background refresh
+  - Fixed in 7 locations: store scene, tournament store/format, user scene, results wizard store/format, player merge, deck merge
+  - All affected observers now use `isolate(input$...)` to preserve selections
+
+---
+
 ## v1.1.0 - Database Migration (Neon PostgreSQL)
 
 ### Changed

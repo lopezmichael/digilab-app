@@ -27,7 +27,7 @@ library(bcrypt)
 # - httr: Lazy-loaded via namespacing in R/digimoncard_api.R (rarely used, cards cached)
 
 # App version (update with each release)
-APP_VERSION <- "1.0.1"
+APP_VERSION <- "1.0.2"
 
 # Load modules
 source("R/db_connection.R")
