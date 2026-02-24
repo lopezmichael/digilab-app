@@ -975,9 +975,7 @@ count_tournaments_for_scope <- function(db_pool, scene_slug, community_slug = NU
   if (!is.null(community_slug) && community_slug != "") {
     # Community view: count for specific store
     result <- safe_query(db_pool,
-      "SELECT COUNT(*) as n FROM tournaments t
-       JOIN stores s ON t.store_id = s.store_id
-       WHERE s.slug = $1",
+      "SELECT COUNT(*) as n FROM tournaments t JOIN stores s ON t.store_id = s.store_id WHERE s.slug = $1",
       params = list(community_slug),
       default = data.frame(n = 0))
   } else if (is.null(scene_slug) || scene_slug == "all") {
@@ -988,17 +986,12 @@ count_tournaments_for_scope <- function(db_pool, scene_slug, community_slug = NU
   } else if (scene_slug == "online") {
     # Online scene: count tournaments from online stores
     result <- safe_query(db_pool,
-      "SELECT COUNT(*) as n FROM tournaments t
-       JOIN stores s ON t.store_id = s.store_id
-       WHERE s.is_online = TRUE",
+      "SELECT COUNT(*) as n FROM tournaments t JOIN stores s ON t.store_id = s.store_id WHERE s.is_online = TRUE",
       default = data.frame(n = 0))
   } else {
     # Specific scene
     result <- safe_query(db_pool,
-      "SELECT COUNT(*) as n FROM tournaments t
-       JOIN stores s ON t.store_id = s.store_id
-       JOIN scenes sc ON s.scene_id = sc.scene_id
-       WHERE sc.slug = $1",
+      "SELECT COUNT(*) as n FROM tournaments t JOIN stores s ON t.store_id = s.store_id JOIN scenes sc ON s.scene_id = sc.scene_id WHERE sc.slug = $1",
       params = list(scene_slug),
       default = data.frame(n = 0))
   }
