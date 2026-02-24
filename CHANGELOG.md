@@ -5,6 +5,34 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## v1.1.0 - Database Migration (Neon PostgreSQL)
+
+### Changed
+- Migrated from DuckDB/MotherDuck to Neon PostgreSQL as the single database for all environments
+- R connection layer now uses `pool` + `RPostgres` instead of `duckdb` package
+- Simplified `safe_query()`/`safe_execute()` — removed retry/reconnect logic (no longer needed)
+- Replaced `next_id()` MAX+1 pattern with PostgreSQL `INSERT ... RETURNING`
+- Transaction blocks use `pool::localCheckout()` for proper isolation
+- Python sync scripts (`sync_cards.py`, `sync_limitless.py`) rewritten for `psycopg2`
+- GitHub Actions workflows use Neon env vars instead of MotherDuck token
+- SQL placeholders converted from `?` to `$N` (RPostgres requirement)
+
+### Added
+- `db/schema_postgres.sql` (now `db/schema.sql`) — PostgreSQL schema with auto-increment IDs
+- Foreign key constraints restored (15 relationships with CASCADE/RESTRICT/SET NULL)
+- `scripts/migrate_to_neon.py` — one-time DuckDB → Neon data migration tool
+- `pool` and `RPostgres` R package dependencies
+
+### Removed
+- `scripts/sync_to_motherduck.py` — no longer needed (single database)
+- `scripts/sync_from_motherduck.py` — no longer needed
+- `scripts/drop_fk_constraints.py` — FK constraints now work properly in Postgres
+- MotherDuck connection logic (`connect_motherduck()`, `can_use_motherduck()`)
+- DuckDB package dependency from production app
+- `rv$db_con` reactive value — replaced by `db_pool` global
+
+---
+
 ## [1.0.1] - 2026-02-23 - International Store Support
 
 ### Added
