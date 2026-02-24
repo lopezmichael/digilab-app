@@ -71,7 +71,7 @@ geocode_with_mapbox <- function(address) {
 
 # Populate on initial load (after renderUI flushes the DOM)
 session$onFlushed(function() {
-  if (isTRUE(rv$is_superadmin) && !is.null(rv$db_con)) {
+  if (isTRUE(rv$is_admin) && !is.null(rv$db_con)) {
     .update_store_scene_choices()
   }
 }, once = TRUE)
@@ -80,14 +80,14 @@ session$onFlushed(function() {
 observe({
   rv$current_nav
   rv$data_refresh
-  req(rv$db_con, rv$is_superadmin)
+  req(rv$db_con, rv$is_admin)
   .update_store_scene_choices()
 })
 
 # Add store
 observeEvent(input$add_store, {
 
-  req(rv$is_superadmin, rv$db_con)
+  req(rv$is_admin, rv$db_con)
   clear_all_field_errors(session)
 
   # Check if this is an online store
@@ -457,7 +457,7 @@ observeEvent(input$admin_store_list__reactable__selected, {
 
 # Update store
 observeEvent(input$update_store, {
-  req(rv$is_superadmin, rv$db_con)
+  req(rv$is_admin, rv$db_con)
   req(input$editing_store_id)
   clear_all_field_errors(session)
 
@@ -626,7 +626,7 @@ observe({
 
 # Delete button click - show modal
 observeEvent(input$delete_store, {
-  req(rv$is_superadmin, input$editing_store_id)
+  req(rv$is_admin, input$editing_store_id)
 
   store_id <- as.integer(input$editing_store_id)
   store <- dbGetQuery(rv$db_con, "SELECT name FROM stores WHERE store_id = ?",
@@ -655,7 +655,7 @@ observeEvent(input$delete_store, {
 
 # Confirm delete
 observeEvent(input$confirm_delete_store, {
-  req(rv$is_superadmin, rv$db_con, input$editing_store_id)
+  req(rv$is_admin, rv$db_con, input$editing_store_id)
   store_id <- as.integer(input$editing_store_id)
 
   tryCatch({
@@ -824,7 +824,7 @@ output$store_schedules_table <- renderReactable({
 
 # Add schedule (handles both new stores and editing existing stores)
 observeEvent(input$add_schedule, {
-  req(rv$is_superadmin, rv$db_con)
+  req(rv$is_admin, rv$db_con)
   clear_all_field_errors(session)
 
   day_of_week <- as.integer(input$schedule_day)
@@ -906,7 +906,7 @@ observeEvent(input$add_schedule, {
 
 # Delete schedule (triggered by clicking a row)
 observeEvent(input$schedule_to_delete, {
-  req(rv$is_superadmin, rv$db_con)
+  req(rv$is_admin, rv$db_con)
 
   schedule_id <- input$schedule_to_delete
 
@@ -926,7 +926,7 @@ observeEvent(input$schedule_to_delete, {
 
 # Confirm delete schedule
 observeEvent(input$confirm_delete_schedule, {
-  req(rv$is_superadmin, rv$db_con, rv$schedule_to_delete_id)
+  req(rv$is_admin, rv$db_con, rv$schedule_to_delete_id)
 
   tryCatch({
     dbExecute(rv$db_con, "
