@@ -322,16 +322,19 @@ observeEvent(input$confirm_delete_player, {
 
 # Show merge modal
 observeEvent(input$show_merge_modal, {
+  # Fetch player choices when modal opens
+  player_choices <- get_player_choices(db_pool)
+
   showModal(modalDialog(
     title = tagList(bsicons::bs_icon("arrow-left-right"), " Merge Players"),
     p("Merge two player records (e.g., fix a typo by combining duplicate entries)."),
     p(class = "text-muted small", "All results from the source player will be moved to the target player, then the source player will be deleted."),
     hr(),
     selectizeInput("merge_source_player", "Source Player (will be deleted)",
-                   choices = NULL,
+                   choices = player_choices,
                    options = list(placeholder = "Select player to merge FROM...")),
     selectizeInput("merge_target_player", "Target Player (will keep)",
-                   choices = NULL,
+                   choices = player_choices,
                    options = list(placeholder = "Select player to merge INTO...")),
     uiOutput("merge_preview"),
     footer = tagList(
@@ -343,24 +346,8 @@ observeEvent(input$show_merge_modal, {
   ))
 })
 
-# Update merge dropdowns when they're shown
-# Only fires when on admin_players tab (prevents race condition with lazy-loaded UI)
-observe({
-  rv$current_nav
-  req(rv$current_nav == "admin_players")
-  req(db_pool, rv$is_admin)
-  choices <- get_player_choices(db_pool)
-  # Preserve current selections when repopulating choices
-  current_source <- isolate(input$merge_source_player)
-  current_target <- isolate(input$merge_target_player)
-  # Defer update until after UI has been flushed to browser
-  session$onFlushed(function() {
-    updateSelectizeInput(session, "merge_source_player", choices = choices,
-                         selected = current_source)
-    updateSelectizeInput(session, "merge_target_player", choices = choices,
-                         selected = current_target)
-  }, once = TRUE)
-})
+# Note: Merge player dropdowns are populated when modal opens (in show_merge_modal handler)
+# No need for a separate observer since choices are fetched fresh each time the modal opens
 
 # Merge preview
 output$merge_preview <- renderUI({

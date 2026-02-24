@@ -625,15 +625,20 @@ observe({
   req(rv$current_nav == "admin_results")
   rv$data_refresh
   req(rv$is_admin)
+
+  # Check if UI has rendered yet (tournament_date is a sibling input that's always visible)
+  if (is.null(input$tournament_date)) {
+    # UI not ready yet, retry shortly
+    invalidateLater(100)
+    return()
+  }
+
   # Preserve current selection when repopulating choices
   current_selection <- isolate(input$tournament_store)
   store_choices <- get_store_choices(db_pool, include_none = TRUE)
-  # Defer update until after UI has been flushed to browser
-  session$onFlushed(function() {
-    updateSelectInput(session, "tournament_store",
-                      choices = store_choices,
-                      selected = current_selection)
-  }, once = TRUE)
+  updateSelectInput(session, "tournament_store",
+                    choices = store_choices,
+                    selected = current_selection)
 })
 
 # Handle logout
@@ -844,11 +849,10 @@ get_format_choices <- function(pool) {
   return(choices)
 }
 
-# Update format dropdowns when database connects, formats change, or tab navigation
+# Update PUBLIC format dropdowns when database connects or formats change
+# (Public tabs are not lazy-loaded, so no special handling needed)
 observe({
-  # Trigger on format refresh or tab switch (ensures UI exists after lazy-load)
   rv$format_refresh
-  rv$current_nav
 
   format_choices <- get_format_choices(db_pool)
 
@@ -863,22 +867,36 @@ observe({
   current_players <- isolate(input$players_format)
   current_meta <- isolate(input$meta_format)
   current_tournaments <- isolate(input$tournaments_format)
-  current_tournament <- isolate(input$tournament_format)
 
-  # Defer updates until after UI has been flushed to browser
-  # (handles both immediate public dropdowns and lazy-loaded admin dropdown)
-  session$onFlushed(function() {
-    updateSelectInput(session, "dashboard_format", choices = format_choices_with_all,
-                      selected = if (is.null(current_dashboard)) "" else current_dashboard)
-    updateSelectInput(session, "players_format", choices = format_choices_with_all,
-                      selected = current_players)
-    updateSelectInput(session, "meta_format", choices = format_choices_with_all,
-                      selected = current_meta)
-    updateSelectInput(session, "tournaments_format", choices = format_choices_with_all,
-                      selected = current_tournaments)
-    updateSelectInput(session, "tournament_format", choices = format_choices,
-                      selected = current_tournament)
-  }, once = TRUE)
+  updateSelectInput(session, "dashboard_format", choices = format_choices_with_all,
+                    selected = if (is.null(current_dashboard)) "" else current_dashboard)
+  updateSelectInput(session, "players_format", choices = format_choices_with_all,
+                    selected = current_players)
+  updateSelectInput(session, "meta_format", choices = format_choices_with_all,
+                    selected = current_meta)
+  updateSelectInput(session, "tournaments_format", choices = format_choices_with_all,
+                    selected = current_tournaments)
+})
+
+# Update ADMIN format dropdown (Enter Results wizard)
+# Only fires when on admin_results tab (prevents race condition with lazy-loaded UI)
+observe({
+  rv$current_nav
+  req(rv$current_nav == "admin_results")
+  rv$format_refresh
+  req(rv$is_admin)
+
+  # Check if UI has rendered yet (tournament_date is a sibling input that's always visible)
+  if (is.null(input$tournament_date)) {
+    # UI not ready yet, retry shortly
+    invalidateLater(100)
+    return()
+  }
+
+  format_choices <- get_format_choices(db_pool)
+  current_tournament <- isolate(input$tournament_format)
+  updateSelectInput(session, "tournament_format", choices = format_choices,
+                    selected = current_tournament)
 })
 
 # Reactive: get the latest (current) format_id

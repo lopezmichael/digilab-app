@@ -15,6 +15,14 @@ observe({
   rv$current_nav
   req(rv$current_nav == "admin_users")
   req(db_pool, rv$is_superadmin)
+
+  # Check if UI has rendered yet (admin_role is a sibling input that's always visible)
+  if (is.null(input$admin_role)) {
+    # UI not ready yet, retry shortly
+    invalidateLater(100)
+    return()
+  }
+
   scenes <- safe_query(db_pool,
     "SELECT scene_id, display_name FROM scenes
      WHERE scene_type IN ('metro', 'online') AND is_active = TRUE
@@ -24,12 +32,9 @@ observe({
     choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
     # Preserve current selection when repopulating choices
     current_selection <- isolate(input$admin_scene)
-    # Defer update until after UI has been flushed to browser
-    session$onFlushed(function() {
-      updateSelectInput(session, "admin_scene",
-                        choices = c("Select scene..." = "", choices),
-                        selected = current_selection)
-    }, once = TRUE)
+    updateSelectInput(session, "admin_scene",
+                      choices = c("Select scene..." = "", choices),
+                      selected = current_selection)
   }
 })
 

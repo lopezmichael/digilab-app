@@ -59,6 +59,14 @@ observe({
   req(rv$current_nav == "admin_stores")
   rv$data_refresh
   req(db_pool, rv$is_admin)
+
+  # Check if UI has rendered yet
+  if (is.null(input$store_name)) {
+    # UI not ready yet, retry shortly
+    invalidateLater(100)
+    return()
+  }
+
   scenes <- tryCatch(
     dbGetQuery(db_pool,
       "SELECT scene_id, display_name FROM scenes
@@ -70,12 +78,9 @@ observe({
     choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
     # Preserve current selection when repopulating choices (fixes scene clearing bug)
     current_selection <- isolate(input$store_scene)
-    # Defer update until after UI has been flushed to browser
-    session$onFlushed(function() {
-      updateSelectInput(session, "store_scene",
-                        choices = c("Select scene..." = "", choices),
-                        selected = current_selection)
-    }, once = TRUE)
+    updateSelectInput(session, "store_scene",
+                      choices = c("Select scene..." = "", choices),
+                      selected = current_selection)
   }
 })
 

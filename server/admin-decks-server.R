@@ -878,15 +878,20 @@ get_deck_choices <- function(con) {
   setNames(decks$archetype_id, labels)
 }
 
-# Show merge modal
+# Show merge modal - populate choices when modal opens
 observeEvent(input$show_merge_deck_modal, {
+  # Fetch deck choices when modal opens
+  deck_choices <- get_deck_choices(db_pool)
+
   showModal(modalDialog(
     title = tagList(bsicons::bs_icon("arrow-left-right"), " Merge Deck Archetypes"),
     p("Merge two deck archetypes into one. The source deck will be deleted and all its results will be reassigned to the target deck."),
     selectizeInput("merge_source_deck", "Source Deck (will be deleted)",
-                   choices = NULL, options = list(placeholder = "Select deck to merge away...")),
+                   choices = deck_choices,
+                   options = list(placeholder = "Select deck to merge away...")),
     selectizeInput("merge_target_deck", "Target Deck (will keep)",
-                   choices = NULL, options = list(placeholder = "Select deck to keep...")),
+                   choices = deck_choices,
+                   options = list(placeholder = "Select deck to keep...")),
     hr(),
     uiOutput("merge_deck_preview"),
     footer = tagList(
@@ -896,29 +901,6 @@ observeEvent(input$show_merge_deck_modal, {
     size = "m",
     easyClose = TRUE
   ))
-})
-
-# Update deck dropdowns when modal opens
-# Only fires when on admin_decks tab (prevents race condition with lazy-loaded UI)
-observe({
-  rv$current_nav
-  req(rv$current_nav == "admin_decks")
-  req(db_pool, rv$is_superadmin)
-  # Trigger on modal show or data refresh
-  input$show_merge_deck_modal
-  rv$data_refresh
-
-  choices <- get_deck_choices(db_pool)
-  # Preserve current selections when repopulating choices
-  current_source <- isolate(input$merge_source_deck)
-  current_target <- isolate(input$merge_target_deck)
-  # Defer update until after UI has been flushed to browser
-  session$onFlushed(function() {
-    updateSelectizeInput(session, "merge_source_deck", choices = choices,
-                         selected = current_source)
-    updateSelectizeInput(session, "merge_target_deck", choices = choices,
-                         selected = current_target)
-  }, once = TRUE)
 })
 
 # Preview merge impact
