@@ -769,53 +769,59 @@ sentry_context_tags <- function() {
 #' # Custom default for aggregations
 #' result <- safe_query(rv$db_con, "SELECT COUNT(*) as n FROM results",
 #'                      default = data.frame(n = 0))
-safe_query <- function(db_con, query, params = NULL, default = data.frame()) {
-  # Try the query
-  result <- tryCatch({
-    if (!is.null(params) && length(params) > 0) {
-      DBI::dbGetQuery(db_con, query, params = params)
-    } else {
-      DBI::dbGetQuery(db_con, query)
+safe_query <- function(db_con, query, params = NULL, default = data.frame(), max_retries = 3) {
+  for (attempt in seq_len(max_retries)) {
+    result <- tryCatch({
+      if (!is.null(params) && length(params) > 0) {
+        DBI::dbGetQuery(db_con, query, params = params)
+      } else {
+        DBI::dbGetQuery(db_con, query)
+      }
+    }, error = function(e) {
+      msg <- conditionMessage(e)
+
+      # Retry on MotherDuck "catalog changed" errors
+      if (attempt < max_retries && grepl("catalog", msg, ignore.case = TRUE)) {
+        message("[safe_query] Catalog changed, retrying (attempt ", attempt, "/", max_retries, ")")
+        Sys.sleep(0.1 * attempt)
+        return("__RETRY__")
+      }
+
+      query_preview <- substr(gsub("\\s+", " ", query), 1, 200)
+      message("[safe_query] Error: ", msg, " | Query: ", query_preview)
+
+      if (sentry_enabled) {
+        tryCatch(
+          sentryR::capture_exception(e, tags = sentry_context_tags()),
+          error = function(se) NULL
+        )
+      }
+
+      # Attempt reconnection if connection is invalid
+      if (!DBI::dbIsValid(db_con)) {
+        message("[safe_query] Connection invalid, attempting reconnection...")
+        tryCatch({
+          new_con <- connect_db()
+          rv$db_con <- new_con
+          message("[safe_query] Reconnected successfully")
+          if (!is.null(params) && length(params) > 0) {
+            return(DBI::dbGetQuery(new_con, query, params = params))
+          } else {
+            return(DBI::dbGetQuery(new_con, query))
+          }
+        }, error = function(e2) {
+          message("[safe_query] Reconnection failed: ", conditionMessage(e2))
+          return(NULL)
+        })
+      }
+
+      NULL
+    })
+    if (!identical(result, "__RETRY__")) {
+      return(if (is.null(result)) default else result)
     }
-  }, error = function(e) {
-    msg <- conditionMessage(e)
-    # Log the error with truncated query
-    query_preview <- substr(gsub("\\s+", " ", query), 1, 200)
-    message("[safe_query] Error: ", msg, " | Query: ", query_preview)
-
-    # Send to Sentry if enabled (with context tags)
-    if (sentry_enabled) {
-      tryCatch(
-        sentryR::capture_exception(e, tags = sentry_context_tags()),
-        error = function(se) NULL
-      )
-    }
-
-    # Attempt reconnection if connection is invalid
-    if (!DBI::dbIsValid(db_con)) {
-      message("[safe_query] Connection invalid, attempting reconnection...")
-      tryCatch({
-        new_con <- connect_db()
-        # Update the shared reactive connection
-        rv$db_con <- new_con
-        message("[safe_query] Reconnected successfully")
-
-        # Retry the query with new connection
-        if (!is.null(params) && length(params) > 0) {
-          return(DBI::dbGetQuery(new_con, query, params = params))
-        } else {
-          return(DBI::dbGetQuery(new_con, query))
-        }
-      }, error = function(e2) {
-        message("[safe_query] Reconnection failed: ", conditionMessage(e2))
-        return(NULL)
-      })
-    }
-
-    NULL
-  })
-
-  if (is.null(result)) default else result
+  }
+  default
 }
 
 #' Safe Database Execute Wrapper
@@ -833,25 +839,34 @@ safe_query <- function(db_con, query, params = NULL, default = data.frame()) {
 #' # Simple execute
 #' rows <- safe_execute(rv$db_con, "DELETE FROM results WHERE result_id = ?",
 #'                      params = list(42))
-safe_execute <- function(db_con, query, params = NULL) {
-  tryCatch({
-    if (!is.null(params) && length(params) > 0) {
-      DBI::dbExecute(db_con, query, params = params)
-    } else {
-      DBI::dbExecute(db_con, query)
-    }
-  }, error = function(e) {
-    message("[safe_execute] Error: ", conditionMessage(e))
-    message("[safe_execute] Query: ", substr(gsub("\\s+", " ", query), 1, 200))
-    # Send to Sentry if enabled (with context tags)
-    if (sentry_enabled) {
-      tryCatch(
-        sentryR::capture_exception(e, tags = sentry_context_tags()),
-        error = function(se) NULL
-      )
-    }
-    0  # Return 0 rows affected on error
-  })
+safe_execute <- function(db_con, query, params = NULL, max_retries = 3) {
+  for (attempt in seq_len(max_retries)) {
+    result <- tryCatch({
+      if (!is.null(params) && length(params) > 0) {
+        DBI::dbExecute(db_con, query, params = params)
+      } else {
+        DBI::dbExecute(db_con, query)
+      }
+    }, error = function(e) {
+      # Retry on MotherDuck "catalog changed" errors (remote catalog updated between queries)
+      if (attempt < max_retries && grepl("catalog", conditionMessage(e), ignore.case = TRUE)) {
+        message("[safe_execute] Catalog changed, retrying (attempt ", attempt, "/", max_retries, ")")
+        Sys.sleep(0.1 * attempt)
+        return("__RETRY__")
+      }
+      message("[safe_execute] Error: ", conditionMessage(e))
+      message("[safe_execute] Query: ", substr(gsub("\\s+", " ", query), 1, 200))
+      if (sentry_enabled) {
+        tryCatch(
+          sentryR::capture_exception(e, tags = sentry_context_tags()),
+          error = function(se) NULL
+        )
+      }
+      0
+    })
+    if (!identical(result, "__RETRY__")) return(result)
+  }
+  0
 }
 
 # Generate next ID for a table (atomic MAX+1)
