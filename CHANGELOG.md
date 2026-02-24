@@ -5,6 +5,23 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3] - 2026-02-24 - Admin Tab Dropdown & Player Edit Fixes
+
+### Fixed
+- **Admin tab dropdowns not populating on first visit**: Lazy-loaded admin tabs (Manage Admins, Edit Stores, Edit Tournaments, Enter Results) had dropdowns that appeared empty on first navigation
+  - Root cause: `session$onFlushed()` wasn't sufficient because UI doesn't exist until after `renderUI()` completes
+  - Solution: Use `invalidateLater(100)` polling pattern to retry until UI exists
+  - For modal dropdowns (merge players, merge decks), populate choices when modal opens instead of via observer
+  - Split public/admin format dropdown observers since public tabs are not lazy-loaded
+- **Player name edit in View/Edit Results blanking member number**: Editing a player's name was creating a new player record instead of updating the existing one
+  - Now correctly updates the original player's `display_name` while preserving `member_number` and other data
+
+### Changed
+- **Improved error logging**: `safe_query()` now includes 500-char query preview and parameters in Sentry error reports for easier debugging
+- **Navbar version badge**: Now dynamically uses `APP_VERSION` variable instead of hardcoded string
+
+---
+
 ## [1.0.2] - 2026-02-24 - Dropdown Selection Fix
 
 ### Fixed

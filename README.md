@@ -4,7 +4,7 @@ A regional tournament tracking application for the Digimon Trading Card Game com
 
 **Live App:** https://digilab.cards/
 
-**Current Version:** v1.0.2
+**Current Version:** v1.0.3
 
 ## Features
 
@@ -40,7 +40,7 @@ A regional tournament tracking application for the Digimon Trading Card Game com
 | Component | Technology |
 |-----------|------------|
 | Frontend | R Shiny with bslib + atomtemplates |
-| Database | DuckDB (local) / MotherDuck (cloud) |
+| Database | PostgreSQL (Neon) |
 | Charts | Highcharter |
 | Maps | mapgl (Mapbox GL JS) |
 | Tables | reactable |

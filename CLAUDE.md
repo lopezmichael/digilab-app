@@ -371,6 +371,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.1.0** - Database Migration (Neon PostgreSQL)
+**v1.0.3** - Admin Tab Dropdown & Player Edit Fixes
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.
