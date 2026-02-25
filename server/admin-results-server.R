@@ -749,21 +749,23 @@ observeEvent(input$admin_submit_results, {
       row <- filled_rows[idx, ]
       name <- trimws(row$player_name)
 
-      # 1. Resolve player
-      player <- dbGetQuery(db_pool, "
-        SELECT player_id FROM players WHERE LOWER(display_name) = LOWER($1) AND is_active = TRUE LIMIT 1
-      ", params = list(name))
+      # 1. Resolve player - use pre-matched player_id if available
+      member_num <- if (!is.na(row$member_number)) trimws(row$member_number) else ""
 
-      if (nrow(player) > 0) {
-        player_id <- player$player_id
+      if (!is.na(row$matched_player_id)) {
+        player_id <- row$matched_player_id
       } else {
-        new_player <- dbGetQuery(db_pool, "INSERT INTO players (display_name) VALUES ($1) RETURNING player_id",
-                  params = list(name))
-        player_id <- new_player$player_id[1]
+        match_info <- match_player(name, db_pool, member_number = member_num)
+        if (match_info$status == "matched") {
+          player_id <- match_info$player_id
+        } else {
+          new_player <- dbGetQuery(db_pool, "INSERT INTO players (display_name) VALUES ($1) RETURNING player_id",
+                    params = list(name))
+          player_id <- new_player$player_id[1]
+        }
       }
 
       # Update member_number if provided and player doesn't have one yet
-      member_num <- trimws(row$member_number)
       if (nchar(member_num) > 0) {
         dbExecute(db_pool, "
           UPDATE players SET member_number = $1, updated_at = CURRENT_TIMESTAMP
