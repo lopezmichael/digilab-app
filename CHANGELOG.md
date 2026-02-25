@@ -5,6 +5,18 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.6] - 2026-02-24 - Member Number Management Fix
+
+### Fixed
+- **Member number editing**: Admins can now edit member numbers directly from the Edit Players form
+- **Member number saved from results grid**: Entering a member number in the tournament results grid now persists it to the player record
+- **Member number auto-populates**: When a matched player already has a member number, the results grid auto-fills it
+- **Merge preserves member numbers**: Merging players now transfers the source's member number to the target (if target doesn't have one)
+- **Inactive player matching**: Soft-deleted players no longer match during player resolution, fixing "poisoned player" entries that couldn't be removed
+- **Cross-scene collision prevention**: Player matching now checks member number first (when provided) before falling back to name matching
+
+---
+
 ## [1.0.5] - 2026-02-24 - Global Map Improvements
 
 ### Added
