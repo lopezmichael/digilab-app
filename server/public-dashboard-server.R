@@ -384,21 +384,28 @@ output$recent_tournaments <- renderReactable({
   }
 
   # Build columns list based on whether we're showing all scenes
+  # Use tighter widths when showing Scene column to fit everything
   columns <- list(
     tournament_id = colDef(show = FALSE),
     store_id = colDef(show = FALSE),
     Store = colDef(
-      minWidth = 150,
+      minWidth = if (show_all_scenes) 120 else 150,
       style = list(overflow = "hidden", textOverflow = "ellipsis", whiteSpace = "nowrap")
     ),
-    Date = colDef(width = 100),
-    Players = colDef(width = 70, align = "center"),
-    Winner = colDef(minWidth = 100)
+    Date = colDef(width = 90),
+    Players = colDef(width = 55, align = "center", name = "#"),
+    Winner = colDef(
+      minWidth = if (show_all_scenes) 90 else 100,
+      style = list(overflow = "hidden", textOverflow = "ellipsis", whiteSpace = "nowrap")
+    )
   )
 
   # Add Scene column when showing all scenes
   if (show_all_scenes) {
-    columns$Scene <- colDef(width = 110)
+    columns$Scene <- colDef(
+      width = 100,
+      style = list(overflow = "hidden", textOverflow = "ellipsis", whiteSpace = "nowrap")
+    )
   }
 
   reactable(data, compact = TRUE, striped = TRUE,
