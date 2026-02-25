@@ -198,10 +198,15 @@ CREATE TABLE IF NOT EXISTS deck_requests (
     primary_color TEXT NOT NULL,
     secondary_color TEXT,
     display_card_id TEXT,
-    status TEXT DEFAULT 'pending',  -- pending, approved, rejected
+    status TEXT DEFAULT 'pending',  -- pending, approved, rejected, needs_classification
     approved_archetype_id INTEGER,  -- Links to created deck after approval
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    reviewed_at TIMESTAMP
+    reviewed_at TIMESTAMP,
+    -- Classification review fields (added for auto-classification workflow)
+    suggested_archetype_name VARCHAR,  -- What classification thought it was (may not exist in DB yet)
+    decklist_json TEXT,                -- The actual card list for admin review
+    source VARCHAR DEFAULT 'manual',   -- 'manual', 'limitless_sync', 'classification'
+    result_id INTEGER                  -- Link back to result for updating after approval
 );
 
 -- Create index for pending requests lookup

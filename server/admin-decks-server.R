@@ -527,9 +527,10 @@ output$deck_requests_section <- renderUI({
 
   pending <- tryCatch({
     dbGetQuery(db_pool, "
-      SELECT request_id, deck_name, primary_color, secondary_color, display_card_id, submitted_at
+      SELECT request_id, deck_name, primary_color, secondary_color, display_card_id,
+             submitted_at, status, suggested_archetype_name, decklist_json, source, result_id
       FROM deck_requests
-      WHERE status = 'pending'
+      WHERE status IN ('pending', 'needs_classification')
       ORDER BY submitted_at DESC
     ")
   }, error = function(e) {
@@ -540,6 +541,10 @@ output$deck_requests_section <- renderUI({
     return(NULL)  # Don't show section if no pending requests
   }
 
+  # Count by status for header
+  pending_count <- sum(pending$status == "pending")
+  needs_class_count <- sum(pending$status == "needs_classification")
+
   # Collapsible card with pending requests
   card(
     class = "mb-3 border-warning",
@@ -547,7 +552,10 @@ output$deck_requests_section <- renderUI({
       class = "bg-warning-subtle d-flex justify-content-between align-items-center",
       div(
         bsicons::bs_icon("exclamation-triangle-fill", class = "text-warning me-2"),
-        tags$strong(sprintf("Pending Deck Requests (%d)", nrow(pending)))
+        tags$strong(sprintf("Deck Requests (%d)", nrow(pending))),
+        if (needs_class_count > 0) {
+          tags$span(class = "badge bg-info ms-2", sprintf("%d need classification", needs_class_count))
+        }
       ),
       tags$small(class = "text-muted", "Review and approve new deck submissions")
     ),
@@ -561,19 +569,61 @@ output$deck_requests_section <- renderUI({
           req$primary_color
         }
 
+        # Source badge
+        source_badge <- if (!is.na(req$source) && req$source != "manual") {
+          source_class <- switch(req$source,
+            "classification" = "bg-info",
+            "limitless_sync" = "bg-primary",
+            "bg-secondary"
+          )
+          tags$span(class = paste("badge", source_class, "ms-2"), req$source)
+        }
+
+        # Suggested archetype indicator
+        suggested_info <- if (!is.na(req$suggested_archetype_name) && req$suggested_archetype_name != "") {
+          tags$span(class = "text-info ms-2",
+            bsicons::bs_icon("lightbulb", class = "me-1"),
+            paste("Suggested:", req$suggested_archetype_name)
+          )
+        }
+
+        # Decklist indicator
+        has_decklist <- !is.na(req$decklist_json) && nchar(req$decklist_json) > 2
+
+        # Status badge for needs_classification
+        status_badge <- if (req$status == "needs_classification") {
+          tags$span(class = "badge bg-warning text-dark ms-2", "Needs Classification")
+        }
+
         div(
           class = "d-flex justify-content-between align-items-center p-2 border-bottom",
           div(
-            tags$strong(req$deck_name),
-            tags$span(class = "text-muted ms-2", paste0("(", color_display, ")")),
-            if (!is.na(req$display_card_id) && req$display_card_id != "") {
-              tags$span(class = "badge bg-secondary ms-2", req$display_card_id)
-            },
-            tags$br(),
-            tags$small(class = "text-muted", paste("Requested:", format(as.Date(req$submitted_at), "%b %d, %Y")))
+            div(
+              class = "d-flex align-items-center flex-wrap",
+              tags$strong(req$deck_name),
+              tags$span(class = "text-muted ms-2", paste0("(", color_display, ")")),
+              if (!is.na(req$display_card_id) && req$display_card_id != "") {
+                tags$span(class = "badge bg-secondary ms-2", req$display_card_id)
+              },
+              source_badge,
+              status_badge
+            ),
+            div(
+              class = "mt-1",
+              suggested_info,
+              tags$small(class = "text-muted", paste("Requested:", format(as.Date(req$submitted_at), "%b %d, %Y")))
+            )
           ),
           div(
-            class = "d-flex gap-2",
+            class = "d-flex gap-2 flex-wrap",
+            if (has_decklist) {
+              tags$button(
+                type = "button",
+                class = "btn btn-sm btn-outline-secondary",
+                onclick = sprintf("Shiny.setInputValue('deck_request_view_decklist', %d, {priority: 'event'})", req$request_id),
+                bsicons::bs_icon("list-ul"), " View Decklist"
+              )
+            },
             tags$button(
               type = "button",
               class = "btn btn-sm btn-success",
@@ -606,6 +656,70 @@ observeEvent(input$deck_request_approve_click, {
   approve_deck_request(req_id, session, rv)
 })
 
+# Handle view decklist button clicks
+observeEvent(input$deck_request_view_decklist, {
+  req(db_pool, rv$is_superadmin)
+  req_id <- input$deck_request_view_decklist
+
+  req_data <- dbGetQuery(db_pool, "SELECT deck_name, decklist_json, suggested_archetype_name FROM deck_requests WHERE request_id = $1",
+                         params = list(req_id))
+  if (nrow(req_data) == 0 || is.na(req_data$decklist_json[1])) return()
+
+  # Parse the decklist JSON
+  decklist <- tryCatch({
+    jsonlite::fromJSON(req_data$decklist_json[1])
+  }, error = function(e) {
+    NULL
+  })
+
+  if (is.null(decklist)) {
+    showNotification("Could not parse decklist", type = "error")
+    return()
+  }
+
+  # Helper to render card list
+  render_card_list <- function(cards, category_name) {
+    if (is.null(cards) || length(cards) == 0) return(NULL)
+    tags$div(
+      class = "mb-3",
+      tags$h6(class = "text-muted border-bottom pb-1", category_name),
+      tags$ul(
+        class = "list-unstyled mb-0",
+        lapply(seq_len(nrow(cards)), function(i) {
+          card <- cards[i, ]
+          tags$li(
+            class = "d-flex justify-content-between py-1",
+            tags$span(card$name),
+            tags$span(class = "badge bg-secondary", paste0(card$count, "x"))
+          )
+        })
+      )
+    )
+  }
+
+  showModal(modalDialog(
+    title = paste("Decklist:", req_data$deck_name[1]),
+    if (!is.na(req_data$suggested_archetype_name[1]) && req_data$suggested_archetype_name[1] != "") {
+      div(
+        class = "alert alert-info",
+        bsicons::bs_icon("lightbulb", class = "me-2"),
+        tags$strong("Classification suggested: "), req_data$suggested_archetype_name[1]
+      )
+    },
+    div(
+      class = "decklist-view",
+      style = "max-height: 400px; overflow-y: auto;",
+      render_card_list(decklist$egg, "Digi-Eggs"),
+      render_card_list(decklist$digimon, "Digimon"),
+      render_card_list(decklist$tamer, "Tamers"),
+      render_card_list(decklist$option, "Options")
+    ),
+    footer = modalButton("Close"),
+    size = "m",
+    easyClose = TRUE
+  ))
+})
+
 # Handle edit & approve button clicks
 observeEvent(input$deck_request_edit_click, {
   req(db_pool, rv$is_superadmin)
@@ -618,9 +732,35 @@ observeEvent(input$deck_request_edit_click, {
 
   rv$editing_deck_request_id <- req_id
 
+  # Use suggested archetype name as default if deck_name is auto-generated
+  default_name <- req_data$deck_name
+  if (grepl("^\\[Auto\\]", default_name) && !is.na(req_data$suggested_archetype_name) && req_data$suggested_archetype_name != "") {
+    default_name <- req_data$suggested_archetype_name
+  }
+
+  # Check for existing decks to offer as alternatives
+  existing_decks <- dbGetQuery(db_pool, "
+    SELECT archetype_id, archetype_name FROM deck_archetypes
+    WHERE is_active = TRUE
+    ORDER BY archetype_name
+  ")
+  deck_choices <- c("Create New Archetype" = "", setNames(existing_decks$archetype_id, existing_decks$archetype_name))
+
   showModal(modalDialog(
     title = "Edit & Approve Deck Request",
-    textInput("edit_deck_request_name", "Deck Name", value = req_data$deck_name),
+    if (!is.na(req_data$suggested_archetype_name) && req_data$suggested_archetype_name != "") {
+      div(
+        class = "alert alert-info mb-3",
+        bsicons::bs_icon("lightbulb", class = "me-2"),
+        tags$strong("Classification suggested: "), req_data$suggested_archetype_name
+      )
+    },
+    selectInput("edit_deck_request_existing", "Assign to Existing Archetype",
+                choices = deck_choices,
+                selectize = FALSE),
+    tags$hr(),
+    tags$p(class = "text-muted small", "Or create a new archetype:"),
+    textInput("edit_deck_request_name", "Deck Name", value = default_name),
     layout_columns(
       col_widths = c(6, 6),
       class = "deck-request-colors",
@@ -649,20 +789,30 @@ observeEvent(input$confirm_edit_approve_deck, {
   req(db_pool, rv$is_superadmin, rv$editing_deck_request_id)
 
   req_id <- rv$editing_deck_request_id
-  deck_name <- trimws(input$edit_deck_request_name)
-  primary_color <- input$edit_deck_request_color
-  secondary_color <- if (!is.null(input$edit_deck_request_color2) && input$edit_deck_request_color2 != "") {
-    input$edit_deck_request_color2
+  existing_archetype_id <- input$edit_deck_request_existing
+
+  # Check if user selected an existing archetype
+  if (!is.null(existing_archetype_id) && existing_archetype_id != "") {
+    # Assign to existing archetype instead of creating new one
+    assign_request_to_existing_archetype(req_id, as.integer(existing_archetype_id), session, rv)
   } else {
-    NA_character_
-  }
-  card_id <- if (!is.null(input$edit_deck_request_card_id) && trimws(input$edit_deck_request_card_id) != "") {
-    trimws(input$edit_deck_request_card_id)
-  } else {
-    NA_character_
+    # Create new archetype
+    deck_name <- trimws(input$edit_deck_request_name)
+    primary_color <- input$edit_deck_request_color
+    secondary_color <- if (!is.null(input$edit_deck_request_color2) && input$edit_deck_request_color2 != "") {
+      input$edit_deck_request_color2
+    } else {
+      NA_character_
+    }
+    card_id <- if (!is.null(input$edit_deck_request_card_id) && trimws(input$edit_deck_request_card_id) != "") {
+      trimws(input$edit_deck_request_card_id)
+    } else {
+      NA_character_
+    }
+
+    create_deck_from_request(req_id, deck_name, primary_color, secondary_color, card_id, session, rv)
   }
 
-  create_deck_from_request(req_id, deck_name, primary_color, secondary_color, card_id, session, rv)
   removeModal()
   rv$editing_deck_request_id <- NULL
 })
@@ -752,6 +902,41 @@ approve_deck_request <- function(req_id, session, rv) {
     req_data$display_card_id,
     session, rv
   )
+}
+
+# Helper function to assign a deck request to an existing archetype
+assign_request_to_existing_archetype <- function(req_id, archetype_id, session, rv) {
+  # Get archetype name for message
+  archetype_name <- dbGetQuery(db_pool, "SELECT archetype_name FROM deck_archetypes WHERE archetype_id = $1",
+                               params = list(archetype_id))$archetype_name[1]
+
+  tryCatch({
+    # Update the deck request
+    safe_execute(db_pool, "
+      UPDATE deck_requests
+      SET status = 'approved', approved_archetype_id = $1, reviewed_at = CURRENT_TIMESTAMP
+      WHERE request_id = $2
+    ", params = list(archetype_id, req_id))
+
+    # Auto-update any results that used this pending request
+    updated_count <- safe_execute(db_pool, "
+      UPDATE results
+      SET archetype_id = $1, pending_deck_request_id = NULL
+      WHERE pending_deck_request_id = $2
+    ", params = list(archetype_id, req_id))
+
+    msg <- sprintf("Assigned to '%s'", archetype_name)
+    if (updated_count > 0) {
+      msg <- paste0(msg, sprintf(" and updated %d result(s)", as.integer(updated_count)))
+    }
+    notify(msg, type = "message")
+
+    rv$decks_refresh <- Sys.time()
+    rv$deck_requests_refresh <- Sys.time()
+
+  }, error = function(e) {
+    notify(paste("Error assigning archetype:", e$message), type = "error")
+  })
 }
 
 # Helper function to create deck and update request/results

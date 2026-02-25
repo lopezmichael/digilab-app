@@ -5,6 +5,33 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.8] - 2026-02-25 - Limitless Integration Fixes
+
+### Fixed
+- **Decklist URLs**: Fixed 1,838 broken decklist links. URLs now correctly point to `play.limitlesstcg.com/tournament/{id}/player/{username}/decklist` instead of the incorrect format.
+- **Egg category parsing**: Classification now correctly reads `'egg'` category from Limitless API (was looking for `'digi-egg'`).
+- **Classification rules**: Major overhaul of 25+ deck archetype rules based on actual meta:
+  - Blastmon split into Bagra Army vs Rocks (based on boss monsters)
+  - Insectoids renamed to Royal Base
+  - Galaxy updated with correct cards (Lunamon/Coronamon/Apollomon)
+  - Royal Knights rule fixed (was matching Omnimon decks)
+  - Added CS Omnimon vs DNA Omnimon distinction (Nokia tamer check)
+  - Many other corrections and new variants
+
+### Added
+- **Classification review workflow**: Unknown/unclassifiable decks now create `deck_requests` for admin review instead of being silently skipped.
+- **View Decklist button**: Admins can now view the full card list for deck requests in a modal.
+- **Assign to existing archetype**: When reviewing deck requests, admins can now assign to an existing archetype instead of only creating new ones.
+- **Source tracking**: Deck requests now track their source (`manual`, `limitless_sync`, `classification`).
+- **New classification rules**: Added rules for ExMaquinamon, Ice-Snow, Dark Animals, Hina Linkz, Dark Masters, Appmon variants (Poseidomon, Galacticmon), Sistermon Puppets, and more.
+- **Appmon archetype**: New archetype for generic Appmon decks.
+
+### Changed
+- **Deck requests query**: Admin deck requests section now shows both `pending` and `needs_classification` status requests.
+- **Edit & Approve modal**: Now shows suggested archetype name and offers dropdown to assign to existing archetypes.
+
+---
+
 ## [1.0.7] - 2026-02-25 - Deck Request UX & Dashboard Improvements
 
 ### Fixed

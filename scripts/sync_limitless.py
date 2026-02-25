@@ -567,7 +567,7 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
             decklist_json = json.dumps(decklist_info)
 
         # Build Limitless decklist URL
-        decklist_url = f"https://limitlesstcg.com/decks/{limitless_id}?player={limitless_username}" if decklist_json else None
+        decklist_url = f"https://play.limitlesstcg.com/tournament/{limitless_id}/player/{limitless_username}/decklist" if decklist_json else None
 
         # Insert result
         cursor.execute(
@@ -1321,7 +1321,11 @@ def get_incremental_since_date(cursor):
 
 
 def run_classify_decklists(cursor):
-    """Run deck archetype auto-classification on UNKNOWN decklists."""
+    """Run deck archetype auto-classification on UNKNOWN decklists.
+
+    For decklists that can't be classified or match an archetype not in DB,
+    creates deck_requests for admin review.
+    """
     print("\n" + "=" * 60)
     print("AUTO-CLASSIFYING UNKNOWN DECKLISTS")
     print("=" * 60)
@@ -1336,7 +1340,7 @@ def run_classify_decklists(cursor):
     archetypes = cursor.fetchall()
     archetype_map = {name: id for id, name in archetypes}
 
-    # Get UNKNOWN decklist results from online tournaments
+    # Get UNKNOWN decklist results from online tournaments (that don't already have a pending deck request)
     cursor.execute('''
         SELECT r.result_id, r.decklist_json
         FROM results r
@@ -1347,25 +1351,39 @@ def run_classify_decklists(cursor):
           AND d.archetype_name = 'UNKNOWN'
           AND r.decklist_json IS NOT NULL
           AND r.decklist_json != ''
+          AND r.pending_deck_request_id IS NULL
     ''')
     results = cursor.fetchall()
 
-    print(f"  Found {len(results)} UNKNOWN results with decklists")
+    print(f"  Found {len(results)} UNKNOWN results with decklists (no pending request)")
 
     if len(results) == 0:
         print("  Nothing to classify!")
         return 0
 
-    # Classify each decklist
+    # Track outcomes
     updates = []
+    missing_archetypes = {}  # archetype_name -> [(result_id, decklist_json), ...]
+    unclassifiable = []      # [(result_id, decklist_json), ...]
+
+    # Classify each decklist
     for result_id, decklist_json in results:
         archetype_name = classify_decklist(decklist_json)
         if archetype_name:
             archetype_id = archetype_map.get(archetype_name)
             if archetype_id:
+                # Found in DB - can update directly
                 updates.append((archetype_id, result_id))
+            else:
+                # Classification matched but archetype not in DB
+                if archetype_name not in missing_archetypes:
+                    missing_archetypes[archetype_name] = []
+                missing_archetypes[archetype_name].append((result_id, decklist_json))
+        else:
+            # Classification failed - no matching rules
+            unclassifiable.append((result_id, decklist_json))
 
-    # Apply updates
+    # Apply direct updates
     for archetype_id, result_id in updates:
         cursor.execute(
             "UPDATE results SET archetype_id = %s WHERE result_id = %s",
@@ -1373,7 +1391,78 @@ def run_classify_decklists(cursor):
         )
 
     print(f"  Classified {len(updates)} decklists")
-    print(f"  Remaining UNKNOWN: {len(results) - len(updates)}")
+
+    # Create deck_requests for missing archetypes (one per archetype, not per result)
+    requests_created = 0
+    for archetype_name, result_list in missing_archetypes.items():
+        # Create one deck request for this missing archetype
+        cursor.execute(
+            "SELECT COALESCE(MAX(request_id), 0) + 1 FROM deck_requests"
+        )
+        next_request_id = cursor.fetchone()[0]
+
+        # Use the first result's decklist as the example
+        first_result_id, first_decklist = result_list[0]
+
+        cursor.execute("""
+            INSERT INTO deck_requests
+                (request_id, deck_name, primary_color, status, submitted_at,
+                 suggested_archetype_name, decklist_json, source, result_id)
+            VALUES (%s, %s, 'Unknown', 'pending', CURRENT_TIMESTAMP,
+                    %s, %s, 'classification', %s)
+        """, (
+            next_request_id,
+            f"[Auto] {archetype_name}",
+            archetype_name,
+            first_decklist,
+            first_result_id
+        ))
+
+        # Link all results with this archetype to this deck request
+        for result_id, _ in result_list:
+            cursor.execute(
+                "UPDATE results SET pending_deck_request_id = %s WHERE result_id = %s",
+                (next_request_id, result_id)
+            )
+
+        requests_created += 1
+        print(f"    Created deck request for '{archetype_name}' ({len(result_list)} results)")
+
+    # Create deck_requests for unclassifiable decklists (one per result)
+    for result_id, decklist_json in unclassifiable:
+        cursor.execute(
+            "SELECT COALESCE(MAX(request_id), 0) + 1 FROM deck_requests"
+        )
+        next_request_id = cursor.fetchone()[0]
+
+        cursor.execute("""
+            INSERT INTO deck_requests
+                (request_id, deck_name, primary_color, status, submitted_at,
+                 suggested_archetype_name, decklist_json, source, result_id)
+            VALUES (%s, %s, 'Unknown', 'needs_classification', CURRENT_TIMESTAMP,
+                    NULL, %s, 'classification', %s)
+        """, (
+            next_request_id,
+            "[Auto] Unclassified Deck",
+            decklist_json,
+            result_id
+        ))
+
+        cursor.execute(
+            "UPDATE results SET pending_deck_request_id = %s WHERE result_id = %s",
+            (next_request_id, result_id)
+        )
+        requests_created += 1
+
+    if unclassifiable:
+        print(f"    Created {len(unclassifiable)} deck requests for unclassifiable decklists")
+
+    total_missing = sum(len(r) for r in missing_archetypes.values())
+    print(f"  Summary:")
+    print(f"    - Directly classified: {len(updates)}")
+    print(f"    - Missing archetypes: {total_missing} results ({len(missing_archetypes)} unique archetypes)")
+    print(f"    - Unclassifiable: {len(unclassifiable)}")
+    print(f"    - Deck requests created: {requests_created}")
 
     return len(updates)
 

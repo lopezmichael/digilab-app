@@ -371,6 +371,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.0.7** - Deck Request UX & Dashboard Improvements
+**v1.0.8** - Limitless Integration Fixes
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

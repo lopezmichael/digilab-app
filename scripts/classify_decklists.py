@@ -27,18 +27,60 @@ LOCAL_DB = "data/local.duckdb"
 # Classification rules: list of (archetype_name, required_cards, min_matches)
 # required_cards can be a list of card name patterns (substring match)
 # min_matches is how many of the required cards must be present
+# ORDER MATTERS - more specific rules should come before general ones
 CLASSIFICATION_RULES = [
-    # Specific deck archetypes (order matters - more specific first)
+    # ==========================================================================
+    # SPECIFIC DECK ARCHETYPES (order matters - more specific first)
+    # ==========================================================================
 
-    # Blastmon (Sunarizamon/Rock deck)
-    ("Blastmon", ["Blastmon", "Sunarizamon", "Landramon", "Proganomon"], 3),
+    # Bagra Army (Blastmon variant with Bagramon/DarkKnightmon)
+    ("Bagra Army", ["Blastmon", "Bagramon", "DarkKnightmon"], 2),
+    ("Bagra Army", ["Bagramon", "DarkKnightmon"], 2),
+
+    # Rocks (Sunarizamon line with Magneticdramon/Pyramidimon)
+    ("Rocks", ["Sunarizamon", "Landramon", "Proganomon", "Magneticdramon"], 3),
+    ("Rocks", ["Sunarizamon", "Landramon", "Pyramidimon"], 3),
+    ("Rocks", ["Blastmon", "Sunarizamon", "Magneticdramon"], 3),
+    ("Rocks", ["Blastmon", "Sunarizamon", "Pyramidimon"], 3),
 
     # Millenniummon (Jogress with Machinedramon + Kimeramon)
     ("Millenniummon", ["Millenniummon", "Machinedramon", "Kimeramon"], 3),
+    ("Millenniummon", ["Millenniummon", "Kimeramon"], 2),
+    ("Millenniummon", ["Millenniummon", "Vademon", "Kimeramon"], 2),
 
     # Magnamon Armors (Veemon armor evolution)
     ("Magnamon Armors", ["Magnamon", "Veemon", "Flamedramon"], 3),
     ("Magnamon Armors", ["Magnamon", "Veemon", "Shadramon"], 3),
+    ("Magnamon Armors", ["Magnamon", "Veemon", "Lighdramon"], 3),
+    ("Magnamon Armors", ["Magnamon", "Lighdramon"], 2),
+
+    # ExMaquinamon (Machine deck)
+    ("ExMaquinamon", ["ExMaquinamon", "Maquinamon", "Maneuvermon"], 2),
+    ("ExMaquinamon", ["ExMaquinamon", "Maquinamon", "Turbomon"], 2),
+
+    # Ice-Snow (Bulucomon line)
+    ("Ice-Snow", ["Bulucomon", "Paledramon"], 2),
+    ("Ice-Snow", ["Bulucomon", "Frigimon", "Paledramon"], 2),
+
+    # Dark Animals (MadLeomon)
+    ("Dark Animals", ["MadLeomon", "MadLeomon: Armed Mode"], 2),
+    ("Dark Animals", ["MadLeomon", "Sangloupmon", "Dracmon"], 2),
+
+    # Hina Linkz (Vorvomon/Jazamon + Hina tamer)
+    ("Hina Linkz", ["Vorvomon", "Lavorvomon", "Hina Kurihara"], 2),
+    ("Hina Linkz", ["Jazamon", "Jazardmon", "Hina Kurihara"], 2),
+    ("Hina Linkz", ["Vorvomon", "Jazamon", "Hina Kurihara"], 2),
+
+    # Dark Masters (all 4)
+    ("Dark Masters", ["MetalSeadramon", "Puppetmon", "Machinedramon", "Piedmon"], 3),
+    ("Dark Masters", ["Apocalymon", "MetalSeadramon", "Puppetmon"], 2),
+    ("Dark Masters", ["Apocalymon", "Machinedramon", "Piedmon"], 2),
+
+    # Appmon boss variants (specific before generic)
+    ("Poseidomon", ["Poseidomon", "Oujamon", "Dokamon"], 2),
+    ("Poseidomon", ["Poseidomon", "Consulmon"], 2),
+    ("Galacticmon", ["Galacticmon", "Cometmon"], 2),
+    ("Galacticmon", ["Galacticmon", "Dokamon", "Consulmon"], 2),
 
     # Myotismon Loop
     ("Myotismon Loop", ["MaloMyotismon", "Myotismon", "Arukenimon", "Mummymon"], 3),
@@ -47,9 +89,10 @@ CLASSIFICATION_RULES = [
     ("Medusamon", ["Medusamon", "Lamiamon", "Elizamon"], 3),
     ("Medusamon", ["Medusamon", "Lamiamon", "Dimetromon"], 3),
 
-    # Insectoids (Bug/Bee deck)
-    ("Insectoids", ["TigerVespamon", "CannonBeemon", "FunBeemon"], 3),
-    ("Insectoids", ["TigerVespamon", "Waspmon", "FunBeemon"], 3),
+    # Royal Base (Bug/Bee deck - TigerVespamon line)
+    ("Royal Base", ["TigerVespamon", "CannonBeemon", "FunBeemon"], 3),
+    ("Royal Base", ["TigerVespamon", "Waspmon", "FunBeemon"], 3),
+    ("Royal Base", ["QueenBeemon", "CannonBeemon", "FunBeemon"], 3),
 
     # Gigaseadramon (Seadramon line)
     ("Gigaseadramon", ["GigaSeadramon", "MegaSeadramon", "Seadramon"], 3),
@@ -59,12 +102,14 @@ CLASSIFICATION_RULES = [
     ("Shakkoumon", ["Shakkoumon", "Angemon", "Patamon"], 2),
     ("Shakkoumon", ["Shakkoumon", "Ankylomon"], 2),
 
-    # Galaxy (space theme - Vademon, etc.)
-    ("Galaxy", ["Vademon", "MetalMamemon", "Vegiemon"], 3),
+    # Galaxy (Celestial/Lunar theme)
+    ("Galaxy", ["Lunamon", "Coronamon", "Apollomon"], 2),
+    ("Galaxy", ["Lunamon", "Dianamon", "Galaxymon"], 2),
+    ("Galaxy", ["Coronamon", "Apollomon", "Dianamon"], 2),
 
     # Fenriloogamon
-    ("Fenriloggamon", ["Fenriloogamon", "Cerberusmon", "Kazuchimon"], 2),
-    ("Fenriloggamon", ["Fenriloogamon: Takemikazuchi"], 1),
+    ("Fenriloogamon", ["Fenriloogamon", "Cerberusmon", "Kazuchimon"], 2),
+    ("Fenriloogamon", ["Fenriloogamon: Takemikazuchi"], 1),
 
     # Xros Heart (Shoutmon line)
     ("Xros Heart", ["OmniShoutmon", "Shoutmon"], 2),
@@ -72,7 +117,9 @@ CLASSIFICATION_RULES = [
     # Creepymon
     ("Creepymon", ["Creepymon", "SkullSatamon"], 2),
 
-    # Beelzemon
+    # Beelzemon (includes Wizardmon/Baalmon variants)
+    ("Beelzemon", ["Beelzemon", "Impmon", "Wizardmon"], 2),
+    ("Beelzemon", ["Beelzemon", "Impmon", "Baalmon"], 2),
     ("Beelzemon", ["Beelzemon", "Impmon"], 2),
     ("Beelzemon", ["Beelzemon: Blast Mode"], 1),
 
@@ -85,12 +132,17 @@ CLASSIFICATION_RULES = [
     # Imperialdramon variants
     ("Imperialdramon (UG)", ["Imperialdramon", "Paildramon", "ExVeemon"], 3),
     ("Imperialdramon (PR)", ["Imperialdramon", "Stingmon", "Wormmon"], 3),
+    ("Imperialdramon (PR)", ["Imperialdramon", "Dinobeemon", "Stingmon"], 3),
+    ("Imperialdramon (PR)", ["Imperialdramon", "Shadramon", "Wormmon"], 3),
 
     # Jesmon
     ("Jesmon", ["Jesmon", "Sistermon", "Huckmon"], 2),
 
-    # Mastemon
-    ("Mastemon (Tribal)", ["Mastemon", "Angewomon", "LadyDevimon"], 2),
+    # Mastemon (includes Gatomon/Salamon/Patamon variants)
+    ("Mastemon", ["Mastemon", "Angewomon", "LadyDevimon"], 2),
+    ("Mastemon", ["Mastemon", "Gatomon", "LadyDevimon"], 2),
+    ("Mastemon", ["Mastemon", "Gatomon", "Salamon"], 2),
+    ("Mastemon", ["Mastemon", "Gatomon", "Patamon"], 2),
 
     # Blue Flare
     ("Blue Flare", ["MetalGreymon", "MailBirdramon", "Greymon"], 3),
@@ -99,10 +151,15 @@ CLASSIFICATION_RULES = [
     ("Leviamon", ["Leviamon", "Gesomon", "Syakomon"], 2),
 
     # Lucemon
-    ("Lucemon", ["Lucemon", "Lucemon: Chaos Mode", "Lucemon: Shadowlord Mode"], 2),
+    ("Lucemon", ["Lucemon", "Lucemon: Chaos Mode", "Lucemon: Satan Mode"], 2),
+    ("Lucemon", ["Lucemon: Chaos Mode", "Lucemon: Satan Mode"], 2),
 
-    # Alphamon
+    # Alphamon (CS variant)
     ("CS Alphamon", ["Alphamon", "Dorumon", "DexDorugoramon"], 2),
+
+    # Chronicle (Alphamon + Ouryumon)
+    ("Chronicle", ["Alphamon", "Ouryumon"], 2),
+    ("Chronicle", ["Alphamon: Ouryuken", "Ouryumon"], 1),
 
     # UlforceVeedramon
     ("UlforceVeedramon", ["UlforceVeedramon", "AeroVeedramon"], 2),
@@ -110,14 +167,22 @@ CLASSIFICATION_RULES = [
     # MagnaGarurumon
     ("MagnaGarurumon", ["MagnaGarurumon", "Lobomon", "KendoGarurumon"], 2),
 
-    # Wargreymon
+    # Wargreymon OTK
     ("Wargreymon OTK", ["WarGreymon", "MetalGreymon", "Greymon", "Agumon"], 4),
 
     # Diaboromon
     ("Diaboromon", ["Diaboromon", "Infermon", "Keramon"], 2),
 
-    # Royal Knights
-    ("Royal Knights", ["Omnimon", "WarGreymon", "MetalGarurumon"], 3),
+    # Omnimon variants (CS with Nokia tamer, DNA without)
+    ("CS Omnimon", ["Omnimon", "WarGreymon", "MetalGarurumon", "Nokia"], 4),
+    ("DNA Omnimon", ["Omnimon", "WarGreymon", "MetalGarurumon"], 3),
+
+    # Royal Knights (multiple Royal Knight Digimon + King Drasil)
+    ("Royal Knights", ["King Drasil", "Omnimon", "Alphamon"], 2),
+    ("Royal Knights", ["King Drasil", "Gallantmon", "UlforceVeedramon"], 2),
+    ("Royal Knights", ["King Drasil", "Magnamon", "Dynasmon"], 2),
+    ("Royal Knights", ["Magnamon", "Omnimon", "Alphamon"], 2),
+    ("Royal Knights", ["Magnamon", "Omekamon", "Gallantmon"], 2),
 
     # Numemon
     ("Numemon", ["Numemon", "PlatinumNumemon", "Monzaemon"], 2),
@@ -134,8 +199,8 @@ CLASSIFICATION_RULES = [
     # Belphemon
     ("Belphemon", ["Belphemon", "Astamon"], 2),
 
-    # Bloomlordmon
-    ("Bloomlordmon", ["Bloomlordmon", "Lotosmon", "Rafflesimon"], 2),
+    # Bloomlordmon (simplified)
+    ("Bloomlordmon", ["Bloomlordmon"], 1),
 
     # Sakuyamon
     ("Sakuyamon", ["Sakuyamon", "Taomon", "Renamon"], 2),
@@ -146,9 +211,6 @@ CLASSIFICATION_RULES = [
     # D-Brigade
     ("D-Brigade", ["Darkdramon", "Commandramon", "Sealsdramon"], 2),
 
-    # Bagra Army
-    ("Bagra Army", ["Bagramon", "DarkKnightmon"], 2),
-
     # Hunters
     ("Hunters", ["Arresterdramon", "Gumdramon"], 2),
 
@@ -157,24 +219,27 @@ CLASSIFICATION_RULES = [
 
     # Leopardmon
     ("Leopardmon", ["Leopardmon", "LoaderLiomon"], 2),
+    ("Leopardmon", ["Leopardmon (X Antibody)", "Lillymon"], 2),
+    ("Leopardmon", ["Leopardmon (X Antibody)", "Examon"], 2),
 
     # LordKnightmon
     ("LordKnightmon", ["LordKnightmon", "Knightmon"], 2),
 
     # Examon
     ("Examon", ["Examon", "Breakdramon", "Slayerdramon"], 2),
+    ("Examon", ["Examon", "Wingdramon", "Coredramon"], 3),
+    ("Examon", ["Examon", "Groundramon", "Dracomon"], 3),
 
     # Kentaurosmon
     ("Kentaurosmon", ["Kentaurosmon", "Sleipmon"], 1),
 
-    # Hudiemon
+    # Hudiemon (includes Gotsumon)
+    ("Hudiemon", ["Hudiemon", "Wormmon", "Gotsumon"], 2),
     ("Hudiemon", ["Hudiemon", "Wormmon"], 2),
+    ("Hudiemon", ["Hudiemon", "Gotsumon"], 2),
 
     # Gammamon
     ("Gammamon", ["Gammamon", "BetelGammamon", "Canoweissmon"], 2),
-
-    # Chronicle (BT20 theme)
-    ("Chronicle", ["Chronomon", "Valdurmon"], 1),
 
     # Jellymon
     ("Jellymon", ["Jellymon", "TeslaJellymon"], 2),
@@ -185,36 +250,39 @@ CLASSIFICATION_RULES = [
     # Phoenixmon (Biyomon line)
     ("Phoenixmon", ["Phoenixmon", "Garudamon", "Birdramon", "Biyomon"], 3),
 
-    # Wind Guardians
+    # Wind Guardians / Accel (includes Valdurmon)
     ("Wind Guardians", ["Valdurmon", "Harpymon", "Aquilamon"], 2),
 
     # Deep Savers (aquatic)
     ("Deep Savers", ["Plesiomon", "MarineAngemon", "Gomamon"], 2),
+    ("Deep Savers", ["Sangomon", "Shellmon", "MarineBullmon"], 2),
+    ("Deep Savers", ["Ryugumon", "Sangomon", "MetalSeadramon"], 2),
 
     # TyrantKabuterimon
     ("TyrantKabuterimon", ["TyrantKabuterimon", "MegaKabuterimon", "Kabuterimon", "Tentomon"], 3),
-
-    # Quartzmon
-    ("Quartzmon", ["Quartzmon", "QueenBeemon"], 2),
 
     # Machinedramon (standalone, not Millenniummon)
     ("Machinedramon", ["Machinedramon", "MetalTyrannomon", "Megadramon"], 3),
     ("Machinedramon", ["Machinedramon", "Andromon", "Megadramon"], 3),
 
-    # Gabu Bond / MetalGarurumon line
-    ("Gabu Bond", ["Gabumon", "Garurumon", "WereGarurumon", "MetalGarurumon"], 4),
+    # Gabu Bond (Bond of Friendship)
+    ("Gabu Bond", ["Gabumon - Bond of Friendship", "Gabumon"], 2),
+    ("Gabu Bond", ["Gabumon - Bond of Friendship", "Garurumon"], 2),
 
-    # Agu Bond / WarGreymon line (if not caught by OTK)
-    ("Agu Bond", ["Agumon - Bond of Bravery", "WarGreymon"], 2),
+    # Agu Bond (Bond of Courage - NOT WarGreymon)
+    ("Agu Bond", ["Agumon - Bond of Courage", "Agumon"], 2),
+    ("Agu Bond", ["Agumon - Bond of Courage", "Greymon"], 2),
 
     # GAS (Garuru Alter-S)
     ("GAS (Garuru Alter-S)", ["Alter-S", "CresGarurumon"], 1),
 
-    # Invisimon
-    ("Invisimon", ["Invisimon", "Chaosdramon"], 1),
+    # Invisimon (standalone)
+    ("Invisimon", ["Invisimon"], 1),
 
-    # Blackwargreymon
-    ("Blackwargreymon", ["BlackWarGreymon", "BlackGreymon"], 2),
+    # Blackwargreymon (expanded)
+    ("Blackwargreymon", ["BlackWarGreymon", "Agumon", "Greymon"], 2),
+    ("Blackwargreymon", ["BlackWarGreymon", "MetalGreymon"], 2),
+    ("Blackwargreymon", ["BlackWarGreymon", "Gaiomon"], 2),
 
     # Dorbickmon
     ("Dorbickmon Combo", ["Dorbickmon", "NeoVamdemon"], 1),
@@ -239,21 +307,10 @@ CLASSIFICATION_RULES = [
     # Deusmon
     ("Deusmon", ["Deusmon", "Cometmon", "Warudamon"], 2),
 
-    # Ghosts (Ghost/Phantom deck)
-    ("Ghosts", ["DanDevimon", "Phantomon", "Ghostmon"], 2),
-    ("Ghosts", ["NeoDevimon", "Phantomon", "DemiDevimon"], 3),
-
-    # Examon (expanded rules)
-    ("Examon", ["Examon", "Wingdramon", "Coredramon"], 3),
-    ("Examon", ["Examon", "Groundramon", "Dracomon"], 3),
-
-    # Royal Base (Magnamon + Royal Knights)
-    ("Royal Base", ["Magnamon", "Omnimon", "Alphamon"], 2),
-    ("Royal Base", ["Magnamon", "Omekamon", "Gallantmon"], 2),
-
-    # Bloomlordmon / Plant deck (expanded)
-    ("Bloomlordmon", ["Lillymon", "Sunflowmon", "Palmon"], 3),
-    ("Bloomlordmon", ["Ajatarmon", "Argomon", "Palmon"], 2),
+    # Ghosts (updated cards)
+    ("Ghosts", ["Violent Inboots", "Dullahamon", "Ghostmon"], 2),
+    ("Ghosts", ["Violent Inboots", "Necromon", "Ghostmon"], 2),
+    ("Ghosts", ["Dullahamon", "Necromon", "Ghostmon"], 2),
 
     # Abbadomon
     ("Abbadomon", ["Abbadomon", "Negamon"], 1),
@@ -261,8 +318,10 @@ CLASSIFICATION_RULES = [
     # DarkKnightmon (if not caught by Bagra)
     ("DarkKnightmon", ["DarkKnightmon", "SkullKnightmon", "DeadlyAxemon"], 2),
 
-    # Three Musketeers
-    ("Three Musketeers", ["Beelstarmon", "GrandisKuwagamon", "Minervamon"], 2),
+    # Three Musketeers (updated cards)
+    ("Three Musketeers", ["Beelstarmon", "Gundramon"], 2),
+    ("Three Musketeers", ["Beelstarmon", "Avengekidmon"], 2),
+    ("Three Musketeers", ["Beelstarmon", "Magnakidmon"], 2),
 
     # Four Great Dragons
     ("Four Great Dragons", ["Azulongmon", "Ebonwumon", "Baihumon", "Zhuqiaomon"], 2),
@@ -273,8 +332,16 @@ CLASSIFICATION_RULES = [
     # Lilithmon
     ("Lilithmon", ["Lilithmon", "LadyDevimon", "BlackGatomon"], 2),
 
-    # Zephagamon
-    ("Zephagamon", ["Zephagamon", "Cyclomon", "Airdramon"], 2),
+    # Vortex Warriors (was Zephagamon)
+    ("Vortex Warriors", ["Zephagamon", "Pteromon", "Vortexdramon"], 2),
+    ("Vortex Warriors", ["Zephagamon", "Vortexdramon"], 2),
+    ("Vortex Warriors", ["Zephagamon", "Zephagamon ACE"], 2),
+    ("Vortex Warriors", ["Zephagamon ACE", "MedievalGallantmon"], 2),
+
+    # Sistermon Puppets (Sistermon + Gankoomon)
+    ("Sistermon Puppets", ["Sistermon Blanc", "Sistermon Ciel", "Gankoomon"], 3),
+    ("Sistermon Puppets", ["Sistermon Blanc (Awakened)", "Sistermon Ciel (Awakened)", "Gankoomon"], 2),
+    ("Sistermon Puppets", ["Sistermon Blanc", "Gankoomon (X Antibody)"], 2),
 
     # Argomon
     ("Argomon", ["Argomon", "Woodmon", "Mushroomon"], 2),
@@ -285,8 +352,10 @@ CLASSIFICATION_RULES = [
     # Rapidmon
     ("Rapidmon", ["Rapidmon", "Gargomon", "Terriermon"], 2),
 
-    # Dinomon
-    ("Dinomon", ["Dinorexmon", "Triceramon", "Monochromon"], 2),
+    # Dinomon (includes Ryutaro Williams tamer)
+    ("Dinomon", ["Dinomon", "Agumon", "Ryutaro Williams"], 2),
+    ("Dinomon", ["Dinomon", "Ryutaro Williams"], 2),
+    ("Dinomon", ["Dinorexmon", "Dinomon", "Agumon"], 2),
 
     # Red Hybrid (Takuya line)
     ("Red Hybrid", ["EmperorGreymon", "Aldamon", "BurningGreymon"], 2),
@@ -300,16 +369,17 @@ CLASSIFICATION_RULES = [
     ("Dynasmon", ["Dynasmon", "Lordomon"], 1),
     ("Dynasmon", ["Dynasmon (X Antibody)", "Lordomon"], 1),
 
-    # Aquatic / Marine (Sangomon line)
-    ("Deep Savers", ["Sangomon", "Shellmon", "MarineBullmon"], 2),
-    ("Deep Savers", ["Ryugumon", "Sangomon", "MetalSeadramon"], 2),
-
     # Blue Hybrid (Koji line)
     ("Blue Hybrid", ["MagnaGarurumon", "KendoGarurumon", "Lobomon"], 2),
 
-    # Wizardmon / Witchmon variants
+    # Nightmare Soldiers (Wizardmon / Witchmon variants)
     ("Nightmare Soldiers", ["Wizardmon", "Candlemon", "Witchmon"], 2),
     ("Nightmare Soldiers", ["Wizardmon (X Antibody)", "Wizardmon", "Candlemon"], 2),
+
+    # Appmon (generic - should be last among Appmon rules)
+    ("Appmon", ["Dokamon", "Consulmon", "Beautymon"], 2),
+    ("Appmon", ["Dokamon", "Coachmon", "Coordemon"], 2),
+    ("Appmon", ["Flickmon", "Dokamon", "Oujamon"], 2),
 ]
 
 
@@ -318,7 +388,7 @@ def extract_card_names(decklist_json):
     try:
         decklist = json.loads(decklist_json)
         cards = []
-        for category in ['digimon', 'tamer', 'option', 'digi-egg']:
+        for category in ['digimon', 'tamer', 'option', 'egg']:
             for card in decklist.get(category, []):
                 name = card.get('name', '')
                 count = card.get('count', 1)
