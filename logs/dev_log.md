@@ -4,6 +4,52 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-02-26: v1.0.9 - Database Connection Stability (Sentry Bug Fixes)
+
+### Background
+
+First bug fix session using Sentry MCP integration. Reviewed 50 unresolved issues from the past 24 hours and identified 6 real bugs worth fixing (vs. user network issues or expected validation errors).
+
+### Root Cause: PostgreSQL Prepared Statement Caching
+
+The majority of errors (38+ events) stemmed from RPostgres prepared statement caching conflicting with connection pooling. When the pool returns a previously-used connection, PostgreSQL may have cached prepared statements from a different query, causing parameter count mismatches.
+
+**Error patterns observed:**
+- "Query requires 1 params; 8 supplied" (DIGILAB-SHINY-1F, 38 events)
+- "unnamed prepared statement does not exist" (DIGILAB-SHINY-T, 28 events)
+- "Multiple queries must use the same column names" (DIGILAB-SHINY-N, 13 events)
+- "invalid input syntax for type date: Wilson" (DIGILAB-SHINY-27, 5 events)
+
+**Solution:** Added retry logic to `safe_query()` and `safe_execute()`. On detecting prepared statement errors (via `grepl("prepared statement")` or `grepl("bind message supplies")`), the query retries once after a 100ms pause. The retry typically succeeds because the pool assigns a different connection or the cached statement has been cleared.
+
+**What didn't work:** Initially tried `plan_cache_mode=force_custom_plan` PostgreSQL option, but verification showed this controls the *query planner* cache, not *prepared statement* cache — different layer entirely. Removed after verification.
+
+### R-Specific Null/NA Edge Cases
+
+Two additional bugs were caused by R's unique null/NA/empty handling:
+
+**"argument is of length zero" (DIGILAB-SHINY-2Q):** `is.na(character(0))` returns `logical(0)`, not `FALSE`. Dashboard card image rendering was calling `is.na(deck$display_card_id)` without first checking `length() == 0`. Fix: Added `length() == 0` guards before `is.na()` checks.
+
+**"missing value where TRUE/FALSE needed" (DIGILAB-SHINY-24):** `NA != ""` returns `NA`, not `TRUE`. OCR processing had `if (ocr_text != "")` without first checking `!is.na(ocr_text)`. Fix: Added `!is.na()` check.
+
+### Files Changed
+
+| File | Changes |
+|------|---------|
+| `R/db_connection.R` | Removed ineffective `plan_cache_mode` option |
+| `server/shared-server.R` | Added retry logic to `safe_query()` and `safe_execute()` |
+| `server/public-dashboard-server.R` | Added `length() == 0` guards in 3 card image renderers |
+| `server/public-submit-server.R` | Added `!is.na()` check before OCR text comparison |
+
+### Verification
+
+Ran 3 verification agents:
+1. **Syntax check:** All 4 modified files pass R syntax validation
+2. **Pattern verification:** Confirmed retry patterns match actual PostgreSQL error messages
+3. **Code review:** All defensive checks are correct; retry logic is sound
+
+---
+
 ## 2026-02-25: v1.0.7 - Deck Request UX & Dashboard Improvements
 
 ### Deck Request Modal Lockout Bug

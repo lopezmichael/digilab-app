@@ -758,28 +758,52 @@ sentry_context_tags <- function() {
 #' result <- safe_query(db_pool, "SELECT COUNT(*) as n FROM results",
 #'                      default = data.frame(n = 0))
 safe_query <- function(pool, query, params = NULL, default = data.frame()) {
-  tryCatch({
+  # Helper to detect retryable prepared statement errors
+  is_prepared_stmt_error <- function(msg) {
+    grepl("prepared statement", msg, ignore.case = TRUE) ||
+    grepl("bind message supplies", msg, ignore.case = TRUE)
+  }
+
+  # First attempt
+  result <- tryCatch({
     if (!is.null(params) && length(params) > 0) {
       DBI::dbGetQuery(pool, query, params = params)
     } else {
       DBI::dbGetQuery(pool, query)
     }
-  }, error = function(e) {
+  }, error = function(e) e)
+
+  # If prepared statement error, retry once (connection pool may have stale state)
+  if (inherits(result, "error") && is_prepared_stmt_error(conditionMessage(result))) {
+    message("[safe_query] Prepared statement error, retrying: ", conditionMessage(result))
+    Sys.sleep(0.1)  # Brief pause before retry
+    result <- tryCatch({
+      if (!is.null(params) && length(params) > 0) {
+        DBI::dbGetQuery(pool, query, params = params)
+      } else {
+        DBI::dbGetQuery(pool, query)
+      }
+    }, error = function(e) e)
+  }
+
+  # Handle final result
+  if (inherits(result, "error")) {
     query_preview <- substr(gsub("\\s+", " ", query), 1, 500)
     params_preview <- if (!is.null(params)) paste(sapply(params, as.character), collapse = ", ") else "NULL"
-    message("[safe_query] Error: ", conditionMessage(e), " | Query: ", query_preview, " | Params: ", params_preview)
+    message("[safe_query] Error: ", conditionMessage(result), " | Query: ", query_preview, " | Params: ", params_preview)
     if (sentry_enabled) {
-      # Include query context in Sentry for debugging
       tryCatch(
-        sentryR::capture_exception(e, tags = c(
+        sentryR::capture_exception(result, tags = c(
           sentry_context_tags(),
           list(query_preview = query_preview, params = params_preview)
         )),
         error = function(se) NULL
       )
     }
-    default
-  })
+    return(default)
+  }
+
+  result
 }
 
 #' Safe Database Execute Wrapper
@@ -798,20 +822,45 @@ safe_query <- function(pool, query, params = NULL, default = data.frame()) {
 #' rows <- safe_execute(db_pool, "DELETE FROM results WHERE result_id = $1",
 #'                      params = list(42))
 safe_execute <- function(pool, query, params = NULL) {
-  tryCatch({
+  # Helper to detect retryable prepared statement errors
+  is_prepared_stmt_error <- function(msg) {
+    grepl("prepared statement", msg, ignore.case = TRUE) ||
+    grepl("bind message supplies", msg, ignore.case = TRUE)
+  }
+
+  # First attempt
+  result <- tryCatch({
     if (!is.null(params) && length(params) > 0) {
       DBI::dbExecute(pool, query, params = params)
     } else {
       DBI::dbExecute(pool, query)
     }
-  }, error = function(e) {
-    message("[safe_execute] Error: ", conditionMessage(e))
+  }, error = function(e) e)
+
+  # If prepared statement error, retry once (connection pool may have stale state)
+  if (inherits(result, "error") && is_prepared_stmt_error(conditionMessage(result))) {
+    message("[safe_execute] Prepared statement error, retrying: ", conditionMessage(result))
+    Sys.sleep(0.1)  # Brief pause before retry
+    result <- tryCatch({
+      if (!is.null(params) && length(params) > 0) {
+        DBI::dbExecute(pool, query, params = params)
+      } else {
+        DBI::dbExecute(pool, query)
+      }
+    }, error = function(e) e)
+  }
+
+  # Handle final result
+  if (inherits(result, "error")) {
+    message("[safe_execute] Error: ", conditionMessage(result))
     message("[safe_execute] Query: ", substr(gsub("\\s+", " ", query), 1, 200))
     if (sentry_enabled) {
-      tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
+      tryCatch(sentryR::capture_exception(result, tags = sentry_context_tags()), error = function(se) NULL)
     }
-    0
-  })
+    return(0)
+  }
+
+  result
 }
 
 get_store_choices <- function(pool, include_none = FALSE) {

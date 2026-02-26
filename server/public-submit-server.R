@@ -376,7 +376,7 @@ observeEvent(input$submit_process_ocr, {
     # Extract text from structured result (backward compatible with plain string)
     ocr_text <- if (is.list(ocr_result)) ocr_result$text else ocr_result
 
-    if (!is.null(ocr_text) && ocr_text != "") {
+    if (!is.null(ocr_text) && !is.na(ocr_text) && ocr_text != "") {
       ocr_texts <- c(ocr_texts, ocr_text)
 
       # Parse results (layout-first with text fallback)

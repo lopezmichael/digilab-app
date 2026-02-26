@@ -88,7 +88,8 @@ output$most_popular_deck_val <- renderText({
 # Top Deck image (for new value box layout)
 output$top_deck_image <- renderUI({
   deck <- most_popular_deck()
-  if (is.null(deck) || is.na(deck$display_card_id) || nchar(deck$display_card_id) == 0) {
+  if (is.null(deck) || length(deck$display_card_id) == 0 ||
+      is.na(deck$display_card_id) || nchar(deck$display_card_id) == 0) {
     return(NULL)
   }
   img_url <- sprintf("https://images.digimoncard.io/images/cards/%s.jpg", deck$display_card_id)
@@ -228,7 +229,8 @@ output$hot_deck_image <- renderUI({
   if (is.null(hd) || isTRUE(hd$insufficient_data) || isTRUE(hd$no_trending)) {
     return(NULL)
   }
-  if (is.null(hd$display_card_id) || is.na(hd$display_card_id) || nchar(hd$display_card_id) == 0) {
+  if (is.null(hd$display_card_id) || length(hd$display_card_id) == 0 ||
+      is.na(hd$display_card_id) || nchar(hd$display_card_id) == 0) {
     return(NULL)
   }
   img_url <- sprintf("https://images.digimoncard.io/images/cards/%s.jpg", hd$display_card_id)
@@ -241,7 +243,8 @@ output$hot_deck_image <- renderUI({
 # Legacy output for backward compatibility (if needed elsewhere)
 output$most_popular_deck_image <- renderUI({
   deck <- most_popular_deck()
-  if (is.null(deck) || is.na(deck$display_card_id) || nchar(deck$display_card_id) == 0) {
+  if (is.null(deck) || length(deck$display_card_id) == 0 ||
+      is.na(deck$display_card_id) || nchar(deck$display_card_id) == 0) {
     return(bsicons::bs_icon("collection", size = "2.5rem"))
   }
   img_url <- sprintf("https://images.digimoncard.io/images/cards/%s.jpg", deck$display_card_id)

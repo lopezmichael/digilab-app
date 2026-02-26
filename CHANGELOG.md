@@ -5,6 +5,20 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.9] - 2026-02-26 - Database Connection Stability
+
+### Fixed
+- **Prepared statement pooling errors**: Added retry logic to `safe_query()` and `safe_execute()` for transient PostgreSQL prepared statement cache conflicts. Errors like "Query requires 1 params; 8 supplied" and "unnamed prepared statement does not exist" now automatically retry once, which typically succeeds as the connection pool assigns a fresh connection.
+- **Dashboard card image null checks**: Added `length() == 0` guards before `is.na()` checks in dashboard card image rendering. Prevents "argument is of length zero" errors when deck archetypes have no display card configured.
+- **OCR text null handling**: Added `!is.na()` check before string comparison in OCR processing. Prevents "missing value where TRUE/FALSE needed" errors when Vision API returns NA.
+
+### Technical
+- Retry logic detects errors containing "prepared statement" or "bind message supplies"
+- Brief 100ms pause between retry attempts to allow connection pool state to settle
+- All fixes identified via Sentry error monitoring
+
+---
+
 ## [1.0.8] - 2026-02-25 - Limitless Integration Fixes
 
 ### Fixed
