@@ -18,6 +18,9 @@ CREATE TABLE IF NOT EXISTS scenes (
     scene_type VARCHAR NOT NULL,      -- 'global', 'country', 'state', 'metro', 'online'
     latitude DECIMAL(9, 6),           -- Center point for map views
     longitude DECIMAL(9, 6),
+    discord_thread_id TEXT,           -- Discord #scene-coordination thread ID for webhook routing
+    country TEXT,                     -- Auto-populated from reverse geocode
+    state_region TEXT,                -- Auto-populated from reverse geocode
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
