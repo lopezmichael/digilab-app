@@ -327,7 +327,7 @@ observeEvent(input$report_error_player, {
 observeEvent(input$report_error_tournament, {
   tourn <- tryCatch(
     safe_query(db_pool,
-      "SELECT t.event_date, s.store_name
+      "SELECT t.event_date, s.name as store_name
        FROM tournaments t JOIN stores s ON t.store_id = s.store_id
        WHERE t.tournament_id = $1",
       params = list(rv$selected_tournament_id),
@@ -357,6 +357,10 @@ observeEvent(input$report_error_deck, {
 
 # Helper to show the data error modal
 show_data_error_modal <- function(item_type, item_name) {
+  # Clear previous values
+  updateTextAreaInput(session, "data_error_description", value = "")
+  updateTextInput(session, "data_error_discord", value = "")
+
   showModal(modalDialog(
     title = tagList(bsicons::bs_icon("flag"), " Report Data Error"),
     div(
@@ -448,6 +452,11 @@ observeEvent(input$faq_open_bug_report, {
 })
 
 show_bug_report_modal <- function() {
+  # Clear previous values
+  updateTextInput(session, "bug_report_title", value = "")
+  updateTextAreaInput(session, "bug_report_description", value = "")
+  updateTextInput(session, "bug_report_discord", value = "")
+
   showModal(modalDialog(
     title = tagList(bsicons::bs_icon("bug"), " Report a Bug"),
     div(
