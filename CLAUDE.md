@@ -88,26 +88,19 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v0.25.0 - Stores & Filtering Enhancements
+### Latest Release: v1.1.0 - Discord Integration & Error Reporting
 
-Online organizers world map, cards view on Stores tab, community links (`?community=store-slug`), admin scene filtering, country field for online stores, region-based mini maps in modals.
+Discord webhook system with Digimon-themed bots (Veemon, Gatomon, Tentomon). In-app store/scene request modals, contextual data error reporting from modals, bug report modal from footer. Admin scenes enhanced with Discord thread routing and geo metadata.
 
-See `ROADMAP.md` for the full version plan through v1.0.
+See `ROADMAP.md` for the full version plan.
 
 ### Recent Releases
 
 | Version | Focus |
 |---------|-------|
-| v0.25.0 | Stores & Filtering Enhancements |
-| v0.24.0 | Limitless Integration & Admin Improvements |
-| v0.23.1 | Multi-Region, Polish & Performance |
-
-### Upcoming Versions
-
-| Version | Focus |
-|---------|-------|
-| v0.26 | Self-Service Extras (achievement badges, head-to-head, result charts) |
-| v1.0 | Public Launch (landing page, SEO, PWA) |
+| v1.1.0 | Discord Integration & Error Reporting |
+| v1.0.9 | Database Connection Stability |
+| v1.0.0 | Public Launch (PWA, performance, security) |
 
 ### Key Architectural Decisions
 
@@ -371,6 +364,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.0.9** - Database Connection Stability
+**v1.1.0** - Discord Integration & Error Reporting
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

@@ -4,6 +4,75 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-02-28: v1.1.0 - Discord Integration & Error Reporting
+
+### Overview
+
+Major feature release adding Discord webhook integration throughout DigiLab. Three webhook channels replace Google Forms and static Discord links with contextual, in-app workflows that automatically route to the right Discord thread.
+
+### Architecture: Discord Webhook Module
+
+Created `R/discord_webhook.R` as a centralized webhook module with a base `discord_send()` helper and 4 purpose-specific functions:
+- `discord_post_store_request()` — Creates Forum posts in `#scene-requests`
+- `discord_post_scene_request()` — Creates Forum posts in `#scene-requests`
+- `discord_post_data_error()` — Routes to scene's coordination thread via `discord_thread_id`
+- `discord_post_bug_report()` — Creates Forum posts in `#bug-reports`
+
+All webhooks are fire-and-forget: errors are logged to Sentry but never block the user. This ensures the UX is never degraded by Discord API issues.
+
+### Discord Forum API
+
+Used Discord's Forum webhook API which differs from regular channel webhooks:
+- `thread_name` parameter creates a new Forum post (required, max 100 chars)
+- `applied_tags` parameter auto-applies Forum tags (requires tag IDs as env vars)
+- `content` is the post body (Markdown supported)
+
+Thread routing for data errors uses `thread_id` appended to the webhook URL as a query parameter, which posts into an existing thread rather than creating a new one.
+
+### Webhook Bot Names (Digimon-Themed)
+
+Chose Adventure 01/02 partner Digimon for thematic consistency:
+- **Veemon** — Scene requests (energetic, welcoming new communities)
+- **Gatomon** — Scene coordination (organized, precise, team leader)
+- **Tentomon** — Bug reports (literally a bug Digimon)
+
+### Admin Scenes Enhancement
+
+Extended the scenes table with:
+- `discord_thread_id` — Links scene to its Discord coordination thread
+- `country` — Country code for geo metadata
+- `state_region` — State/region for geo metadata
+
+Added reverse geocoding via Mapbox API to auto-populate country/state from scene coordinates. Added confirmation dialog when editing scenes to prevent accidental overwrites.
+
+### Error Reporting UX
+
+Two distinct error flows:
+1. **Data errors** (wrong placement, incorrect deck, etc.): Contextual buttons in modal footers → modal with item context pre-filled → routes to scene coordination thread
+2. **Bug reports** (app broken, unexpected behavior): Footer link + content pages → modal with title/description → creates Forum post in `#bug-reports`
+
+Both modals include optional Discord username field and auto-attach app context (current tab, scene). Data errors fall back to bug reports if no scene thread is configured.
+
+### Files Changed
+
+| File | Changes |
+|------|---------|
+| `R/discord_webhook.R` | New module: 4 webhook functions + base helper |
+| `.env.example` | 4 new Discord env vars |
+| `db/schema.sql` | 3 new columns on scenes table |
+| `scripts/backfill_scenes.py` | Scene geo metadata backfill |
+| `server/shared-server.R` | Store/scene request modals, data error modals, bug report modals, all handlers |
+| `server/public-players-server.R` | Report Error button replacement |
+| `server/public-tournaments-server.R` | Report Error button replacement |
+| `server/public-meta-server.R` | Report Error button replacement |
+| `server/admin-stores-server.R` | Store request modal integration |
+| `app.R` | Footer bug report link, version bump |
+| `views/for-tos-ui.R` | Error section rewrite, centering, collapse |
+| `views/faq-ui.R` | Bug/error sections updated, centering |
+| `docs/plans/` | 4 design/implementation documents |
+
+---
+
 ## 2026-02-26: v1.0.9 - Database Connection Stability (Sentry Bug Fixes)
 
 ### Background

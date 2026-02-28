@@ -2,7 +2,7 @@
 
 This document outlines the planned features, improvements, and bug fixes for the tournament tracker.
 
-**Current Version:** v1.0.8
+**Current Version:** v1.1.0
 **Cadence:** ~1 milestone per week
 
 ---
@@ -46,8 +46,8 @@ Upgrade from simple password auth to full user account system:
 | ID | Type | Description |
 |----|------|-------------|
 | DC1 | FEATURE | Discord bot for scene admin onboarding — new admin requests via Discord, Super Admin approves |
-| DC2 | FEATURE | Store submission queue — community members suggest new stores via Discord, admins approve/reject |
-| DC3 | FEATURE | Discord webhook notifications — alert admins when new submissions need review |
+| ~~DC2~~ | ~~FEATURE~~ | ~~Store submission queue — community members suggest new stores via Discord, admins approve/reject~~ (Done in v1.1.0 — in-app modals route to Discord) |
+| ~~DC3~~ | ~~FEATURE~~ | ~~Discord webhook notifications — alert admins when new submissions need review~~ (Done in v1.1.0 — webhook routing for store requests, error reports, bug reports) |
 | DC4 | INTEGRATION | Link Discord users to DigiLab accounts — enables bot-based workflows |
 
 ### Multi-Region Extras
@@ -98,15 +98,15 @@ Dashboard is the current bottleneck — loads multiple charts and stats on start
 | MR17 | PERFORMANCE | ~~Profile with `shinyloadtest` and size Posit Connect tier~~ (Done in v1.0 — see profiling report) |
 | INF1 | DEVEX | Sentry MCP integration — Claude Code workflow for proactive error monitoring, bug triage, and fix prioritization |
 | INF2 | DEVEX | Sentry error collection workflow — document process for identifying, categorizing, and addressing production errors |
-| INF3 | BUG | Sentry Discord bot not posting to #error-log — review bot permissions, channel config, alert rules |
+| ~~INF3~~ | ~~BUG~~ | ~~Sentry Discord bot not posting to #error-log — review bot permissions, channel config, alert rules~~ (Fixed in Sentry triage session, Feb 2026) |
 
 ### Feedback & Bug Reporting
 
 | ID | Type | Description |
 |----|------|-------------|
-| FB1 | FEATURE | In-app feedback form — replace Google Form with native modal (bug report / feature request / general feedback) |
+| ~~FB1~~ | ~~FEATURE~~ | ~~In-app feedback form — replace Google Form with native modal (bug report / feature request / general feedback)~~ (Done in v1.1.0 — bug report + data error modals with Discord webhook routing) |
 | FB2 | FEATURE | Feedback admin queue — view/triage/respond to submissions in admin panel |
-| FB3 | UX | Auto-attach context to bug reports — current tab, scene, browser, recent actions |
+| ~~FB3~~ | ~~UX~~ | ~~Auto-attach context to bug reports — current tab, scene, browser, recent actions~~ (Done in v1.1.0 — auto-attaches current tab and scene context) |
 
 ---
 
@@ -207,6 +207,15 @@ The React PoC on `explore/react-rewrite` branch serves as a reference for future
 ---
 
 ## Completed
+
+### v1.1.0 - Discord Integration & Error Reporting
+- Discord webhook module (`R/discord_webhook.R`) with 3 Digimon-themed bots: Veemon (requests), Gatomon (coordination), Tentomon (bugs)
+- In-app store/scene request modals replacing Google Form, routed to Discord via webhooks
+- Contextual data error reporting from player/tournament/deck modals → scene coordination threads
+- Bug report modal from footer + content pages → `#bug-reports` Discord Forum
+- Admin scenes: Discord thread ID, country, state/region, reverse geocoding, edit confirmation dialog
+- Content page overhauls: FAQ and For Organizers updated with webhook-powered error reporting
+- Completed: DC2, DC3, FB1, FB3, INF3
 
 ### v1.0.4 - Dynamic Min Events
 - Dynamic min events/entries filter defaults based on scene tournament count (<20: All, 20-100: 5+, >100: 10+)

@@ -5,6 +5,38 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-02-28 - Discord Integration & Error Reporting
+
+### Added
+- **Discord webhook system**: New `R/discord_webhook.R` module with fire-and-forget webhook posting. Three webhook bots with Digimon-themed names: Veemon (scene requests), Gatomon (scene coordination), Tentomon (bug reports).
+- **Store/scene request modals**: In-app modals replace Google Form for requesting new stores and scenes. Requests route to Discord scene coordination threads or a `#scene-requests` Forum channel based on context.
+- **Data error reporting**: Contextual "Report Error" buttons in player, tournament, and deck meta modals. Reports route to the relevant scene's Discord coordination thread with item context (type, name, description). Falls back to bug reports channel if no scene thread is configured.
+- **Bug report modal**: General bug reporting via footer link and content pages. Creates Forum posts in `#bug-reports` Discord channel with auto-applied "New" tag, app context (current tab, scene), and optional Discord username.
+- **Admin scenes enhancements**: Discord thread ID, country, and state/region fields on scenes. Reverse geocoding via Mapbox for auto-populating geo metadata. Confirmation dialog when editing scenes to prevent accidental overwrites.
+- **Scene backfill script**: `scripts/backfill_scenes.py` to populate country/state_region from scene coordinates.
+
+### Changed
+- **For Organizers page**: Rewrote "Report an Error" section with data error guidance and bug report trigger. All accordions collapsed by default. All contact button groups centered.
+- **FAQ page**: "I found a bug" section now opens bug report modal instead of linking to Discord. "Can I get my data corrected" section includes data error report button. All contact button groups centered.
+- **Report Error buttons**: Replaced static Discord links in player, tournament, and deck modals with webhook-powered actionButtons styled as `btn-outline-warning` (amber).
+- **Content page buttons**: Centered all contact link groups across FAQ and For Organizers pages using `contact-links--centered` CSS modifier.
+
+### Fixed
+- **Connection pool retry logic**: Expanded retry patterns to catch additional transient PostgreSQL connection errors beyond prepared statement conflicts.
+- **SQL column name bug**: Fixed `s.store_name` → `s.name as store_name` in tournament error report query (stores table column is `name`, not `store_name`).
+- **Modal input persistence**: Added input clearing (`updateTextAreaInput`/`updateTextInput`) before showing error report and bug report modals to prevent stale data from previous submissions.
+- **Mapbox geocode Referer header**: Added required `Referer` header to Mapbox API calls.
+- **Reactable date warning**: Converted `created_at` to text in SQL to prevent reactable date column warnings in admin scenes table.
+- **Webhook error handling**: Fixed `pool::dbGetQuery` usage in webhook module, store request button visibility, and action button icon rendering.
+
+### Technical
+- Discord webhooks use Forum API (`thread_name`, `applied_tags`) for bug reports and scene requests
+- Scene coordination uses thread-based routing via `discord_thread_id` on scenes table
+- Environment variables: `DISCORD_WEBHOOK_BUG_REPORTS`, `DISCORD_TAG_NEW_BUG`, `DISCORD_WEBHOOK_SCENE_REQUESTS`, `DISCORD_TAG_NEW_REQUEST`
+- Webhook errors logged to Sentry but never block the user (fire-and-forget pattern)
+
+---
+
 ## [1.0.9] - 2026-02-26 - Database Connection Stability
 
 ### Fixed
