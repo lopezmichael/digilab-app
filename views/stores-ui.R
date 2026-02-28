@@ -16,9 +16,9 @@ stores_ui <- tagList(
       # Right side: request button
       div(
         class = "title-strip-actions",
-        actionButton("open_store_request", "Request a Store",
-                     class = "btn btn-sm btn-outline-primary",
-                     icon = bsicons::bs_icon("plus-circle"))
+        actionButton("open_store_request",
+                     tagList(bsicons::bs_icon("plus-circle"), " Request a Store"),
+                     class = "btn btn-sm btn-outline-primary")
       )
     )
   ),

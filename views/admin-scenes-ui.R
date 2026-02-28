@@ -12,7 +12,7 @@ admin_scenes_ui <- tagList(
   div(
     class = "admin-panel",
     layout_columns(
-      col_widths = breakpoints(sm = c(12, 12), md = c(5, 7)),
+      col_widths = breakpoints(sm = c(12, 12), md = c(4, 8)),
       fill = FALSE,
 
       # Add/Edit form
