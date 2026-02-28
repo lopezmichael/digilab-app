@@ -120,9 +120,9 @@ class = "content-page",
       ),
       tags$a(
         class = "contact-link",
-        href = LINKS$contact,
+        href = LINKS$discord,
         target = "_blank",
-        bsicons::bs_icon("envelope"), "Contact Form"
+        bsicons::bs_icon("discord"), "Join Discord"
       )
     )
   ),

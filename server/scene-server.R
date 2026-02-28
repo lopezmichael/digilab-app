@@ -17,7 +17,8 @@ get_scene_choices <- function(db_con) {
   scenes <- safe_query(db_con,
     "SELECT slug, display_name FROM scenes
      WHERE scene_type = 'metro' AND is_active = TRUE
-     ORDER BY display_name"
+     ORDER BY display_name",
+    default = data.frame(slug = character(), display_name = character())
   )
 
   if (nrow(scenes) > 0) {

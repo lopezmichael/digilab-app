@@ -357,8 +357,7 @@ EVENT_TYPES <- c(
 LINKS <- list(
   discord = "https://discord.gg/ABcjha7bHk",
   kofi    = "https://ko-fi.com/digilab",
-  github  = "https://github.com/lopezmichael/digimon-tcg-standings",
-  contact = "https://forms.gle/shc6cGjBFNjqvkSw9"
+  github  = "https://github.com/lopezmichael/digimon-tcg-standings"
 )
 
 # Sentry error tracking (no-op if DSN not set)

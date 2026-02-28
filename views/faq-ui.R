@@ -327,9 +327,9 @@ faq_ui <- div(
         class = "contact-links",
         tags$a(
           class = "contact-link",
-          href = LINKS$contact,
+          href = LINKS$discord,
           target = "_blank",
-          bsicons::bs_icon("envelope"), "Contact Us"
+          bsicons::bs_icon("discord"), "Contact Us on Discord"
         )
       )
     )
@@ -394,21 +394,15 @@ faq_ui <- div(
         class = "contact-links",
         tags$a(
           class = "contact-link",
-          href = LINKS$contact,
+          href = LINKS$discord,
           target = "_blank",
-          bsicons::bs_icon("envelope"), "Report via Form"
+          bsicons::bs_icon("discord"), "Report on Discord"
         ),
         tags$a(
           class = "contact-link",
           href = paste0(LINKS$github, "/issues/new?title=Bug%20Report"),
           target = "_blank",
           bsicons::bs_icon("github"), "Report via GitHub"
-        ),
-        tags$a(
-          class = "contact-link",
-          href = LINKS$discord,
-          target = "_blank",
-          bsicons::bs_icon("discord"), "Report via Discord"
         )
       )
     ),

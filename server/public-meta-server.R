@@ -246,7 +246,7 @@ output$deck_detail_modal <- renderUI({
         bsicons::bs_icon("link-45deg"), " Copy Link"
       ),
       tags$a(
-        href = LINKS$contact, target = "_blank",
+        href = LINKS$discord, target = "_blank",
         class = "btn btn-outline-secondary",
         bsicons::bs_icon("flag"), " Report Error"
       ),

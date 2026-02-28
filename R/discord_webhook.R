@@ -78,7 +78,8 @@ discord_post_scene_request <- function(store_name, location, discord_username = 
   timestamp <- format(Sys.time(), "%m/%d/%Y %I:%M %p %Z")
 
   content_lines <- c(
-    paste0("**Store:** ", store_name),
+    paste0("**New Scene Request**"),
+    paste0("**Store/Community:** ", store_name),
     paste0("**Location:** ", location)
   )
 
@@ -92,7 +93,7 @@ discord_post_scene_request <- function(store_name, location, discord_username = 
   )
 
   body <- list(
-    thread_name = paste0("Store Request: ", location),
+    thread_name = paste0("Scene Request: ", location),
     content = paste(content_lines, collapse = "\n")
   )
 

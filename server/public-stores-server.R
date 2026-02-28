@@ -545,7 +545,7 @@ output$store_detail_modal <- renderUI({
         bsicons::bs_icon("share"), " Share Community View"
       ),
       tags$a(
-        href = LINKS$contact, target = "_blank",
+        href = LINKS$discord, target = "_blank",
         class = "btn btn-outline-secondary",
         bsicons::bs_icon("flag"), " Report Error"
       ),
@@ -1323,7 +1323,7 @@ observeEvent(input$open_store_request, {
   }
 
   showModal(modalDialog(
-    title = "Request a Store",
+    title = tagList(span(id = "store_req_title", "Request a Store")),
     div(
       selectInput("store_req_scene", "Scene / Area",
                   choices = scene_choices,
@@ -1332,11 +1332,12 @@ observeEvent(input$open_store_request, {
       textInput("store_req_name", "Store Name"),
       textInput("store_req_location", "City / State"),
 
+      # Extra fields for new scene requests (shown when "My area isn't listed")
       div(id = "store_req_new_scene_fields", style = "display: none;",
         tags$small(class = "form-text text-muted d-block mb-2",
                    "Include country if outside the US (e.g., 'S\u00e3o Paulo, Brazil')"),
         textInput("store_req_discord", "Your Discord Username"),
-        div(class = "mt-2",
+        div(class = "mt-2 text-center",
           tags$a(
             href = LINKS$discord, target = "_blank",
             class = "btn btn-sm btn-outline-primary",
@@ -1348,11 +1349,11 @@ observeEvent(input$open_store_request, {
 
       tags$script(HTML("
         $(document).on('change', '#store_req_scene', function() {
-          if ($(this).val() === 'new') {
-            $('#store_req_new_scene_fields').show();
-          } else {
-            $('#store_req_new_scene_fields').hide();
-          }
+          var isNew = $(this).val() === 'new';
+          $('#store_req_new_scene_fields').toggle(isNew);
+          $('#store_req_title').text(isNew ? 'Request a Scene' : 'Request a Store');
+          $('label[for=store_req_name]').text(isNew ? 'Store or Community Name' : 'Store Name');
+          $('label[for=store_req_location]').text(isNew ? 'City / Region' : 'City / State');
         });
       "))
     ),
@@ -1384,7 +1385,7 @@ observeEvent(input$submit_store_request, {
       discord_username <- trimws(input$store_req_discord)
       discord_post_scene_request(store_name, location, discord_username)
       removeModal()
-      notify("Your request has been submitted! Join our Discord to follow up.", type = "message", duration = 5)
+      notify("Your scene request has been submitted! Join our Discord to follow up.", type = "message", duration = 5)
     } else {
       scene_id <- as.integer(scene_val)
       discord_post_to_scene(scene_id, store_name, location, db_pool)

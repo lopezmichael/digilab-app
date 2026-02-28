@@ -150,12 +150,6 @@ for_tos_ui <- div(
           href = LINKS$discord,
           target = "_blank",
           bsicons::bs_icon("discord"), "Ask on Discord"
-        ),
-        tags$a(
-          class = "contact-link",
-          href = LINKS$contact,
-          target = "_blank",
-          bsicons::bs_icon("envelope"), "Request via Form"
         )
       )
     )
@@ -211,25 +205,25 @@ for_tos_ui <- div(
       tags$ol(
         class = "steps-list",
         tags$li(
-          strong("Provide store information"),
-          p("Store name, address, city, and state.")
+          strong("Go to the Stores tab"),
+          p("Click the \"Request a Store\" button at the top of the page.")
         ),
         tags$li(
-          strong("Share your tournament schedule"),
-          p("What days/times do you run Digimon events? Weekly? Monthly?")
+          strong("Select your scene"),
+          p("Choose your local scene from the dropdown and fill in your store details.")
         ),
         tags$li(
-          strong("Contact us"),
-          p("Reach out through the form or GitHub with your store details.")
+          strong("Submit"),
+          p("Your request goes directly to your scene admin for review.")
         )
       ),
       div(
         class = "contact-links",
         tags$a(
           class = "contact-link",
-          href = LINKS$contact,
+          href = LINKS$discord,
           target = "_blank",
-          bsicons::bs_icon("envelope"), "Request via Form"
+          bsicons::bs_icon("discord"), "Ask on Discord"
         ),
         tags$a(
           class = "contact-link",
@@ -255,9 +249,9 @@ for_tos_ui <- div(
         class = "contact-links",
         tags$a(
           class = "contact-link",
-          href = LINKS$contact,
+          href = LINKS$discord,
           target = "_blank",
-          bsicons::bs_icon("envelope"), "Request via Form"
+          bsicons::bs_icon("discord"), "Ask on Discord"
         ),
         tags$a(
           class = "contact-link",
@@ -308,8 +302,9 @@ for_tos_ui <- div(
         ),
         tags$li(
           strong("Submit your request"),
-          p("Tell us about your scene: which stores are active, how many players typically ",
-            "attend events, and who we can contact.")
+          p("Go to the ", strong("Stores"), " tab, click ", strong("\"Request a Store\""),
+            ", and select ", strong("\"My area isn't listed\""),
+            " to submit a scene request. Or reach out on Discord.")
         )
       ),
       div(
@@ -319,12 +314,6 @@ for_tos_ui <- div(
           href = LINKS$discord,
           target = "_blank",
           bsicons::bs_icon("discord"), "Ask on Discord"
-        ),
-        tags$a(
-          class = "contact-link",
-          href = LINKS$contact,
-          target = "_blank",
-          bsicons::bs_icon("envelope"), "Request via Form"
         )
       )
     ),
@@ -393,12 +382,6 @@ for_tos_ui <- div(
           href = LINKS$discord,
           target = "_blank",
           bsicons::bs_icon("discord"), "Ask on Discord"
-        ),
-        tags$a(
-          class = "contact-link",
-          href = LINKS$contact,
-          target = "_blank",
-          bsicons::bs_icon("envelope"), "Request via Form"
         )
       )
     )
@@ -446,12 +429,6 @@ for_tos_ui <- div(
         ),
         tags$a(
           class = "contact-link",
-          href = LINKS$contact,
-          target = "_blank",
-          bsicons::bs_icon("envelope"), "Report via Form"
-        ),
-        tags$a(
-          class = "contact-link",
           href = paste0(LINKS$github, "/issues/new?title=Data%20Error%20Report"),
           target = "_blank",
           bsicons::bs_icon("github"), "Report via GitHub"
@@ -474,12 +451,6 @@ for_tos_ui <- div(
         href = LINKS$discord,
         target = "_blank",
         bsicons::bs_icon("discord"), "Discord"
-      ),
-      tags$a(
-        class = "contact-link",
-        href = LINKS$contact,
-        target = "_blank",
-        bsicons::bs_icon("envelope"), "Contact Form"
       ),
       tags$a(
         class = "contact-link",
