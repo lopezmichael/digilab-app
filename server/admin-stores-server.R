@@ -31,6 +31,7 @@ geocode_with_mapbox <- function(address) {
 
     # Make request using httr2
     resp <- httr2::request(url) |>
+      httr2::req_headers(Referer = "http://127.0.0.1/") |>
       httr2::req_timeout(10) |>
       httr2::req_perform()
 
@@ -74,6 +75,7 @@ reverse_geocode_with_mapbox <- function(lat, lng) {
     )
 
     resp <- httr2::request(url) |>
+      httr2::req_headers(Referer = "http://127.0.0.1/") |>
       httr2::req_timeout(10) |>
       httr2::req_perform()
 
