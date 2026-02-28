@@ -430,6 +430,85 @@ observeEvent(input$submit_data_error, {
 })
 
 # ---------------------------------------------------------------------------
+# Bug Report Modal (general bugs — footer + content pages)
+# ---------------------------------------------------------------------------
+
+observeEvent(input$open_bug_report, {
+  show_bug_report_modal()
+})
+
+# For Organizers page triggers
+observeEvent(input$tos_open_bug_report, {
+  show_bug_report_modal()
+})
+
+# FAQ page trigger
+observeEvent(input$faq_open_bug_report, {
+  show_bug_report_modal()
+})
+
+show_bug_report_modal <- function() {
+  showModal(modalDialog(
+    title = tagList(bsicons::bs_icon("bug"), " Report a Bug"),
+    div(
+      textInput("bug_report_title", "Title",
+                placeholder = "Brief summary of the issue"),
+      textAreaInput("bug_report_description", "What happened?",
+                    placeholder = "What were you trying to do? What went wrong?",
+                    rows = 4),
+      textInput("bug_report_discord", "Your Discord Username (optional)",
+                placeholder = "So we can follow up")
+    ),
+    footer = tagList(
+      modalButton("Cancel"),
+      actionButton("submit_bug_report", "Submit Report", class = "btn-primary")
+    ),
+    size = "m",
+    easyClose = TRUE
+  ))
+}
+
+# Handle bug report submission
+observeEvent(input$submit_bug_report, {
+  title <- trimws(input$bug_report_title)
+  description <- trimws(input$bug_report_description)
+
+  if (nchar(title) == 0) {
+    notify("Please provide a title", type = "warning")
+    return()
+  }
+  if (nchar(description) == 0) {
+    notify("Please describe the issue", type = "warning")
+    return()
+  }
+
+  tryCatch({
+    context_parts <- c()
+    if (!is.null(rv$current_nav)) context_parts <- c(context_parts, paste("Tab:", rv$current_nav))
+    if (!is.null(rv$current_scene) && rv$current_scene != "all") {
+      context_parts <- c(context_parts, paste("Scene:", rv$current_scene))
+    }
+    context <- paste(context_parts, collapse = ", ")
+
+    discord_username <- trimws(input$bug_report_discord)
+
+    discord_post_bug_report(
+      title = title,
+      description = description,
+      context = context,
+      discord_username = discord_username
+    )
+
+    removeModal()
+    notify("Bug report submitted! Thank you for helping improve DigiLab.", type = "message", duration = 5)
+  }, error = function(e) {
+    warning(paste("Bug report failed:", e$message))
+    removeModal()
+    notify("Report received but couldn't send to Discord. We'll follow up manually.", type = "warning", duration = 5)
+  })
+})
+
+# ---------------------------------------------------------------------------
 # About Page Stats
 # ---------------------------------------------------------------------------
 

@@ -865,6 +865,9 @@ ui <- page_fillable(
       span(class = "footer-divider", "//"),
       actionLink("nav_for_tos", "For Organizers", class = "footer-link"),
       span(class = "footer-divider", "//"),
+      actionLink("open_bug_report", tagList(bsicons::bs_icon("bug"), " Report a Bug"),
+                 class = "footer-link"),
+      span(class = "footer-divider", "//"),
       tags$a(
         href = LINKS$github,
         target = "_blank",
