@@ -446,7 +446,11 @@ observeEvent(input$tos_open_bug_report, {
   show_bug_report_modal()
 })
 
-# FAQ page trigger
+# FAQ page triggers
+observeEvent(input$faq_open_data_correction, {
+  show_bug_report_modal()
+})
+
 observeEvent(input$faq_open_bug_report, {
   show_bug_report_modal()
 })

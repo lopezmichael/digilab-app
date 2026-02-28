@@ -324,7 +324,11 @@ faq_ui <- div(
       p("Yes! If you spot an error in your results or want your data removed, please reach out. ",
         "We want to ensure accuracy and respect player privacy."),
       div(
-        class = "contact-links",
+        class = "contact-links contact-links--centered",
+        actionLink("faq_open_data_correction",
+          tagList(bsicons::bs_icon("flag"), " Report a Data Error"),
+          class = "contact-link"
+        ),
         tags$a(
           class = "contact-link",
           href = LINKS$discord,
@@ -363,7 +367,7 @@ faq_ui <- div(
         tags$li("Support hosting costs via Ko-fi")
       ),
       div(
-        class = "contact-links",
+        class = "contact-links contact-links--centered",
         tags$a(
           class = "contact-link",
           href = LINKS$discord,
@@ -391,7 +395,7 @@ faq_ui <- div(
         tags$li("Screenshots if possible")
       ),
       div(
-        class = "contact-links",
+        class = "contact-links contact-links--centered",
         actionLink("faq_open_bug_report",
           tagList(bsicons::bs_icon("bug"), " Report a Bug"),
           class = "contact-link"
