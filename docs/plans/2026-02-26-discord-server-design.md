@@ -41,7 +41,7 @@ DigiLab Discord is 2 days old and primarily serves as an onboarding pipeline —
   #announcements      — Platform announcements, new scene launches, updates
   #rules              — Server rules (keep short)
 
-💬 COMMUNITY
+💬 LOUNGE
   #general            — Open chat for anyone
   #showcase           — Players sharing results, deck pics, etc. (future)
 
@@ -249,7 +249,7 @@ Region tags for filtering scene threads by continent. Split into more granular t
 | Setting | #scene-requests | #bug-reports | #feature-requests | #scene-coordination |
 |---------|----------------|-------------|-------------------|---------------------|
 | Sort order | Recent Activity | Recent Activity | Recent Activity | Recent Activity |
-| Auto-archive | 3 days | 3 days | 3 days | 1 week |
+| Auto-archive | 1 hour | 1 hour | 1 hour | 24 hours |
 | Require tags | Yes | Yes | Yes | Yes |
 
 ---
@@ -268,9 +268,19 @@ New person joins Discord
   → If their country hits 3+ scenes → graduate to Regional Hub
 ```
 
-### Carl-bot Automation (Optional)
+### Carl-bot Automation
 
-- **Welcome DM:** New members receive a message pointing them to #scene-requests
+- **Welcome DM:**
+  > Hey {user}, welcome to {server}!
+  >
+  > DigiLab is a community-built tournament tracker for Digimon TCG locals — track standings, deck meta, and scene history for your region at digilab.cards.
+  >
+  > A few useful spots to check out:
+  > 📋 #welcome — how everything works
+  > 🌍 #scene-requests — want your area on DigiLab? Start here
+  > 💬 #general — jump in anytime
+  >
+  > Glad you're here!
 - **Auto-tag:** New forum posts default to `New Request` / `New`
 - **Post templates:** Forum channels prompt structured input ("What city/region? How many stores? How often are tournaments held?")
 
@@ -281,7 +291,7 @@ New person joins Discord
 | Channel | @everyone | Scene Admin | Platform Admin | Dev |
 |---------|-----------|-------------|----------------|-----|
 | **INFO** | Read | Read | Read + Write | Full |
-| **COMMUNITY** | Read + Write | Read + Write | Read + Write | Full |
+| **LOUNGE** | Read + Write | Read + Write | Read + Write | Full |
 | **REQUESTS** (Forums) | Post + Reply to own | Post + Reply to any | Manage tags + posts | Full |
 | **COORDINATION** | Hidden | Read + Write | Read + Write | Full |
 | **#regional-leads** | Hidden | Hidden | Read + Write | Full |
