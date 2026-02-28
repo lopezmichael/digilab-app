@@ -389,38 +389,35 @@ for_tos_ui <- div(
     open = FALSE,
     accordion_panel(
       title = "How to report data errors",
-      value = "report-error",
+      value = "report-data-error",
       icon = bsicons::bs_icon("flag"),
-      p("Spotted something wrong? We want to fix it! Common errors include:"),
+      p("Spotted something wrong with a tournament result, player record, or deck assignment? ",
+        "You can report errors directly from the item itself:"),
       tags$ul(
-        tags$li("Incorrect tournament results or placements"),
-        tags$li("Wrong deck archetype assignments"),
-        tags$li("Duplicate player entries"),
-        tags$li("Incorrect store information")
+        tags$li("Open the player, tournament, or deck modal"),
+        tags$li("Click the ", tags$strong("Report Error"), " button in the modal footer"),
+        tags$li("Describe what's wrong and submit \u2014 it goes straight to the scene admin")
       ),
-      p("To report an error:"),
-      tags$ol(
-        class = "steps-list",
-        tags$li(
-          strong("Identify the issue"),
-          p("Note which tournament, player, or store has the error.")
-        ),
-        tags$li(
-          strong("Provide correct information"),
-          p("If you know what it should be, include that in your report.")
-        ),
-        tags$li(
-          strong("Submit your report"),
-          p("Reach out on Discord with the details.")
-        )
+      p(class = "info-note",
+        bsicons::bs_icon("info-circle"),
+        " Reports are routed to your scene's coordination channel on Discord for fast resolution.")
+    ),
+    accordion_panel(
+      title = "How to report a bug",
+      value = "report-bug",
+      icon = bsicons::bs_icon("bug"),
+      p("Found a bug or something not working right? Let us know:"),
+      tags$ul(
+        tags$li("What you were trying to do"),
+        tags$li("What you expected to happen"),
+        tags$li("What actually happened"),
+        tags$li("Screenshots if possible")
       ),
       div(
         class = "contact-links",
-        tags$a(
-          class = "contact-link",
-          href = LINKS$discord,
-          target = "_blank",
-          bsicons::bs_icon("discord"), "Report on Discord"
+        actionLink("tos_open_bug_report",
+          tagList(bsicons::bs_icon("bug"), " Report a Bug"),
+          class = "contact-link"
         )
       )
     )
