@@ -28,7 +28,9 @@ admin_scenes_ui <- tagList(
         ),
         card_body(
           textInput("scene_display_name", "Display Name",
-                    placeholder = "e.g., Houston"),
+                    placeholder = "e.g., Ohio (Cincinnati Area)"),
+          tags$small(class = "form-text text-muted d-block mt-n2 mb-2",
+                     "Format: Country/State (City/Region)"),
           textInput("scene_slug", "URL Slug",
                     placeholder = "e.g., houston"),
           tags$small(class = "form-text text-muted d-block mt-n2 mb-2",
@@ -49,6 +51,10 @@ admin_scenes_ui <- tagList(
             )
           ),
           checkboxInput("scene_is_active", "Active", value = TRUE),
+          textInput("scene_discord_thread_id", "Discord Thread ID",
+                    placeholder = "e.g., 1234567890"),
+          tags$small(class = "form-text text-muted d-block mt-n2 mb-2",
+                     "Thread ID from #scene-coordination (right-click thread \u2192 Copy Link \u2192 number at end)"),
           div(
             class = "d-flex gap-2 mt-3",
             actionButton("save_scene_btn", "Save", class = "btn-primary"),
@@ -72,7 +78,18 @@ admin_scenes_ui <- tagList(
           reactableOutput("admin_scenes_table"),
           tags$hr(class = "my-3"),
           tags$h6("Stores in Selected Scene"),
-          uiOutput("scene_stores_list")
+          div(
+            class = "d-flex gap-2",
+            style = "min-height: 250px;",
+            div(
+              style = "flex: 1; min-width: 0;",
+              uiOutput("scene_map_container")
+            ),
+            div(
+              style = "width: 160px; flex-shrink: 0; overflow-y: auto; max-height: 250px;",
+              uiOutput("scene_stores_legend")
+            )
+          )
         )
       )
     )

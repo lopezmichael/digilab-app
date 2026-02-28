@@ -15,10 +15,12 @@ scenes_data <- reactive({
   req(db_pool, rv$is_superadmin)
   safe_query(db_pool,
     "SELECT s.scene_id, s.display_name, s.slug, s.scene_type, s.latitude, s.longitude,
-            s.is_active, COUNT(st.store_id) as store_count
+            s.is_active, s.discord_thread_id, s.country, s.state_region, s.created_at,
+            COUNT(st.store_id) as store_count
      FROM scenes s
      LEFT JOIN stores st ON s.scene_id = st.scene_id AND st.is_active = TRUE
-     GROUP BY s.scene_id, s.display_name, s.slug, s.scene_type, s.latitude, s.longitude, s.is_active
+     GROUP BY s.scene_id, s.display_name, s.slug, s.scene_type, s.latitude, s.longitude,
+              s.is_active, s.discord_thread_id, s.country, s.state_region, s.created_at
      ORDER BY s.scene_type, s.display_name",
     default = data.frame())
 })
@@ -41,8 +43,20 @@ output$admin_scenes_table <- renderReactable({
       is_active = colDef(name = "Active", maxWidth = 70, cell = function(value) {
         if (value) "\u2705" else "\u274c"
       }),
+      discord_thread_id = colDef(name = "Discord", maxWidth = 75, cell = function(value) {
+        if (!is.null(value) && !is.na(value) && nchar(value) > 0) "\u2705" else "\u274c"
+      }),
+      country = colDef(show = FALSE),
+      state_region = colDef(show = FALSE),
+      created_at = colDef(name = "Created", maxWidth = 100, cell = function(value) {
+        if (is.null(value) || is.na(value)) "" else format(as.Date(value), "%m/%d/%Y")
+      }),
       store_count = colDef(name = "Stores", maxWidth = 70)
     ),
+    searchable = TRUE,
+    defaultPageSize = 10,
+    showPageSizeOptions = TRUE,
+    pageSizeOptions = c(10, 25, 50),
     selection = "single",
     onClick = "select",
     highlight = TRUE,
@@ -78,6 +92,8 @@ observeEvent(getReactableState("admin_scenes_table", "selected"), {
   }
 
   updateCheckboxInput(session, "scene_is_active", value = row$is_active)
+  updateTextInput(session, "scene_discord_thread_id",
+                  value = if (!is.na(row$discord_thread_id)) row$discord_thread_id else "")
 
   shinyjs::html("scene_form_title", "Edit Scene")
 })
@@ -90,16 +106,80 @@ observeEvent(input$clear_scene_form_btn, {
   updateSelectInput(session, "scene_type", selected = "metro")
   updateTextInput(session, "scene_location", value = "")
   updateCheckboxInput(session, "scene_is_active", value = TRUE)
+  updateTextInput(session, "scene_discord_thread_id", value = "")
   updateReactable("admin_scenes_table", selected = NA)
   shinyjs::html("scene_form_title", "Add Scene")
 })
 
-# --- Show stores in selected scene ---
-output$scene_stores_list <- renderUI({
+# --- Map container for selected scene ---
+output$scene_map_container <- renderUI({
   sid <- editing_scene_id()
   if (is.null(sid)) {
     return(tags$p(class = "text-muted small", "Select a scene to view its stores."))
   }
+
+  df <- scenes_data()
+  row <- df[df$scene_id == sid, ]
+  if (nrow(row) == 0 || is.na(row$latitude[1]) || is.na(row$longitude[1])) {
+    return(tags$p(class = "text-muted small", "No coordinates for this scene."))
+  }
+
+  mapboxglOutput("scene_minimap", height = "250px")
+})
+
+# --- Render minimap ---
+output$scene_minimap <- renderMapboxgl({
+  sid <- editing_scene_id()
+  req(sid)
+
+  df <- scenes_data()
+  row <- df[df$scene_id == sid, ]
+  req(nrow(row) > 0, !is.na(row$latitude[1]))
+
+  scene_lat <- row$latitude[1]
+  scene_lng <- row$longitude[1]
+
+  stores <- safe_query(db_pool,
+    "SELECT name, latitude, longitude, is_online, is_active FROM stores
+     WHERE scene_id = $1 AND latitude IS NOT NULL AND longitude IS NOT NULL
+     ORDER BY name",
+    params = list(sid),
+    default = data.frame())
+
+  map <- atom_mapgl(theme = "digital") |>
+    mapgl::set_view(center = c(scene_lng, scene_lat), zoom = 10)
+
+  if (nrow(stores) > 0) {
+    store_points <- sf::st_sf(
+      name = stores$name,
+      geometry = sf::st_sfc(
+        lapply(seq_len(nrow(stores)), function(i) {
+          sf::st_point(c(stores$longitude[i], stores$latitude[i]))
+        }),
+        crs = 4326
+      )
+    )
+
+    map <- map |>
+      mapgl::add_circle_layer(
+        id = "scene-stores",
+        source = store_points,
+        circle_color = "#F7941D",
+        circle_radius = 8,
+        circle_stroke_color = "#FFFFFF",
+        circle_stroke_width = 2,
+        circle_opacity = 0.9,
+        tooltip = "name"
+      )
+  }
+
+  map
+})
+
+# --- Stores legend sidebar ---
+output$scene_stores_legend <- renderUI({
+  sid <- editing_scene_id()
+  if (is.null(sid)) return(NULL)
 
   stores <- safe_query(db_pool,
     "SELECT name, city, is_online, is_active FROM stores
@@ -108,7 +188,7 @@ output$scene_stores_list <- renderUI({
     default = data.frame())
 
   if (nrow(stores) == 0) {
-    return(tags$p(class = "text-muted small", "No stores assigned to this scene."))
+    return(tags$p(class = "text-muted small", "No stores."))
   }
 
   store_items <- lapply(seq_len(nrow(stores)), function(i) {
@@ -116,9 +196,9 @@ output$scene_stores_list <- renderUI({
     status <- if (s$is_active) "" else " (inactive)"
     location <- if (s$is_online) "Online" else s$city
     tags$div(
-      class = "d-flex justify-content-between align-items-center py-1",
-      tags$span(paste0(s$name, status)),
-      tags$span(class = "text-muted small", location)
+      class = "py-1 border-bottom",
+      tags$div(class = "small fw-bold", paste0(s$name, status)),
+      tags$div(class = "text-muted", style = "font-size: 0.7rem;", location)
     )
   })
 
@@ -137,6 +217,8 @@ observeEvent(input$save_scene_btn, {
   slug <- trimws(tolower(input$scene_slug))
   scene_type <- input$scene_type
   is_active <- input$scene_is_active
+  discord_thread_id <- trimws(input$scene_discord_thread_id)
+  if (nchar(discord_thread_id) == 0) discord_thread_id <- NA_character_
 
   # Validation
   if (nchar(display_name) == 0) {
@@ -155,18 +237,22 @@ observeEvent(input$save_scene_btn, {
   # Geocode for metro scenes
   lat <- NA_real_
   lng <- NA_real_
+  country <- NA_character_
+  state_region <- NA_character_
   if (scene_type == "metro") {
     location <- trimws(input$scene_location)
 
     # If editing and location field wasn't changed (still shows hint), keep existing coords
     if (!is.null(editing_scene_id())) {
       old_scene <- safe_query(db_pool,
-        "SELECT latitude, longitude FROM scenes WHERE scene_id = $1",
+        "SELECT latitude, longitude, country, state_region FROM scenes WHERE scene_id = $1",
         params = list(editing_scene_id()),
         default = data.frame())
       if (nrow(old_scene) > 0 && grepl("has coordinates", location, fixed = TRUE)) {
         lat <- old_scene$latitude[1]
         lng <- old_scene$longitude[1]
+        country <- old_scene$country[1]
+        state_region <- old_scene$state_region[1]
       }
     }
 
@@ -186,6 +272,10 @@ observeEvent(input$save_scene_btn, {
                type = "warning", duration = 5)
         return()
       }
+
+      geo_region <- reverse_geocode_with_mapbox(lat, lng)
+      country <- geo_region$country
+      state_region <- geo_region$state_region
     }
   }
 
@@ -202,13 +292,14 @@ observeEvent(input$save_scene_btn, {
     }
 
     insert_result <- safe_query(db_pool,
-      "INSERT INTO scenes (name, slug, display_name, scene_type, latitude, longitude, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      "INSERT INTO scenes (name, slug, display_name, scene_type, latitude, longitude,
+       is_active, discord_thread_id, country, state_region)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING scene_id",
       params = list(display_name, slug, display_name, scene_type,
                     if (is.na(lat)) NA_real_ else lat,
                     if (is.na(lng)) NA_real_ else lng,
-                    is_active),
+                    is_active, discord_thread_id, country, state_region),
       default = data.frame())
 
     if (nrow(insert_result) > 0) {
@@ -222,6 +313,7 @@ observeEvent(input$save_scene_btn, {
       updateSelectInput(session, "scene_type", selected = "metro")
       updateTextInput(session, "scene_location", value = "")
       updateCheckboxInput(session, "scene_is_active", value = TRUE)
+      updateTextInput(session, "scene_discord_thread_id", value = "")
       updateReactable("admin_scenes_table", selected = NA)
     } else {
       notify("Failed to create scene", type = "error")
@@ -243,12 +335,13 @@ observeEvent(input$save_scene_btn, {
 
     safe_execute(db_pool,
       "UPDATE scenes SET name = $1, slug = $2, display_name = $3, scene_type = $4,
-       latitude = $5, longitude = $6, is_active = $7
-       WHERE scene_id = $8",
+       latitude = $5, longitude = $6, is_active = $7, discord_thread_id = $8,
+       country = $9, state_region = $10, updated_at = CURRENT_TIMESTAMP
+       WHERE scene_id = $11",
       params = list(display_name, slug, display_name, scene_type,
                     if (is.na(lat)) NA_real_ else lat,
                     if (is.na(lng)) NA_real_ else lng,
-                    is_active, sid))
+                    is_active, discord_thread_id, country, state_region, sid))
 
     notify(paste0("Scene '", display_name, "' updated"), type = "message")
     rv$data_refresh <- rv$data_refresh + 1
@@ -299,6 +392,7 @@ observeEvent(input$delete_scene_btn, {
   updateSelectInput(session, "scene_type", selected = "metro")
   updateTextInput(session, "scene_location", value = "")
   updateCheckboxInput(session, "scene_is_active", value = TRUE)
+  updateTextInput(session, "scene_discord_thread_id", value = "")
   updateReactable("admin_scenes_table", selected = NA)
   shinyjs::html("scene_form_title", "Add Scene")
 })
