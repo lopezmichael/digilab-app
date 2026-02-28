@@ -181,7 +181,7 @@ output$tournament_detail_modal <- renderUI({
         bsicons::bs_icon("link-45deg"), " Copy Link"
       ),
       actionButton("report_error_tournament", tagList(bsicons::bs_icon("flag"), " Report Error"),
-                   class = "btn btn-outline-secondary btn-sm"),
+                   class = "btn btn-outline-warning"),
       modalButton("Close")
     ),
 
