@@ -75,6 +75,27 @@ Scenes start as a forum post in #scene-requests during onboarding. Once live, th
 
 **Note:** Discord does not support moving/merging threads between channels. When graduating, create the new channel, pin a link to the old threads, and let new conversation happen going forward. Old threads remain searchable.
 
+### Thread Naming Convention
+
+Use consistent naming for forum threads in #scene-requests and #scene-coordination:
+
+**Format:** `Country/State (City/Region)`
+
+**Examples:**
+- `Brazil (São Paulo)` — country + state/city
+- `Ohio (Cincinnati Area)` — US state + metro area
+- `Pennsylvania (NEPA)` — US state + regional abbreviation
+- `New Zealand (Wellington)` — country + city
+- `Canada (Metro Vancouver)` — country + metro area
+- `Denmark (Copenhagen)` — country + city
+- `Portugal (Azores)` — country + region
+
+**Guidelines:**
+- Lead with the broadest geographic identifier (country for international, US state for domestic)
+- Parenthetical should be recognizable to locals
+- Use common abbreviations if well-known (NEPA, DMW, etc.)
+- Match the scene name in the app when possible
+
 ---
 
 ## Forum Tags
