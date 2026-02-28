@@ -15,7 +15,8 @@ scenes_data <- reactive({
   req(db_pool, rv$is_superadmin)
   safe_query(db_pool,
     "SELECT s.scene_id, s.display_name, s.slug, s.scene_type, s.latitude, s.longitude,
-            s.is_active, s.discord_thread_id, s.country, s.state_region, s.created_at,
+            s.is_active, s.discord_thread_id, s.country, s.state_region,
+            TO_CHAR(s.created_at, 'YYYY-MM-DD') as created_at,
             COUNT(st.store_id) as store_count
      FROM scenes s
      LEFT JOIN stores st ON s.scene_id = st.scene_id AND st.is_active = TRUE
@@ -48,9 +49,7 @@ output$admin_scenes_table <- renderReactable({
       }),
       country = colDef(show = FALSE),
       state_region = colDef(show = FALSE),
-      created_at = colDef(name = "Created", maxWidth = 100, cell = function(value) {
-        if (is.null(value) || is.na(value)) "" else format(as.POSIXct(value), "%m/%d/%Y")
-      }),
+      created_at = colDef(name = "Created", maxWidth = 100),
       store_count = colDef(name = "Stores", maxWidth = 70)
     ),
     searchable = TRUE,
