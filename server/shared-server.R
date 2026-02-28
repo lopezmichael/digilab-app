@@ -758,10 +758,12 @@ sentry_context_tags <- function() {
 #' result <- safe_query(db_pool, "SELECT COUNT(*) as n FROM results",
 #'                      default = data.frame(n = 0))
 safe_query <- function(pool, query, params = NULL, default = data.frame()) {
-  # Helper to detect retryable prepared statement errors
+  # Helper to detect retryable connection pool / prepared statement errors
   is_prepared_stmt_error <- function(msg) {
     grepl("prepared statement", msg, ignore.case = TRUE) ||
-    grepl("bind message supplies", msg, ignore.case = TRUE)
+    grepl("bind message supplies", msg, ignore.case = TRUE) ||
+    grepl("needs to be bound", msg, ignore.case = TRUE) ||
+    grepl("multiple queries.*same column", msg, ignore.case = TRUE)
   }
 
   # First attempt
@@ -822,10 +824,12 @@ safe_query <- function(pool, query, params = NULL, default = data.frame()) {
 #' rows <- safe_execute(db_pool, "DELETE FROM results WHERE result_id = $1",
 #'                      params = list(42))
 safe_execute <- function(pool, query, params = NULL) {
-  # Helper to detect retryable prepared statement errors
+  # Helper to detect retryable connection pool / prepared statement errors
   is_prepared_stmt_error <- function(msg) {
     grepl("prepared statement", msg, ignore.case = TRUE) ||
-    grepl("bind message supplies", msg, ignore.case = TRUE)
+    grepl("bind message supplies", msg, ignore.case = TRUE) ||
+    grepl("needs to be bound", msg, ignore.case = TRUE) ||
+    grepl("multiple queries.*same column", msg, ignore.case = TRUE)
   }
 
   # First attempt
