@@ -41,8 +41,6 @@ db_con <- dbConnect(
   sslmode = "require"
 )
 
-on.exit(dbDisconnect(db_con), add = TRUE)
-
 message("[fix] Connected to database")
 
 # -----------------------------------------------------------------------------
@@ -237,3 +235,7 @@ message("\n========================================")
 message("Fix complete!")
 message(sprintf("Split %d players successfully.", length(results)))
 message("========================================\n")
+
+# Clean up database connection
+dbDisconnect(db_con)
+message("[fix] Database connection closed")
