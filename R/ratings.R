@@ -1,9 +1,243 @@
 # R/ratings.R
 # Rating calculation functions for player and store ratings
 # See docs/plans/2026-02-01-rating-system-design.md for methodology
+# See docs/plans/2026-03-01-rating-system-redesign.md for single-pass approach
 
 # -----------------------------------------------------------------------------
-# COMPETITIVE PLAYER RATING (Elo-style with implied results)
+# COMPETITIVE PLAYER RATING - SINGLE-PASS CHRONOLOGICAL (New Algorithm)
+# -----------------------------------------------------------------------------
+
+#' Calculate competitive ratings using single-pass chronological algorithm
+#' Processes tournaments exactly once in date order, recording history
+#'
+#' @param db_con Database connection (pool or DBI)
+#' @param from_date Optional start date (character "YYYY-MM-DD"). If provided,
+#'   loads existing ratings from player_rating_history up to (from_date - 1)
+#'   and recalculates from that date forward.
+#' @param record_history If TRUE, records rating changes in player_rating_history
+#' @return Data frame with player_id, competitive_rating, events_played
+calculate_ratings_single_pass <- function(db_con, from_date = NULL, record_history = TRUE) {
+
+  # If from_date specified, load existing state from history
+  initial_ratings <- list()
+  initial_events <- list()
+
+  if (!is.null(from_date)) {
+    if (!grepl("^\\d{4}-\\d{2}-\\d{2}$", from_date)) stop("Invalid from_date format")
+
+    # Get most recent rating for each player BEFORE from_date
+    prior_ratings <- DBI::dbGetQuery(db_con, "
+      SELECT DISTINCT ON (h.player_id)
+             h.player_id, h.rating_after, h.events_played
+      FROM player_rating_history h
+      JOIN tournaments t ON h.tournament_id = t.tournament_id
+      WHERE t.event_date < $1
+      ORDER BY h.player_id, t.event_date DESC
+    ", params = list(from_date))
+
+    for (i in seq_len(nrow(prior_ratings))) {
+      pid <- as.character(prior_ratings$player_id[i])
+      initial_ratings[[pid]] <- prior_ratings$rating_after[i]
+      initial_events[[pid]] <- prior_ratings$events_played[i]
+    }
+
+    # Delete history from from_date forward (we're recalculating)
+    if (record_history) {
+      DBI::dbExecute(db_con, "
+        DELETE FROM player_rating_history
+        WHERE tournament_id IN (
+          SELECT tournament_id FROM tournaments WHERE event_date >= $1
+        )
+      ", params = list(from_date))
+    }
+
+    message(sprintf("[ratings] Loaded %d players with prior ratings, recalculating from %s",
+                    length(initial_ratings), from_date))
+  } else if (record_history) {
+    # Full rebuild - clear all history
+    DBI::dbExecute(db_con, "DELETE FROM player_rating_history")
+    message("[ratings] Full rebuild - cleared rating history")
+  }
+
+  # Build date filter for query
+  date_condition <- if (!is.null(from_date)) {
+    sprintf("AND t.event_date >= '%s'", from_date)
+  } else ""
+
+  # Get tournament results to process
+  results <- DBI::dbGetQuery(db_con, sprintf("
+    SELECT r.tournament_id, r.player_id, r.placement,
+           t.event_date, t.player_count, t.rounds,
+           p.display_name
+    FROM results r
+    JOIN tournaments t ON r.tournament_id = t.tournament_id
+    JOIN players p ON r.player_id = p.player_id
+    WHERE r.placement IS NOT NULL
+      AND t.player_count IS NOT NULL
+      AND t.player_count >= 4
+      %s
+    ORDER BY t.event_date ASC, t.tournament_id ASC, r.placement ASC
+  ", date_condition))
+
+  if (nrow(results) == 0) {
+    message("[ratings] No tournaments to process")
+    return(data.frame(player_id = integer(), competitive_rating = numeric(), events_played = integer()))
+  }
+
+  # Initialize player state (from prior history or default 1500)
+  all_players <- unique(results$player_id)
+  ratings <- setNames(rep(1500, length(all_players)), as.character(all_players))
+  events_played <- setNames(rep(0L, length(all_players)), as.character(all_players))
+
+  # Apply initial state from prior history
+  for (pid in names(initial_ratings)) {
+    if (pid %in% names(ratings)) {
+      ratings[pid] <- initial_ratings[[pid]]
+      events_played[pid] <- initial_events[[pid]]
+    }
+  }
+
+  # Get unique tournaments in chronological order
+  tournaments <- unique(results[, c("tournament_id", "event_date", "player_count", "rounds")])
+  tournaments <- tournaments[order(tournaments$event_date, tournaments$tournament_id), ]
+
+  message(sprintf("[ratings] Processing %d tournaments with %d players",
+                  nrow(tournaments), length(all_players)))
+
+  # Prepare history records for batch insert
+  history_records <- list()
+
+  # SINGLE PASS: Process each tournament exactly once
+  for (i in 1:nrow(tournaments)) {
+    tourney <- tournaments[i, ]
+    tourney_results <- results[results$tournament_id == tourney$tournament_id, ]
+    tourney_results <- tourney_results[order(tourney_results$placement), ]
+
+    if (nrow(tourney_results) < 2) next
+
+    # Round multiplier: min(1.0 + (rounds - 3) * 0.1, 1.4)
+    rounds <- if (is.na(tourney$rounds)) 3 else tourney$rounds
+    round_mult <- min(1.0 + (rounds - 3) * 0.1, 1.4)
+
+    # Calculate rating changes for all players in this tournament
+    player_changes <- list()
+
+    for (j in 1:nrow(tourney_results)) {
+      player_id <- as.character(tourney_results$player_id[j])
+      placement <- tourney_results$placement[j]
+      player_rating <- ratings[player_id]
+
+      # K-factor: 48 for provisional (< 5 events), 24 for established
+      k_factor <- if (events_played[player_id] < 5) 48 else 24
+
+      # Calculate rating change from implied results against all opponents
+      rating_change <- 0
+
+      for (k in 1:nrow(tourney_results)) {
+        if (j == k) next
+
+        opponent_id <- as.character(tourney_results$player_id[k])
+        opponent_placement <- tourney_results$placement[k]
+        opponent_rating <- ratings[opponent_id]
+
+        # Actual result: 1 = win, 0.5 = tie, 0 = loss (FIX: ties now 0.5)
+        actual_result <- if (placement < opponent_placement) 1
+                         else if (placement == opponent_placement) 0.5
+                         else 0
+
+        # Expected score (Elo formula)
+        expected <- 1 / (1 + 10^((opponent_rating - player_rating) / 400))
+
+        # Accumulate rating change
+        rating_change <- rating_change + k_factor * (actual_result - expected)
+      }
+
+      # Apply round multiplier (NO DECAY - removed per design)
+      rating_change <- rating_change * round_mult
+
+      # Normalize by number of opponents
+      num_opponents <- nrow(tourney_results) - 1
+      rating_change <- rating_change / num_opponents
+
+      player_changes[[player_id]] <- rating_change
+    }
+
+    # Apply all rating changes for this tournament
+    for (player_id in names(player_changes)) {
+      rating_before <- ratings[player_id]
+      rating_change <- player_changes[[player_id]]
+      events_played[player_id] <- events_played[player_id] + 1L
+      ratings[player_id] <- rating_before + rating_change
+
+      # Record history
+      if (record_history) {
+        history_records[[length(history_records) + 1]] <- list(
+          player_id = as.integer(player_id),
+          tournament_id = tourney$tournament_id,
+          rating_before = round(rating_before),
+          rating_after = round(ratings[player_id]),
+          rating_change = round(rating_change),
+          events_played = events_played[player_id]
+        )
+      }
+    }
+  }
+
+  # Batch insert history records
+  if (record_history && length(history_records) > 0) {
+    # Build values string in batches to avoid query size limits
+    batch_size <- 500
+    for (batch_start in seq(1, length(history_records), by = batch_size)) {
+      batch_end <- min(batch_start + batch_size - 1, length(history_records))
+      batch <- history_records[batch_start:batch_end]
+
+      values <- paste(sapply(batch, function(r) {
+        sprintf("(%d, %d, %d, %d, %d, %d)",
+                r$player_id, r$tournament_id, r$rating_before,
+                r$rating_after, r$rating_change, r$events_played)
+      }), collapse = ", ")
+
+      DBI::dbExecute(db_con, sprintf("
+        INSERT INTO player_rating_history
+          (player_id, tournament_id, rating_before, rating_after, rating_change, events_played)
+        VALUES %s
+        ON CONFLICT (player_id, tournament_id) DO UPDATE SET
+          rating_before = EXCLUDED.rating_before,
+          rating_after = EXCLUDED.rating_after,
+          rating_change = EXCLUDED.rating_change,
+          events_played = EXCLUDED.events_played
+      ", values))
+    }
+    message(sprintf("[ratings] Recorded %d history entries", length(history_records)))
+  }
+
+  # Return final ratings
+  data.frame(
+    player_id = as.integer(names(ratings)),
+    competitive_rating = round(as.numeric(ratings), 0),
+    events_played = as.integer(events_played),
+    stringsAsFactors = FALSE
+  )
+}
+
+
+#' Recalculate ratings from a specific date forward
+#' Used when backfilling tournaments or correcting historical data
+#'
+#' @param db_con Database connection (pool or DBI)
+#' @param from_date Date to start recalculation (character "YYYY-MM-DD")
+#' @return TRUE on success
+calculate_ratings_from_date <- function(db_con, from_date) {
+  message(sprintf("[ratings] Recalculating from %s forward...", from_date))
+  result <- calculate_ratings_single_pass(db_con, from_date = from_date, record_history = TRUE)
+  message(sprintf("[ratings] Recalculation complete: %d players affected", nrow(result)))
+  invisible(TRUE)
+}
+
+
+# -----------------------------------------------------------------------------
+# COMPETITIVE PLAYER RATING - LEGACY (Multi-Pass with Decay)
+# Kept for comparison/rollback. Will be removed after new algorithm is validated.
 # -----------------------------------------------------------------------------
 
 #' Calculate competitive ratings for all players
@@ -268,28 +502,36 @@ calculate_store_avg_player_rating <- function(db_con, player_ratings) {
 
 #' Recalculate and cache all player and store ratings
 #' Called after result submission to keep cache fresh
+#' Uses single-pass chronological algorithm (2026-03 redesign)
 #'
 #' @param db_con Database connection (pool or DBI)
+#' @param from_date Optional date to start recalculation (for backfills)
+#' @param use_legacy If TRUE, use old multi-pass algorithm (for comparison)
 #' @return TRUE on success, FALSE on error
-recalculate_ratings_cache <- function(db_con) {
+recalculate_ratings_cache <- function(db_con, from_date = NULL, use_legacy = FALSE) {
   tryCatch({
-    # Calculate fresh ratings
-    player_ratings <- calculate_competitive_ratings(db_con)
+    # Calculate fresh ratings using new single-pass or legacy algorithm
+    if (use_legacy) {
+      player_ratings <- calculate_competitive_ratings(db_con)
+      # Legacy doesn't track events_played in return, so we add it
+      events <- DBI::dbGetQuery(db_con, "
+        SELECT player_id, COUNT(DISTINCT tournament_id) as events_played
+        FROM results GROUP BY player_id
+      ")
+      player_ratings <- merge(player_ratings, events, by = "player_id", all.x = TRUE)
+      player_ratings$events_played[is.na(player_ratings$events_played)] <- 0
+    } else {
+      player_ratings <- calculate_ratings_single_pass(db_con, from_date = from_date, record_history = TRUE)
+    }
+
     achievement_scores <- calculate_achievement_scores(db_con)
-    store_ratings <- calculate_store_avg_player_rating(db_con, player_ratings)
+    store_ratings <- calculate_store_avg_player_rating(db_con, player_ratings[, c("player_id", "competitive_rating")])
 
     # Merge player data
     if (nrow(player_ratings) > 0) {
       player_cache <- merge(player_ratings, achievement_scores, by = "player_id", all = TRUE)
       player_cache$competitive_rating[is.na(player_cache$competitive_rating)] <- 1500
       player_cache$achievement_score[is.na(player_cache$achievement_score)] <- 0
-
-      # Count events per player
-      events <- DBI::dbGetQuery(db_con, "
-        SELECT player_id, COUNT(DISTINCT tournament_id) as events_played
-        FROM results GROUP BY player_id
-      ")
-      player_cache <- merge(player_cache, events, by = "player_id", all.x = TRUE)
       player_cache$events_played[is.na(player_cache$events_played)] <- 0
 
       # Clear and repopulate player cache

@@ -87,9 +87,11 @@ Dashboard is the current bottleneck — loads multiple charts and stats on start
 |----|------|-------------|
 | ~~DI1~~ | ~~BUG~~ | ~~Player name collision resolution — handle same name + different Bandai IDs across scenes (causes matching issues)~~ (Done in v1.1.2 — scene-scoped name matching) |
 | ~~DI2~~ | ~~FEATURE~~ | ~~Player disambiguation UI — admin tool to review/merge/split players with conflicting identifiers~~ (Done in v1.1.2 — detection and fix scripts in `scripts/analysis/`) |
-| DI3 | BUG | Rating recalc scope audit — verify ratings only update for players in the added tournament, not all players |
-| DI4 | FEATURE | Chronological rating calculation — add time dimension to Elo, calculate from earliest result forward (supports backfilling) |
-| DI5 | REFACTOR | Rating recalc on backfill — when older tournaments are added, recalculate affected players from that date forward |
+| DI3 | BUG | ~~Rating recalc scope audit~~ — **IN PROGRESS** single-pass algorithm implemented, pending go-live. See `docs/plans/2026-03-01-rating-system-redesign.md` |
+| DI4 | FEATURE | ~~Chronological rating calculation~~ — **IN PROGRESS** new algorithm processes tournaments in date order. See `docs/plans/2026-03-01-rating-redesign-report.md` |
+| DI5 | REFACTOR | ~~Rating recalc on backfill~~ — **IN PROGRESS** `calculate_ratings_from_date()` implemented for partial rebuilds |
+
+**Rating Redesign Status:** Algorithm complete, comparison analysis done (1096 players, visualizations in `scripts/analysis/snapshots/`). Awaiting final approval and announcement strategy before go-live.
 
 ### Infrastructure
 
@@ -116,6 +118,9 @@ Items for future consideration, not scheduled:
 
 | ID | Type | Description | Notes |
 |----|------|-------------|-------|
+| BLOG1 | FEATURE | DigiLab Blog/News section | Announce changes, explain methodology, share meta insights. First post: Rating System v2.0 |
+| BLOG2 | FEATURE | Public roadmap page | Link from blog, show what's coming, build transparency |
+| BLOG3 | FEATURE | Methodology documentation | Rating formulas, achievement scoring, store ratings — public-facing explainers |
 | MOB2 | UX | Mobile table improvements | Responsive columns, horizontal scroll UX, touch-friendly rows |
 | MOB3 | UX | Mobile submit results review | Camera upload flow, form layout on small screens |
 | FD1 | IMPROVEMENT | Smart format default | Default to current format group instead of "All Formats" |

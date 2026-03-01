@@ -91,3 +91,6 @@ renv/settings.json
 
 # Rating comparison snapshots (generated data)
 scripts/analysis/snapshots/
+
+# R plot temp files
+Rplots.pdf
