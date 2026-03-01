@@ -5,6 +5,17 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
+# get_store_scene_id: Get the scene_id for a given store
+# Used for scene-scoped player matching
+# -----------------------------------------------------------------------------
+get_store_scene_id <- function(store_id, con) {
+  if (is.null(store_id) || is.na(store_id)) return(NULL)
+  result <- DBI::dbGetQuery(con, "SELECT scene_id FROM stores WHERE store_id = $1", params = list(store_id))
+  if (nrow(result) == 0 || is.na(result$scene_id[1])) return(NULL)
+  result$scene_id[1]
+}
+
+# -----------------------------------------------------------------------------
 # grid_ordinal: Convert number to ordinal (1st, 2nd, 3rd, etc.)
 # -----------------------------------------------------------------------------
 grid_ordinal <- function(n) {
@@ -379,11 +390,17 @@ build_deck_choices <- function(con) {
 # -----------------------------------------------------------------------------
 # match_player: Match by member_number first (if provided), then by name
 # Filters out inactive (soft-deleted) players in both queries.
+#
+# scene_id: Optional. When provided, name-only matching is scoped to players
+#   who have previously competed in this scene. This prevents cross-scene
+#   name collisions (e.g., "Matt" in DFW vs "Matt" in Houston).
+#   Bandai ID matching remains global (same ID = same player everywhere).
+#
 # Returns list(status="matched", player_id=X, member_number=Y) or
 #         list(status="new")
 # -----------------------------------------------------------------------------
-match_player <- function(name, con, member_number = NULL) {
-  # If member_number provided, try exact member_number match first
+match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
+  # If member_number provided, try exact member_number match first (global)
   if (!is.null(member_number) && nchar(trimws(member_number)) > 0) {
     member_match <- DBI::dbGetQuery(con, "
       SELECT player_id, display_name, member_number
@@ -401,11 +418,27 @@ match_player <- function(name, con, member_number = NULL) {
   }
 
   # Fall back to name match
-  player <- DBI::dbGetQuery(con, "
-    SELECT player_id, display_name, member_number
-    FROM players WHERE LOWER(display_name) = LOWER($1) AND is_active = TRUE
-    LIMIT 1
-  ", params = list(name))
+  # If scene_id provided, scope to players who have competed in this scene
+  if (!is.null(scene_id)) {
+    player <- DBI::dbGetQuery(con, "
+      SELECT DISTINCT p.player_id, p.display_name, p.member_number
+      FROM players p
+      JOIN results r ON p.player_id = r.player_id
+      JOIN tournaments t ON r.tournament_id = t.tournament_id
+      JOIN stores s ON t.store_id = s.store_id
+      WHERE LOWER(p.display_name) = LOWER($1)
+        AND p.is_active = TRUE
+        AND s.scene_id = $2
+      LIMIT 1
+    ", params = list(name, scene_id))
+  } else {
+    # No scene_id - global name match (backward compatible)
+    player <- DBI::dbGetQuery(con, "
+      SELECT player_id, display_name, member_number
+      FROM players WHERE LOWER(display_name) = LOWER($1) AND is_active = TRUE
+      LIMIT 1
+    ", params = list(name))
+  }
 
   if (nrow(player) > 0) {
     list(

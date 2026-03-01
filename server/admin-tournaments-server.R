@@ -607,7 +607,14 @@ observeEvent(input$edit_player_blur, {
   }
 
   member_num <- input[[paste0("edit_member_", row_num)]]
-  match_info <- match_player(name, db_pool, member_number = member_num)
+  # Get scene_id from tournament's store for scene-scoped matching
+  tournament_store <- dbGetQuery(db_pool, "
+    SELECT s.scene_id FROM tournaments t
+    JOIN stores s ON t.store_id = s.store_id
+    WHERE t.tournament_id = $1
+  ", params = list(rv$edit_tournament_id))
+  scene_id <- if (nrow(tournament_store) > 0) tournament_store$scene_id[1] else NULL
+  match_info <- match_player(name, db_pool, member_number = member_num, scene_id = scene_id)
   rv$edit_player_matches[[as.character(row_num)]] <- match_info
   rv$edit_grid_data$match_status[row_num] <- match_info$status
   if (match_info$status == "matched") {
@@ -687,8 +694,16 @@ observeEvent(input$edit_paste_apply, {
   removeModal()
   notify(sprintf("Filled %d rows from pasted data", fill_count), type = "message")
 
+  # Get scene_id for scene-scoped player matching
+  tournament_store <- dbGetQuery(db_pool, "
+    SELECT s.scene_id FROM tournaments t
+    JOIN stores s ON t.store_id = s.store_id
+    WHERE t.tournament_id = $1
+  ", params = list(rv$edit_tournament_id))
+  scene_id <- if (nrow(tournament_store) > 0) tournament_store$scene_id[1] else NULL
+
   for (idx in seq_len(fill_count)) {
-    match_info <- match_player(trimws(grid$player_name[idx]), db_pool, member_number = grid$member_number[idx])
+    match_info <- match_player(trimws(grid$player_name[idx]), db_pool, member_number = grid$member_number[idx], scene_id = scene_id)
     if (!is.null(match_info)) {
       rv$edit_player_matches[[as.character(idx)]] <- match_info
       grid$match_status[idx] <- match_info$status
@@ -821,6 +836,14 @@ observeEvent(input$edit_grid_save, {
     insert_count <- 0L
     delete_count <- 0L
 
+    # Get scene_id for scene-scoped player matching
+    tournament_store <- dbGetQuery(db_pool, "
+      SELECT s.scene_id FROM tournaments t
+      JOIN stores s ON t.store_id = s.store_id
+      WHERE t.tournament_id = $1
+    ", params = list(tournament_id))
+    scene_id <- if (nrow(tournament_store) > 0) tournament_store$scene_id[1] else NULL
+
     # 1. DELETE: rows that were deleted via X button
     for (rid in rv$edit_deleted_result_ids) {
       safe_execute(db_pool, "DELETE FROM results WHERE result_id = $1", params = list(rid))
@@ -864,7 +887,7 @@ observeEvent(input$edit_grid_save, {
         if (!is.na(row$matched_player_id)) {
           player_id <- row$matched_player_id
         } else {
-          match_info <- match_player(name, db_pool, member_number = member_num)
+          match_info <- match_player(name, db_pool, member_number = member_num, scene_id = scene_id)
           if (match_info$status == "matched") {
             player_id <- match_info$player_id
           } else {

@@ -517,7 +517,8 @@ observeEvent(input$admin_player_blur, {
   }
 
   member_num <- input[[paste0("admin_member_", row_num)]]
-  match_info <- match_player(name, db_pool, member_number = member_num)
+  scene_id <- get_store_scene_id(as.integer(input$tournament_store), db_pool)
+  match_info <- match_player(name, db_pool, member_number = member_num, scene_id = scene_id)
   rv$admin_player_matches[[as.character(row_num)]] <- match_info
   rv$admin_grid_data$match_status[row_num] <- match_info$status
   if (match_info$status == "matched") {
@@ -607,11 +608,12 @@ observeEvent(input$paste_apply, {
   notify(sprintf("Filled %d rows from pasted data", fill_count), type = "message")
 
   # Trigger player match lookup for all filled rows
+  scene_id <- get_store_scene_id(as.integer(input$tournament_store), db_pool)
   for (idx in seq_len(fill_count)) {
     name <- trimws(grid$player_name[idx])
     if (nchar(name) == 0) next
 
-    match_info <- match_player(trimws(grid$player_name[idx]), db_pool, member_number = grid$member_number[idx])
+    match_info <- match_player(trimws(grid$player_name[idx]), db_pool, member_number = grid$member_number[idx], scene_id = scene_id)
     rv$admin_player_matches[[as.character(idx)]] <- match_info
     grid$match_status[idx] <- match_info$status
     if (match_info$status == "matched") {
@@ -833,6 +835,14 @@ observeEvent(input$admin_submit_results, {
   tryCatch({
     result_count <- 0L
 
+    # Get scene_id for player matching
+    tournament_store <- dbGetQuery(db_pool, "
+      SELECT s.scene_id FROM tournaments t
+      JOIN stores s ON t.store_id = s.store_id
+      WHERE t.tournament_id = $1
+    ", params = list(rv$active_tournament_id))
+    scene_id <- if (nrow(tournament_store) > 0) tournament_store$scene_id[1] else NULL
+
     for (idx in seq_len(nrow(filled_rows))) {
       row <- filled_rows[idx, ]
       name <- trimws(row$player_name)
@@ -843,7 +853,7 @@ observeEvent(input$admin_submit_results, {
       if (!is.na(row$matched_player_id)) {
         player_id <- row$matched_player_id
       } else {
-        match_info <- match_player(name, db_pool, member_number = member_num)
+        match_info <- match_player(name, db_pool, member_number = member_num, scene_id = scene_id)
         if (match_info$status == "matched") {
           player_id <- match_info$player_id
         } else {

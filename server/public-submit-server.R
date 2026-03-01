@@ -781,7 +781,8 @@ observeEvent(input$submit_player_blur, {
     return()
   }
 
-  match_info <- match_player(name, db_pool)
+  scene_id <- get_store_scene_id(as.integer(input$submit_store), db_pool)
+  match_info <- match_player(name, db_pool, scene_id = scene_id)
   rv$submit_player_matches[[as.character(row_num)]] <- match_info
   rv$submit_grid_data$match_status[row_num] <- match_info$status
   if (match_info$status == "matched") {
