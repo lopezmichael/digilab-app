@@ -88,9 +88,9 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.1.1 - Tournament Query Fix
+### Latest Release: v1.1.2 - Cross-Scene Player Collision Fix
 
-Fixed duplicate tournament rows caused by Limitless Swiss events with multiple tied first-place finishers. Replaced `LEFT JOIN results` with `LEFT JOIN LATERAL ... LIMIT 1` across 4 queries.
+Fixed player name collisions across scenes. Name-only matching now scopes to players who have competed in the same scene. Added detection and fix scripts for identifying/splitting duplicate players.
 
 See `ROADMAP.md` for the full version plan.
 
@@ -98,9 +98,9 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v1.1.2 | Cross-Scene Player Collision Fix |
 | v1.1.1 | Tournament Query Fix |
 | v1.1.0 | Discord Integration & Error Reporting |
-| v1.0.9 | Database Connection Stability |
 
 ### Key Architectural Decisions
 
@@ -364,6 +364,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.1.1** - Tournament Query Fix
+**v1.1.2** - Cross-Scene Player Collision Fix
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

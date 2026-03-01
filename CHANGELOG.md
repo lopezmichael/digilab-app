@@ -5,6 +5,23 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2026-03-01 - Cross-Scene Player Collision Fix
+
+### Fixed
+- **Cross-scene player collisions**: Players with the same name in different scenes (e.g., "Matt" in DFW vs "Matt" in Pennsylvania) were incorrectly merged when results were entered. Name-only matching now scopes to players who have competed in the same scene as the tournament being entered. Bandai ID matching remains global (same ID = same player everywhere).
+
+### Added
+- **Duplicate detection script**: `scripts/analysis/detect_cross_scene_duplicates.R` identifies players with results in multiple non-online scenes, flagging potential name collisions for review.
+- **Player split fix script**: `scripts/analysis/fix_cross_scene_duplicates.R` splits incorrectly merged players, clears Bandai IDs from both sides, and generates Discord notification messages for scene admins.
+- **Scene-scoped player matching**: `match_player()` function now accepts optional `scene_id` parameter. When provided, name-only lookups are scoped to players who have results in that scene.
+- **Helper function**: `get_store_scene_id()` in `R/admin_grid.R` retrieves scene_id for a given store.
+
+### Technical
+- Updated player matching in `admin-results-server.R`, `admin-tournaments-server.R`, and `public-submit-server.R` to pass scene context
+- Initial analysis identified 7 players incorrectly merged across distant scenes (DFW↔Pennsylvania, DFW↔Denmark, etc.)
+
+---
+
 ## [1.1.1] - 2026-02-28 - Tournament Query Fix
 
 ### Fixed

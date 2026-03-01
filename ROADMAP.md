@@ -2,7 +2,7 @@
 
 This document outlines the planned features, improvements, and bug fixes for the tournament tracker.
 
-**Current Version:** v1.1.1
+**Current Version:** v1.1.2
 **Cadence:** ~1 milestone per week
 
 ---
@@ -85,8 +85,8 @@ Dashboard is the current bottleneck — loads multiple charts and stats on start
 
 | ID | Type | Description |
 |----|------|-------------|
-| DI1 | BUG | Player name collision resolution — handle same name + different Bandai IDs across scenes (causes matching issues) |
-| DI2 | FEATURE | Player disambiguation UI — admin tool to review/merge/split players with conflicting identifiers |
+| ~~DI1~~ | ~~BUG~~ | ~~Player name collision resolution — handle same name + different Bandai IDs across scenes (causes matching issues)~~ (Done in v1.1.2 — scene-scoped name matching) |
+| ~~DI2~~ | ~~FEATURE~~ | ~~Player disambiguation UI — admin tool to review/merge/split players with conflicting identifiers~~ (Done in v1.1.2 — detection and fix scripts in `scripts/analysis/`) |
 | DI3 | BUG | Rating recalc scope audit — verify ratings only update for players in the added tournament, not all players |
 | DI4 | FEATURE | Chronological rating calculation — add time dimension to Elo, calculate from earliest result forward (supports backfilling) |
 | DI5 | REFACTOR | Rating recalc on backfill — when older tournaments are added, recalculate affected players from that date forward |
