@@ -88,3 +88,6 @@ loadtest/
 
 # renv local settings
 renv/settings.json
+
+# Rating comparison snapshots (generated data)
+scripts/analysis/snapshots/
