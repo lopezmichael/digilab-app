@@ -6,7 +6,7 @@ This document provides context for Claude Code to quickly understand and contrib
 
 A regional tournament tracking application for the Dallas-Fort Worth Digimon Trading Card Game community. Track player performance, store activity, deck meta, and local tournament results.
 
-**Live App:** https://digilab.cards/
+**Live App:** https://app.digilab.cards/
 
 ## Tech Stack
 

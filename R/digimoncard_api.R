@@ -1,6 +1,6 @@
 # =============================================================================
 # DigimonCard.io API Integration
-# DigiLab - https://digilab.cards/
+# DigiLab - https://app.digilab.cards/
 #
 # API Documentation: https://digimoncard.io/index.php/api-documentation
 # Rate Limit: 15 requests per 10 seconds per IP

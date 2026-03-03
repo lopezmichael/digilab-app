@@ -1,6 +1,6 @@
 # =============================================================================
 # Database Connection Module
-# DigiLab - https://digilab.cards/
+# DigiLab - https://app.digilab.cards/
 #
 # Uses Neon PostgreSQL via pool + RPostgres.
 # Single connection pool shared across the app.

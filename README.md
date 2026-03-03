@@ -2,7 +2,7 @@
 
 A regional tournament tracking application for the Digimon Trading Card Game community. Track player performance, store activity, deck meta, and local tournament results.
 
-**Live App:** https://digilab.cards/
+**Live App:** https://app.digilab.cards/
 
 **Current Version:** v1.0.3
 

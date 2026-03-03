@@ -8,7 +8,7 @@
   // Parent Frame Communication (for iframe embedding on digilab.cards)
   // ==========================================================================
 
-  var PARENT_ORIGIN = 'https://digilab.cards';
+  var PARENT_ORIGIN = 'https://app.digilab.cards';
   var isInIframe = window.parent !== window;
 
   // Send URL update to parent frame

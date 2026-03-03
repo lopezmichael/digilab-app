@@ -1,7 +1,7 @@
 # =============================================================================
 # DigiLab - Digimon TCG Tournament Tracker
 # Main Shiny Application
-# https://digilab.cards/
+# https://app.digilab.cards/
 # =============================================================================
 
 library(shiny)
@@ -27,7 +27,7 @@ library(bcrypt)
 # - httr: Lazy-loaded via namespacing in R/digimoncard_api.R (rarely used, cards cached)
 
 # App version (update with each release)
-APP_VERSION <- "1.1.2"
+APP_VERSION <- "1.2.0"
 
 # Load modules
 source("R/db_connection.R")
@@ -409,16 +409,16 @@ ui <- page_fillable(
     tags$meta(property = "og:title", content = "DigiLab - Digimon TCG Locals Tracker"),
     tags$meta(property = "og:description", content = "Track your local Digimon TCG tournament results, player standings, deck meta, and store events."),
     tags$meta(property = "og:type", content = "website"),
-    tags$meta(property = "og:url", content = "https://digilab.cards/"),
+    tags$meta(property = "og:url", content = "https://app.digilab.cards/"),
     tags$meta(property = "og:site_name", content = "DigiLab"),
-    tags$meta(property = "og:image", content = "https://digilab.cards/og-image.png"),
+    tags$meta(property = "og:image", content = "https://app.digilab.cards/og-image.png"),
     tags$meta(property = "og:image:width", content = "1200"),
     tags$meta(property = "og:image:height", content = "630"),
     # Twitter Card tags
     tags$meta(name = "twitter:card", content = "summary_large_image"),
     tags$meta(name = "twitter:title", content = "DigiLab - Digimon TCG Locals Tracker"),
     tags$meta(name = "twitter:description", content = "Track your local Digimon TCG tournament results, player standings, deck meta, and store events."),
-    tags$meta(name = "twitter:image", content = "https://digilab.cards/og-image.png"),
+    tags$meta(name = "twitter:image", content = "https://app.digilab.cards/og-image.png"),
     # Standard meta description
     tags$meta(name = "description", content = "Track your local Digimon TCG tournament results, player standings, deck meta, and store events."),
     # PWA manifest and theme

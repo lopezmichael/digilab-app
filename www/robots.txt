@@ -1,8 +1,8 @@
 # robots.txt for DigiLab - Digimon TCG Locals Tracker
-# https://digilab.cards/
+# https://app.digilab.cards/
 
 User-agent: *
 Allow: /
 
 # Sitemap location
-Sitemap: https://digilab.cards/sitemap.xml
+Sitemap: https://app.digilab.cards/sitemap.xml

@@ -1,9 +1,193 @@
-# DigiLab - Roadmap
+---
+currentVersion: "1.2.0"
+lastUpdated: "2026-03-03"
 
-This document outlines the planned features, improvements, and bug fixes for the tournament tracker.
+inProgress: []
 
-**Current Version:** v1.1.2
-**Cadence:** ~1 milestone per week
+planned:
+  - id: meta-insights-app
+    title: "Meta Insights App"
+    description: "Standalone analytics app for deep deck meta analysis, matchup data, and tournament trend insights."
+    tags: [new-app, analytics]
+    targetVersion: "Future"
+
+  - id: achievement-badges
+    title: "Achievement Badges"
+    description: "Auto-calculated player achievements displayed in player modals — tournament streaks, deck mastery, and scene milestones."
+    tags: [gamification, feature]
+    targetVersion: "Future"
+
+  - id: performance-optimization
+    title: "Performance & Scaling"
+    description: "Dashboard query optimization with materialized views, expanded caching, lazy tab loading, and connection pool tuning."
+    tags: [scaling]
+    targetVersion: "Future"
+
+  - id: regional-admin-tier
+    title: "Regional Admin Tier"
+    description: "New admin role between Super Admin and Scene Admin for country or state-level oversight with cross-scene management."
+    tags: [admin, scaling]
+    targetVersion: "Future"
+
+  - id: mobile-data-entry
+    title: "Mobile Data Entry"
+    description: "Mobile-first progressive web app for tournament result entry by organizers in the field."
+    tags: [mobile, feature]
+    targetVersion: "Future"
+
+completed:
+  - id: rating-redesign
+    title: "Rating System Redesign"
+    description: "Complete overhaul of the competitive rating algorithm with single-pass chronological processing, proper tie handling, and no time-based decay."
+    tags: [ratings, methodology]
+    date: "2026-03"
+    version: "v1.2.0"
+    link: /blog/new-rating-system
+
+  - id: digilab-website
+    title: "DigiLab Website"
+    description: "Public-facing website at digilab.cards with blog, public roadmap, and landing page. Built with Astro and hosted on Vercel."
+    tags: [website, content]
+    date: "2026-03"
+    version: "v1.2.0"
+
+  - id: cross-scene-collision-fix
+    title: "Cross-Scene Player Collision Fix"
+    description: "Fixed player name collisions across scenes with scene-scoped matching and duplicate detection scripts."
+    tags: [data, feature]
+    date: "2026-03"
+    version: "v1.1.2"
+
+  - id: app-subdomain-migration
+    title: "App Moved to app.digilab.cards"
+    description: "Migrated the Shiny app from digilab.cards to app.digilab.cards to make room for the public website."
+    tags: [website, scaling]
+    date: "2026-03"
+    version: "v1.1.2"
+
+  - id: discord-integration
+    title: "Discord Integration & Error Reporting"
+    description: "Discord webhook system with themed bots, in-app request modals, contextual error reporting, and bug report forms."
+    tags: [integration, community]
+    date: "2026-02"
+    version: "v1.1.0"
+
+  - id: public-launch
+    title: "Public Launch"
+    description: "v1.0 release with PWA support, performance profiling, responsive grids, and production hardening."
+    tags: [feature, ux]
+    date: "2026-02"
+    version: "v1.0.0"
+
+  - id: admin-auth
+    title: "Admin Authentication"
+    description: "Per-user admin accounts with bcrypt hashing, role-based permissions, scene scoping, and admin management UI."
+    tags: [security, admin]
+    date: "2026-02"
+    version: "v0.29.0"
+
+  - id: onboarding-help
+    title: "Onboarding & Help System"
+    description: "Three-step onboarding carousel, contextual hints, per-page help text, and Agumon mascot integration."
+    tags: [ux, feature]
+    date: "2026-02"
+    version: "v0.27.0"
+
+  - id: limitless-integration
+    title: "Limitless TCG Integration"
+    description: "Automated sync of online tournament results from Limitless TCG with deck auto-classification and player matching."
+    tags: [integration, data]
+    date: "2026-02"
+    version: "v0.24.0"
+
+  - id: multi-region
+    title: "Multi-Region Support"
+    description: "Scene hierarchy with global, country, state, and metro levels. Scene selector, geolocation, and cross-scene filtering."
+    tags: [feature, scaling]
+    date: "2026-02"
+    version: "v0.23.1"
+
+  - id: deep-linking
+    title: "Deep Linking & Shareable URLs"
+    description: "Shareable URLs for players, decks, stores, and tournaments with browser history support and Copy Link buttons."
+    tags: [feature, sharing]
+    date: "2026-02"
+    version: "v0.21.0"
+
+  - id: rating-system
+    title: "Rating System"
+    description: "Competitive Rating (Elo-style), Achievement Score (points-based), and Store Rating with methodology documentation."
+    tags: [ratings, methodology]
+    date: "2026-02"
+    version: "v0.14.0"
+---
+
+# DigiLab Roadmap
+
+**Current Version:** v1.2.0
+**Last Updated:** 2026-03-03
+
+> This file is the source of truth for the [public roadmap](https://digilab.cards/roadmap).
+> A GitHub Action syncs the YAML frontmatter to the website on every push to main.
+
+---
+
+## Planned
+
+| Feature | Description | Target |
+|---------|-------------|--------|
+| **Meta Insights App** | Standalone analytics app for deep deck meta analysis, matchup data, and tournament trend insights | Future |
+| **Achievement Badges** | Auto-calculated player achievements — tournament streaks, deck mastery, and scene milestones | Future |
+| **Performance & Scaling** | Materialized views, expanded caching, lazy tab loading, and query optimization | Future |
+| **Regional Admin Tier** | Country/state-level admin oversight role with cross-scene management capabilities | Future |
+| **Mobile Data Entry** | Mobile-first PWA for organizer tournament result entry in the field | Future |
+
+---
+
+## Recently Completed
+
+| Version | Feature | Shipped |
+|---------|---------|---------|
+| v1.2.0 | Rating System Redesign | 2026-03 |
+| v1.2.0 | DigiLab Website | 2026-03 |
+| v1.1.2 | Cross-Scene Player Collision Fix | 2026-03 |
+| v1.1.2 | App Moved to app.digilab.cards | 2026-03 |
+| v1.1.0 | Discord Integration & Error Reporting | 2026-02 |
+| v1.0.0 | Public Launch | 2026-02 |
+| v0.29.0 | Admin Authentication | 2026-02 |
+| v0.27.0 | Onboarding & Help System | 2026-02 |
+| v0.24.0 | Limitless TCG Integration | 2026-02 |
+| v0.23.1 | Multi-Region Support | 2026-02 |
+| v0.21.0 | Deep Linking & Shareable URLs | 2026-02 |
+| v0.14.0 | Rating System | 2026-02 |
+
+See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
+
+---
+
+## Frontmatter Sync
+
+The YAML frontmatter above is the machine-readable roadmap data. A GitHub Action in the
+`digilab-web` repo extracts it and converts it to `src/data/roadmap.yaml` for the website.
+
+**To update the roadmap:** Edit the YAML frontmatter, then update the markdown sections
+to match. Push to main and the website syncs automatically.
+
+**Available tags:** `ratings`, `methodology`, `new-app`, `analytics`, `feature`,
+`gamification`, `mobile`, `ux`, `website`, `content`, `integration`, `community`,
+`sharing`, `scaling`, `security`, `admin`, `data`
+
+---
+
+<!-- ============================================================
+     INTERNAL PLANNING — Everything below is NOT synced to the website.
+     The GitHub Action only reads the YAML frontmatter above.
+     ============================================================ -->
+
+# Internal Planning
+
+Detailed task tracking, parking lot items, and decision points for development.
+This section is internal-only and not published to the website.
 
 ---
 
@@ -87,11 +271,9 @@ Dashboard is the current bottleneck — loads multiple charts and stats on start
 |----|------|-------------|
 | ~~DI1~~ | ~~BUG~~ | ~~Player name collision resolution — handle same name + different Bandai IDs across scenes (causes matching issues)~~ (Done in v1.1.2 — scene-scoped name matching) |
 | ~~DI2~~ | ~~FEATURE~~ | ~~Player disambiguation UI — admin tool to review/merge/split players with conflicting identifiers~~ (Done in v1.1.2 — detection and fix scripts in `scripts/analysis/`) |
-| DI3 | BUG | ~~Rating recalc scope audit~~ — **IN PROGRESS** single-pass algorithm implemented, pending go-live. See `docs/plans/2026-03-01-rating-system-redesign.md` |
-| DI4 | FEATURE | ~~Chronological rating calculation~~ — **IN PROGRESS** new algorithm processes tournaments in date order. See `docs/plans/2026-03-01-rating-redesign-report.md` |
-| DI5 | REFACTOR | ~~Rating recalc on backfill~~ — **IN PROGRESS** `calculate_ratings_from_date()` implemented for partial rebuilds |
-
-**Rating Redesign Status:** Algorithm complete, comparison analysis done (1096 players, visualizations in `scripts/analysis/snapshots/`). Awaiting final approval and announcement strategy before go-live.
+| ~~DI3~~ | ~~BUG~~ | ~~Rating recalc scope audit~~ (Done in v1.2.0 — single-pass chronological algorithm) |
+| ~~DI4~~ | ~~FEATURE~~ | ~~Chronological rating calculation~~ (Done in v1.2.0 — tournaments processed in date order) |
+| ~~DI5~~ | ~~REFACTOR~~ | ~~Rating recalc on backfill~~ (Done in v1.2.0 — `calculate_ratings_from_date()` for partial rebuilds) |
 
 ### Infrastructure
 
@@ -143,7 +325,7 @@ Items for future consideration, not scheduled:
 
 | Description | Reason |
 |-------------|--------|
-| Static website at digilab.cards (WS1/WS2/SEO1) | Deferred — community grows via Discord, not Google search. Revisit if organic traffic becomes a priority |
+| ~~Static website at digilab.cards (WS1/WS2/SEO1)~~ | Done in v1.2.0 — Astro site at digilab.cards with blog, roadmap, landing page |
 | Structured data JSON-LD (SEO2) | Only useful with static site — deferred with it |
 | Search Console integration (SEO3) | Low value without SEO strategy — revisit with static site |
 | Embed widgets for stores (F8) | Share links in store/organizer modals already cover this |
@@ -211,186 +393,9 @@ The React PoC on `explore/react-rewrite` branch serves as a reference for future
 
 ---
 
-## Completed
-
-### v1.1.0 - Discord Integration & Error Reporting
-- Discord webhook module (`R/discord_webhook.R`) with 3 Digimon-themed bots: Veemon (requests), Gatomon (coordination), Tentomon (bugs)
-- In-app store/scene request modals replacing Google Form, routed to Discord via webhooks
-- Contextual data error reporting from player/tournament/deck modals → scene coordination threads
-- Bug report modal from footer + content pages → `#bug-reports` Discord Forum
-- Admin scenes: Discord thread ID, country, state/region, reverse geocoding, edit confirmation dialog
-- Content page overhauls: FAQ and For Organizers updated with webhook-powered error reporting
-- Completed: DC2, DC3, FB1, FB3, INF3
-
-### v1.0.4 - Dynamic Min Events
-- Dynamic min events/entries filter defaults based on scene tournament count (<20: All, 20-100: 5+, >100: 10+)
-- Help tooltips on min events filters explaining dynamic behavior
-- FAQ entry for filter defaults
-- Ko-fi link updated to digilab
-
-### v1.0.0 - Public Launch
-- Version badge: BETA → v1.0, clickable DigiLab header navigates to dashboard
-- Performance: lazy admin UI (renderUI behind auth gate), bindCache on Players/Meta/Tournaments/Stores tabs
-- Profiling: shinycannon load tests (1/5/10/25 users), profvis analysis, architecture docs
-- Responsive grids: Top Decks and Rising Stars show 4/6/8 items by screen size
-- Rising Stars expanded from top 4 to top 6 (up to 8 on large screens)
-- "Report an error" Discord links in 4 modal footers
-- Code review fixes: public submit server hardened (safe_query/safe_execute wrappers, transaction safety), XSS fix in scene map, next_id() helper replacing MAX+1 pattern, shared format_event_type() helper, dashboard value boxes respect filters
-- PWA (PWA1): installable app with Digivice icons, offline Agumon fallback page, service worker, favicon
-
-### v0.30.0 - Mobile & Polish
-- Agumon mascot: loading spinner (DM9), disconnect overlay (DM3), 404 not-found modal (DM7)
-- Digivice branding: logo/icon refresh (DM10), OG image with watermark (DM11)
-- Mobile UX audit (MOB1): admin layout breakpoints, column hiding, tap targets, value box fonts, admin-results col-md fixes
-- Edit tournaments grid (ADM1): shared grid module, step-transition UX, paste-from-spreadsheet, inline player matching, update/insert/delete diff save
-- Enter/Submit Results parity (ADM2): migrated public submit to shared grid, member # column, selectize deck dropdown, OCR quality validation, blur player matching, summary bar format, admin validation + form reset
-- Security audit: parameterized all SQL queries with user-controllable values (scene filters, search terms)
-
-### v0.29.0 - Admin Auth & Automation
-- Per-user admin accounts: `admin_users` table with bcrypt password hashing, role (super_admin / scene_admin), scene assignment
-- Admin login form: username/password check, bootstrap flow for first super admin creation
-- Permission-scoped admin tabs: hidden unless logged in with appropriate role
-- Manage Admins UI: add/edit/deactivate admin accounts (super admin only)
-- Manage Scenes UI: add/edit/delete scenes with auto-geocoding (super admin only)
-- Change password form: collapsible in admin modal
-- Scene scoping: scene admins locked to their assigned scene
-- Design doc: `docs/plans/2026-02-22-admin-auth-design.md`
-- GitHub Actions review: both `sync-limitless.yml` (weekly) and `sync-cards.yml` (monthly) confirmed working
-- Limitless sync fix: NULL deck archetypes now default to UNKNOWN (archetype_id=50)
-- Limitless sync filter: skip tournaments where top 3 players have no deck data (no-decklist tournaments)
-- Sentry context tags: active_tab, scene, is_admin, community on all error captures
-- GA4 custom events: tab_visit, modal_open, scene_change tracking
-
-### v0.28.0 - Content Updates, Error Tracking & Admin UX
-- OCR layout-aware parser: bounding box analysis replaces line-based text parsing (73% → 95% accuracy)
-  - Medal icon rank inference (ranks 1-3), points validation/truncation, expanded noise filtering
-  - Batch test harness with 7 ground truth folders (11 screenshots, 106 expected players)
-  - Design doc: `docs/plans/2026-02-22-ocr-layout-parser-design.md`
-- FAQ page rewrite: 5 categories, 22 questions covering all features through v0.27
-- About page rewrite: multi-region language, Active Scenes stat, Discord link
-- For Organizers page rewrite: Limitless Integration section, Community Links section, scene request flow
-- Centralized external URLs into `LINKS` constant (Discord, Ko-fi, GitHub, contact form)
-- Sentry error tracking integration (`sentryR`) with `safe_query()`/`safe_execute()` capture and global error handler
-- Cross-page navigation sidebar sync fix (all 11 handlers)
-- REV1 Admin UX audit — design doc + full implementation:
-  - Expanded TX-only state dropdown to all 50 US states + DC
-  - Replaced technical OCR error messages with user-friendly text
-  - Added record format help text, release event callout, player matching explanation
-  - Standardized info hint boxes across all 6 admin pages
-  - Removed debug `message()` calls from production code
-  - Added multi-color checkbox and geocoding help text
-- UX polish round 2: skeleton loaders, filter-aware empty states, `notify()` smart durations, inline form validation, debounced search, value box count-up animation, modal system consolidation
-
-### v0.27.0 - Onboarding & Help
-- Revamped onboarding modal — 3-step carousel: Welcome (Agumon hero + feature list), Scene Selection (map + geolocation), Community Links (Discord, Ko-fi, For Organizers)
-- Progress bar, pill-shaped dot indicators, per-step navigation (Skip/Get Started, Back/Almost Done, Back/Enter DigiLab)
-- Welcome Guide icon in footer to reopen onboarding for returning users
-- Contextual hints on dashboard tables ("Click a row for full results", "Click a deck for details")
-- Rating/Score FAQ links in Players tab help text → navigate to FAQ methodology
-- Info hint boxes on admin pages (Stores, Decks, Formats) explaining each form
-- Per-page help text on all 5 public tabs (Dashboard, Players, Meta, Tournaments, Stores)
-- Agumon mascot in empty states (7 call sites), About page hero (walking animation), and onboarding welcome step
-- `agumon_svg()` helper and `digital_empty_state(mascot)` parameter for consistent mascot placement
-
-### v0.26.0 - UI Polish & Responsiveness
-- Filter prominence improvements across all tabs
-- Pill toggle prominence on Players & Deck Meta
-- Hot Deck value box auto-resize text
-- Top Decks and Rising Stars responsive grid
-- Player attendance chart filtered to local events
-- Stores: Cards view as default, improved card styling
-- Flat map projection for All/Online scenes
-- Player modal rating trend sparkline
-- Agumon SVG on loading screen
-- Mobile table column prioritization
-- Admin table row selection audit fix
-
-### v0.25.0 - Stores & Filtering Enhancements
-- Online Organizers World Map with country-level markers
-- Cards View replaces "All Stores" table on Stores tab
-- Community Links (`?community=store-slug` URL filtering across all tabs)
-- Admin Scene Filtering (admin tables respect scene selection, super admin override)
-- Country field for online stores, region-based mini maps in modals
-- Unified store modal for physical and online stores
-
-### v0.24.0 - Limitless Integration & Admin Improvements
-- Limitless TCG sync script (137 tournaments, 2,124 results from 5 organizers)
-- Deck auto-classification (80+ archetype rules, 95% success rate)
-- Deck archetype merge tool, enhanced player merge (matches + limitless_username)
-- Grid-based bulk entry for tournament results
-- Paste from Spreadsheet modal, inline player matching badges
-- Admin table row selection fix, dashboard initialization fix
-
-### v0.23.1 - Multi-Region, Polish & Performance
-- Scene selector with dynamic DB loading, onboarding modal, localStorage persistence
-- Geolocation "Find My Scene" support
-- Scene filtering across all tabs
-- Dashboard split: format-specific meta + community health sections
-- Dashboard layout: removed Top Players table, rearranged into Meta Diversity + Recent Tournaments row
-- Player Growth chart switched from monthly to weekly granularity
-- Meta Share chart uses percent stacking (always sums to 100%)
-- Overview modals open in-place instead of switching tabs
-- Pill toggle filters on Players and Deck Meta tabs
-- Top Decks and Rising Stars clickable (open modals)
-- Historical format rating snapshots (frozen Elo at era boundaries)
-- Batched dashboard queries (deck_analytics + core_metrics)
-- Connection auto-reconnection, clean shutdown handler
-- Admin lock icon, Ko-fi to header, tab rename to "Deck Meta"
-- Release events auto-assign UNKNOWN deck archetype (sealed packs)
-- Mobile navbar improvements, XSS prevention
-
-### v0.21.1 - Performance & Security Foundations
-- SQL parameterization for all public queries (security)
-- safe_query() wrapper for graceful error handling (resilience)
-- bindCache() on dashboard outputs (performance)
-- Pre-computed ratings cache tables (performance)
-- Faster loading: removed delays, lazy-load admin modules
-- Library audit: removed 5 unused packages from startup
-- Visibility-aware keepalive, custom disconnect overlay (UX)
-- SEO: robots.txt, sitemap.xml, og:image meta tags
-
-### v0.21.0 - Deep Linking & Shareable URLs
-- Shareable URLs for players, decks, stores, tournaments
-- Tab navigation via URL, scene parameter foundation
-- Copy Link button in all modal footers
-- Browser back/forward support for modal navigation
-- Schema: `slug` columns, `scenes` table with hierarchy
-
-### v0.20.2 - Store Modal Polish & Map Improvements
-- Store modal redesign: two-column layout (stats + mini map)
-- Replaced Store Rating with Avg Player Rating (weighted Elo)
-- Tiered bubble sizing based on avg event size
-
-### v0.20.1 - Store Schedules & Calendar
-- Store schedules schema, admin UI for schedule management
-- Weekly calendar view with schedule/all stores toggle
-- Store modal mini map, Mapbox geocoding
-
-### v0.20.0 - Public Submissions & OCR
-- Public "Upload Results" tab with screenshot-based submission
-- Google Cloud Vision OCR, player pre-matching, image previews
-
-### v0.19.0 - Content Pages & UI Polish
-- About, FAQ, For Organizers content pages
-- Footer navigation, seamless app frame
-- Open Graph meta tags, favicon, GA4 tracking
-
-### v0.18.x - Code Cleanup & Server Extraction
-- Extracted server logic into modular files (82% reduction in app.R)
-- Reactive value cleanup, CSS cleanup, ARCHITECTURE.md
-
-### v0.17.0 and earlier
-- Admin UX improvements, DigiLab rebranding, rating system
-- Mobile UI polish, desktop design overhaul, modal stat boxes
-
-*See CHANGELOG.md for full version history.*
-
----
-
 ## References
 
 - **Bug Documentation:** `docs/solutions/`
 - **Design Documents:** `docs/plans/`
 - **Development Log:** `logs/dev_log.md`
 - **SVG Assets:** `docs/digimon-mascots.md` — placement tracking, future commission spec, art style guidelines
-- **User Feedback:** [Google Sheet](https://docs.google.com/spreadsheets/d/11ZeL7yZo7ee4rIdbGCCLvx_Om2VtvXtcj4U6WmH4bS8/edit?gid=0#gid=0)

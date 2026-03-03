@@ -5,6 +5,24 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-03-03 - Rating System Redesign & DigiLab Website
+
+### Changed
+- **Rating algorithm rewrite**: Replaced the old 5-pass iterative system with a single-pass chronological processor. Ratings are now deterministic — same data always produces the same result. No more time-based decay, no more butterfly effect from unrelated tournaments.
+- **Tie handling fixed**: Ties now properly score as 0.5 instead of counting as losses for both players.
+- **All 1,128 rated players recalculated**: Rating distribution tightened from a 514-point spread to 281 points. About half of players moved up, half moved down. Average change: +1.3 points.
+
+### Added
+- **DigiLab website**: Public-facing site at [digilab.cards](https://digilab.cards) with blog, public roadmap, and landing page. Built with Astro, hosted on Vercel.
+- **Blog posts**: "New Rating System: What Changed and Why" (analysis) and "One Week In: DigiLab's First Scenes" (devlog) with interactive Highcharts visualizations.
+- **Rating comparison tooling**: `scripts/analysis/` contains algorithm comparison, chart generation, and scene map scripts used for the blog post data.
+
+### Infrastructure
+- App moved from digilab.cards to [app.digilab.cards](https://app.digilab.cards)
+- digilab.cards now serves the public website
+
+---
+
 ## [1.1.2] - 2026-03-01 - Cross-Scene Player Collision Fix
 
 ### Fixed
