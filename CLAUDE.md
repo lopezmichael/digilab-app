@@ -292,7 +292,6 @@ Keep documentation in sync with code changes. Update these files regularly:
 | `ARCHITECTURE.md` | New reactive values, server modules, or patterns |
 | `README.md` | New features, changed setup instructions, updated screenshots |
 | `ROADMAP.md` | Completed milestones, new planned features |
-| `data/public-roadmap.yaml` | Public-facing roadmap (synced to digilab-web) |
 
 **Guidelines:**
 - Update `CHANGELOG.md` when releasing a new version (not every commit)
@@ -300,52 +299,6 @@ Keep documentation in sync with code changes. Update these files regularly:
 - Update `README.md` when user-facing features change significantly
 - Update `ARCHITECTURE.md` before adding new reactive values or modules
 - Don't let documentation drift - if you change code, check if docs need updating
-
-### Public Roadmap (digilab-web)
-
-The public roadmap at digilab.cards/roadmap is powered by `data/public-roadmap.yaml`. This file is synced to digilab-web via GitHub Action when changed.
-
-**When to update:**
-- Feature ships → Move from `planned` to `completed` (add `date` and `version`)
-- New feature approved → Add to `planned`
-- Starting work → Move to `inProgress`
-
-**Format:**
-```yaml
-inProgress:
-  - id: feature-id          # kebab-case unique ID
-    title: "Feature Name"   # Public-facing title
-    description: "..."      # 1-2 sentence summary
-    tags: [feature, ux]     # Category tags
-    targetVersion: "v1.2.0" # Expected release (groups items by milestone)
-    link: /blog/post-slug   # Optional link to blog post
-
-planned:
-  - id: feature-id
-    title: "Feature Name"
-    description: "..."
-    tags: [feature]
-    targetVersion: "v1.3.0" # Use "Future" for unscheduled items
-
-completed:
-  - id: feature-id
-    title: "Feature Name"
-    description: "..."
-    tags: [feature]
-    date: "2026-03"         # Month shipped
-    version: "v1.1.0"       # Actual release version
-    link: https://...       # Optional external link
-```
-
-**Milestone grouping:** Items are grouped by `targetVersion` on the roadmap page. Use semantic versions (v1.2.0) for scheduled releases or "Future" for backlog items.
-
-**Sync process:**
-1. Edit `data/public-roadmap.yaml`
-2. Commit and push to main
-3. GitHub Action automatically syncs to digilab-web
-4. Vercel auto-deploys the updated roadmap page
-
-**Note:** This is separate from `ROADMAP.md` which contains the full dev roadmap with technical details, IDs, and internal planning. The public roadmap is curated for end users.
 
 ## Development Workflow
 
