@@ -404,7 +404,7 @@ match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
   if (!is.null(member_number) && nchar(trimws(member_number)) > 0) {
     member_match <- DBI::dbGetQuery(con, "
       SELECT player_id, display_name, member_number
-      FROM players WHERE member_number = $1 AND is_active = TRUE
+      FROM players WHERE member_number = $1 AND is_active IS NOT FALSE
       LIMIT 1
     ", params = list(trimws(member_number)))
 
@@ -427,7 +427,7 @@ match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
       JOIN tournaments t ON r.tournament_id = t.tournament_id
       JOIN stores s ON t.store_id = s.store_id
       WHERE LOWER(p.display_name) = LOWER($1)
-        AND p.is_active = TRUE
+        AND p.is_active IS NOT FALSE
         AND s.scene_id = $2
       LIMIT 1
     ", params = list(name, scene_id))
@@ -435,7 +435,7 @@ match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
     # No scene_id - global name match (backward compatible)
     player <- DBI::dbGetQuery(con, "
       SELECT player_id, display_name, member_number
-      FROM players WHERE LOWER(display_name) = LOWER($1) AND is_active = TRUE
+      FROM players WHERE LOWER(display_name) = LOWER($1) AND is_active IS NOT FALSE
       LIMIT 1
     ", params = list(name))
   }
