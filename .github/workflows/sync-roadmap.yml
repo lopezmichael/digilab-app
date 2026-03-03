@@ -1,9 +1,9 @@
-name: Sync Public Roadmap to digilab-web
+name: Sync Roadmap to digilab-web
 
 on:
   push:
     paths:
-      - 'data/public-roadmap.yaml'
+      - 'ROADMAP.md'
     branches:
       - main
   workflow_dispatch:
@@ -21,13 +21,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: lopezmichael/digilab-web
-          token: ${{ secrets.DIGILAB_WEB_TOKEN }}
+          token: ${{ secrets.DIGILAB_WEB_PAT }}
           path: digilab-web
 
       - name: Copy roadmap file
         run: |
-          mkdir -p digilab-web/src/data
-          cp data/public-roadmap.yaml digilab-web/src/data/roadmap.yaml
+          mkdir -p digilab-web/src/content
+          cp ROADMAP.md digilab-web/src/content/roadmap.md
 
       - name: Check for changes
         id: changes
@@ -45,6 +45,6 @@ jobs:
           cd digilab-web
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add src/data/roadmap.yaml
+          git add src/content/roadmap.md
           git commit -m "chore: sync roadmap from digilab-app"
           git push
