@@ -676,7 +676,8 @@ body.bslib-gap-spacing {
 .bslib-sidebar-layout > [role="main"],
 .bslib-sidebar-layout > :not(.sidebar) {
   padding-top: 0.5rem !important;
-  /* Add right padding so content doesn't touch the edge */
+  /* Add horizontal padding so content doesn't touch edges */
+  padding-left: 1rem !important;
   padding-right: 1rem !important;
 }
 
@@ -697,7 +698,7 @@ body.bslib-gap-spacing {
   .bslib-sidebar-layout > main,
   .bslib-sidebar-layout > [role="main"],
   .bslib-sidebar-layout > :not(.sidebar) {
-    padding: 0.25rem 0.5rem !important;
+    padding: 0.25rem 0.75rem !important;
     padding-top: 0 !important;
   }
 
