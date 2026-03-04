@@ -39,7 +39,7 @@ STANDARD_SCALE = 0.85
 # Maskable icons: content at ~60% of canvas (within the 80% safe zone)
 MASKABLE_SCALE = 0.60
 
-STANDARD_SIZES = [192, 512]
+STANDARD_SIZES = [48, 72, 96, 128, 144, 152, 192, 384, 512]
 MASKABLE_SIZES = [192, 512]
 FAVICON_SIZE = 32
 
