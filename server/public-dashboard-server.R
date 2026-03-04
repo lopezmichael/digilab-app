@@ -638,7 +638,7 @@ output$meta_share_timeline <- renderHighchart({
       formatter = tooltip_formatter
     ) |>
     hc_legend(
-      enabled = TRUE,
+      enabled = !is_mobile(),
       layout = "vertical",
       align = "right",
       verticalAlign = "middle",
