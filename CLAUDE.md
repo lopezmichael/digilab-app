@@ -44,6 +44,12 @@ digimon-tcg-standings/
 │   ├── players-ui.R         # Player standings
 │   ├── meta-ui.R            # Meta analysis
 │   ├── tournaments-ui.R     # Tournament history
+│   ├── submit-ui.R          # Public result submission form
+│   ├── mobile-dashboard-ui.R  # Mobile dashboard (conditional render)
+│   ├── mobile-players-ui.R    # Mobile player cards
+│   ├── mobile-meta-ui.R       # Mobile deck archetype cards
+│   ├── mobile-tournaments-ui.R # Mobile tournament cards
+│   ├── mobile-stores-ui.R     # Mobile compact map + store cards
 │   ├── admin-results-ui.R   # Tournament entry form
 │   ├── admin-decks-ui.R     # Deck archetype management
 │   └── admin-stores-ui.R    # Store management
@@ -65,7 +71,8 @@ digimon-tcg-standings/
 ├── data/
 │   └── local.duckdb         # Local database (gitignored)
 ├── www/
-│   └── custom.css           # Custom styles
+│   ├── custom.css           # Custom styles (~3,600 lines)
+│   └── mobile.css           # Mobile-only component styles
 ├── _brand.yml               # Atom brand configuration
 ├── CHANGELOG.md             # Version history
 ├── ARCHITECTURE.md          # Technical architecture reference
@@ -88,9 +95,9 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.1.2 - Cross-Scene Player Collision Fix
+### Latest Release: v1.3.0 - Mobile Views & PWA Fixes
 
-Fixed player name collisions across scenes. Name-only matching now scopes to players who have competed in the same scene. Added detection and fix scripts for identifying/splitting duplicate players.
+Dedicated mobile views for all 5 public pages with device detection, stacked card layouts, and PWA improvements. See `CHANGELOG.md` for full details.
 
 See `ROADMAP.md` for the full version plan.
 
@@ -98,9 +105,9 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v1.3.0 | Mobile Views & PWA Fixes |
+| v1.2.0 | Rating System Redesign & DigiLab Website |
 | v1.1.2 | Cross-Scene Player Collision Fix |
-| v1.1.1 | Tournament Query Fix |
-| v1.1.0 | Discord Integration & Error Reporting |
 
 ### Key Architectural Decisions
 
@@ -364,6 +371,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.1.2** - Cross-Scene Player Collision Fix
+**v1.3.0** - Mobile Views & PWA Fixes
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

@@ -2,7 +2,7 @@
 
 Technical reference for the DigiLab codebase. Consult this document before adding new server modules, reactive values, or modifying core patterns.
 
-**Last Updated:** February 2026 (v1.0.0)
+**Last Updated:** March 2026 (v1.3.0)
 
 > **Note:** Always keep this document in sync with code changes. Update when adding new reactive values, server modules, or patterns.
 
@@ -11,10 +11,11 @@ Technical reference for the DigiLab codebase. Consult this document before addin
 ## Table of Contents
 
 1. [Server Module Structure](#server-module-structure)
-2. [Reactive Values Reference](#reactive-values-reference)
-3. [Navigation Patterns](#navigation-patterns)
-4. [Modal Patterns](#modal-patterns)
-5. [Database Patterns](#database-patterns)
+2. [Mobile Views](#mobile-views)
+3. [Reactive Values Reference](#reactive-values-reference)
+4. [Navigation Patterns](#navigation-patterns)
+5. [Modal Patterns](#modal-patterns)
+6. [Database Patterns](#database-patterns)
 
 ---
 
@@ -96,6 +97,66 @@ source("server/public-newfeature-server.R", local = TRUE)
 | Tab-specific outputs/observers | `server/{prefix}-{tab}-server.R` |
 | Helper functions (pure) | `R/*.R` |
 | UI definitions | `views/*-ui.R` |
+
+---
+
+## Mobile Views
+
+### Device Detection (v1.3.0)
+
+JS detects device type on page load and sends to Shiny via `Shiny.setInputValue('device_info', ...)`. The `is_mobile()` reactive in `shared-server.R` drives conditional rendering:
+
+```r
+is_mobile <- reactive({
+  info <- input$device_info
+  if (is.null(info)) return(FALSE)
+  info$type == "mobile"
+})
+```
+
+- **Breakpoint:** 768px (matches CSS mobile threshold)
+- **Single detect on load** — no resize listener, no rotation handling
+- **Defaults to desktop** if JS hasn't fired
+
+### Conditional Rendering Pattern
+
+Each public page uses `uiOutput` in `app.R` and `renderUI` in its server module to source either the desktop or mobile view:
+
+```r
+# In app.R
+nav_panel_hidden(value = "overview", uiOutput("dashboard_page"))
+
+# In public-dashboard-server.R
+output$dashboard_page <- renderUI({
+  if (is_mobile()) {
+    source("views/mobile-dashboard-ui.R", local = TRUE)$value
+  } else {
+    dashboard_ui  # pre-loaded desktop view object
+  }
+})
+```
+
+Server logic (data reactives, click handlers, modals) is shared — both layouts bind to the same output IDs.
+
+### Mobile View Files
+
+```
+views/
+├── mobile-dashboard-ui.R      # Value boxes, charts, horizontal scroll cards
+├── mobile-players-ui.R        # Stacked player cards with load-more
+├── mobile-meta-ui.R           # Deck archetype cards with load-more
+├── mobile-tournaments-ui.R    # Tournament cards with load-more
+├── mobile-stores-ui.R         # Compact 200px map + store cards
+```
+
+### Mobile CSS
+
+`www/mobile.css` contains mobile-only component styles (card lists, horizontal scroll, compact map, section headers). Existing `www/custom.css` media queries serve as fallback before JS detection fires.
+
+### Mobile-Aware Charts
+
+Some Highcharts conditionally adjust for mobile:
+- `is_mobile()` can be used in `renderHighchart` to hide legends (`enabled = !is_mobile()`), axis titles (`text = if (is_mobile()) "" else "Label"`), or adjust chart heights.
 
 ---
 
@@ -577,7 +638,11 @@ safe_query <- function(con, query, ...) {
 
 ### File Organization
 
-All custom styles are in `www/custom.css` (~3,500 lines), organized into clearly labeled sections:
+Custom styles are split across two files:
+- `www/custom.css` (~3,600 lines) — all desktop and responsive styles, organized into labeled sections
+- `www/mobile.css` (~200 lines) — mobile-only component styles (card lists, horizontal scroll, compact map)
+
+`custom.css` sections:
 
 ```
 /* =============================================================================
@@ -675,10 +740,12 @@ span(style = sprintf("color: %s;", deck_color), deck_name)
 |------|-------|
 | Main app entry | `app.R` |
 | Server modules | `server/*.R` |
-| UI views | `views/*.R` |
+| UI views (desktop) | `views/*.R` |
+| UI views (mobile) | `views/mobile-*.R` |
 | Helper functions | `R/*.R` |
 | Database schema | `db/schema.sql` |
 | Custom CSS | `www/custom.css` |
+| Mobile CSS | `www/mobile.css` |
 | Brand config | `_brand.yml` |
 
 ### Common Patterns Cheatsheet
