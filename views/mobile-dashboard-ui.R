@@ -121,6 +121,20 @@ tagList(
     highchartOutput("color_dist_chart", height = "250px")
   ),
 
+  # -- Meta Share Over Time --------------------------------------------------
+  div(class = "mobile-section-header", "Meta Share Over Time"),
+  div(
+    class = "mobile-chart-container",
+    highchartOutput("meta_share_timeline", height = "250px")
+  ),
+
+  # -- Player Growth & Retention --------------------------------------------
+  div(class = "mobile-section-header", "Player Growth & Retention"),
+  div(
+    class = "mobile-chart-container",
+    highchartOutput("player_growth_chart", height = "200px")
+  ),
+
   # -- Rising Stars ----------------------------------------------------------
   div(class = "mobile-section-header", "Rising Stars"),
   uiOutput("mobile_rising_stars"),
