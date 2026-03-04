@@ -7,13 +7,13 @@ inProgress:
     title: "Mobile Public Views"
     description: "Dedicated mobile layouts for all 5 public tabs — Overview, Players, Meta, Tournaments, Stores — with device detection, stacked card layouts, and mobile-optimized charts."
     tags: [mobile, ux]
-    targetVersion: "v1.3.x"
+    targetVersion: "v1.3"
 
   - id: pwa-enhancements
     title: "PWA Enhancements"
     description: "Expanded PWA icon sizes, dark mode tab bar, safe area insets for iPhone X+, and installability improvements."
     tags: [mobile, ux]
-    targetVersion: "v1.3.x"
+    targetVersion: "v1.3"
 
 planned:
   # v1.4.0 — Mobile Admin & Data Entry
@@ -392,8 +392,8 @@ completed:
 
 | Feature | Description | Target |
 |---------|-------------|--------|
-| **Mobile Public Views** | Dedicated mobile layouts for all 5 public tabs with device detection and stacked card layouts | v1.3.x |
-| **PWA Enhancements** | Expanded icon sizes, dark mode tab bar, safe area insets, installability improvements | v1.3.x |
+| **Mobile Public Views** | Dedicated mobile layouts for all 5 public tabs with device detection and stacked card layouts | v1.3 |
+| **PWA Enhancements** | Expanded icon sizes, dark mode tab bar, safe area insets, installability improvements | v1.3 |
 
 ---
 
