@@ -627,7 +627,7 @@ output$meta_share_timeline <- renderHighchart({
       tickmarkPlacement = "on"
     ) |>
     hc_yAxis(
-      title = list(text = if (is_mobile()) NULL else "Meta Share"),
+      title = list(text = if (is_mobile()) "" else "Meta Share"),
       labels = list(format = "{value}%"),
       min = 0
     ) |>
@@ -910,7 +910,7 @@ output$tournaments_trend_chart <- renderHighchart({
       type = "datetime",
       title = list(text = NULL)
     ) |>
-    hc_yAxis(title = list(text = if (is_mobile()) NULL else "Players"), min = 0) |>
+    hc_yAxis(title = list(text = if (is_mobile()) "" else "Players"), min = 0) |>
     hc_add_series(
       name = "Daily Avg",
       data = lapply(1:nrow(result), function(i) {
@@ -1172,7 +1172,7 @@ output$player_growth_chart <- renderHighchart({
       title = list(text = NULL)
     ) |>
     hc_yAxis(
-      title = list(text = if (is_mobile()) NULL else "Players"),
+      title = list(text = if (is_mobile()) "" else "Players"),
       stackLabels = list(enabled = FALSE)
     ) |>
     hc_plotOptions(
