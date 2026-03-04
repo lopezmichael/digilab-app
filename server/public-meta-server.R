@@ -26,10 +26,11 @@ observeEvent(input$reset_meta_filters, {
 # Debounce search input (300ms)
 meta_search_debounced <- reactive(input$meta_search) |> debounce(300)
 
-# Archetype stats
-output$archetype_stats <- renderReactable({
+# ---------------------------------------------------------------------------
+# Shared data reactive for archetype stats (used by desktop + mobile)
+# ---------------------------------------------------------------------------
+meta_archetype_data <- reactive({
   rv$data_refresh  # Trigger refresh on admin changes
-
 
   # Build parameterized filters to prevent SQL injection
   search_filters <- build_filters_param(
@@ -75,6 +76,31 @@ output$archetype_stats <- renderReactable({
     ORDER BY COUNT(r.result_id) DESC, COUNT(CASE WHEN r.placement = 1 THEN 1 END) DESC
   ", combined_sql, having_idx), params = combined_params, default = data.frame())
 
+  if (nrow(result) == 0) return(result)
+
+  # Calculate Meta % (share of total entries)
+  total_entries <- sum(result$Entries)
+  result$`Meta %` <- round(result$Entries * 100 / total_entries, 1)
+
+  # Calculate Conv % (conversion rate: Top 3s / Entries)
+  result$`Conv %` <- round(result$`Top 3s` * 100 / result$Entries, 1)
+
+  result
+}) |> bindCache(
+  input$meta_format,
+  meta_search_debounced(),
+  input$meta_min_entries,
+  rv$current_scene,
+  rv$community_filter,
+  rv$data_refresh
+)
+
+# ---------------------------------------------------------------------------
+# Desktop: Archetype stats reactable
+# ---------------------------------------------------------------------------
+output$archetype_stats <- renderReactable({
+  result <- meta_archetype_data()
+
   if (nrow(result) == 0) {
     has_filters <- nchar(trimws(meta_search_debounced() %||% "")) > 0 ||
                    nchar(trimws(input$meta_format %||% "")) > 0
@@ -93,13 +119,6 @@ output$archetype_stats <- renderReactable({
       ))
     }
   }
-
-  # Calculate Meta % (share of total entries)
-  total_entries <- sum(result$Entries)
-  result$`Meta %` <- round(result$Entries * 100 / total_entries, 1)
-
-  # Calculate Conv % (conversion rate: Top 3s / Entries)
-  result$`Conv %` <- round(result$`Top 3s` * 100 / result$Entries, 1)
 
   reactable(
     result,
@@ -125,14 +144,98 @@ output$archetype_stats <- renderReactable({
       `Win %` = colDef(minWidth = 60, align = "center")
     )
   )
-}) |> bindCache(
-  input$meta_format,
-  meta_search_debounced(),
-  input$meta_min_entries,
-  rv$current_scene,
-  rv$community_filter,
-  rv$data_refresh
-)
+})
+
+# ---------------------------------------------------------------------------
+# Mobile: Archetype deck cards with load-more pagination
+# ---------------------------------------------------------------------------
+mobile_meta_limit <- reactiveVal(20)
+
+# Reset limit when filters change
+observeEvent(list(input$meta_format, meta_search_debounced(), input$meta_min_entries), {
+  mobile_meta_limit(20)
+}, ignoreInit = TRUE)
+
+# Load more button handler
+observeEvent(input$mobile_meta_load_more, {
+  mobile_meta_limit(mobile_meta_limit() + 20)
+})
+
+output$mobile_meta_cards <- renderUI({
+  req(is_mobile())
+
+  result <- meta_archetype_data()
+
+  if (nrow(result) == 0) {
+    has_filters <- nchar(trimws(meta_search_debounced() %||% "")) > 0 ||
+                   nchar(trimws(input$meta_format %||% "")) > 0
+    if (has_filters) {
+      return(digital_empty_state(
+        title = "No decks match your filters",
+        subtitle = "// try adjusting search or format",
+        icon = "funnel"
+      ))
+    } else {
+      return(digital_empty_state(
+        title = "No deck data available",
+        subtitle = "// meta data pending",
+        icon = "stack",
+        mascot = "agumon"
+      ))
+    }
+  }
+
+  n <- min(mobile_meta_limit(), nrow(result))
+  show_data <- result[1:n, ]
+
+  cards <- lapply(seq_len(nrow(show_data)), function(i) {
+    row <- show_data[i, ]
+
+    # Color dot
+    color_hex <- digimon_deck_colors[row$Color]
+    if (is.na(color_hex)) color_hex <- "#9CA3AF"
+
+    # Win % display
+    win_pct <- if (!is.na(row$`Win %`)) paste0(row$`Win %`, "% win") else "- win"
+
+    # Top 3s display
+    tops_label <- if (row$`Top 3s` == 1) "top" else "tops"
+
+    div(
+      class = "mobile-list-card",
+      onclick = sprintf(
+        "Shiny.setInputValue('archetype_clicked', %d, {priority: 'event'})",
+        row$archetype_id
+      ),
+      div(class = "mobile-card-row",
+        div(class = "mobile-card-primary",
+          span(class = "mobile-deck-dot",
+               style = paste0("background-color: ", color_hex, ";")),
+          row$Deck
+        )
+      ),
+      div(class = "mobile-card-row",
+        div(class = "mobile-card-secondary",
+          sprintf("%d entries \u00b7 %.1f%% meta", row$Entries, row$`Meta %`)
+        )
+      ),
+      div(class = "mobile-card-row",
+        div(class = "mobile-card-tertiary",
+          sprintf("%s \u00b7 %d %s", win_pct, row$`Top 3s`, tops_label)
+        )
+      )
+    )
+  })
+
+  tagList(
+    div(class = "mobile-card-list", cards),
+    if (n < nrow(result)) {
+      actionButton("mobile_meta_load_more",
+                   sprintf("Load more (%d remaining)", nrow(result) - n),
+                   class = "mobile-load-more")
+    }
+  )
+})
 
 # Handle archetype row click - open detail modal
 observeEvent(input$archetype_clicked, {

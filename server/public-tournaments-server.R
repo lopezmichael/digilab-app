@@ -25,9 +25,11 @@ observeEvent(input$reset_tournaments_filters, {
 # Debounce search input (300ms)
 tournaments_search_debounced <- reactive(input$tournaments_search) |> debounce(300)
 
-output$tournament_history <- renderReactable({
+# ---------------------------------------------------------------------------
+# Shared data reactive — used by both desktop reactable and mobile cards
+# ---------------------------------------------------------------------------
+tournaments_data <- reactive({
   rv$data_refresh  # Trigger refresh on admin changes
-
 
   # Build parameterized filters to prevent SQL injection
   search_filters <- build_filters_param(
@@ -75,7 +77,21 @@ output$tournament_history <- renderReactable({
     ORDER BY t.event_date DESC
   ")
 
-  result <- safe_query(db_pool, query, params = filter_params, default = data.frame())
+  safe_query(db_pool, query, params = filter_params, default = data.frame())
+}) |> bindCache(
+  input$tournaments_format,
+  input$tournaments_event_type,
+  tournaments_search_debounced(),
+  rv$current_scene,
+  rv$community_filter,
+  rv$data_refresh
+)
+
+# ---------------------------------------------------------------------------
+# Desktop: Reactable output
+# ---------------------------------------------------------------------------
+output$tournament_history <- renderReactable({
+  result <- tournaments_data()
 
   if (nrow(result) == 0) {
     has_filters <- nchar(trimws(tournaments_search_debounced() %||% "")) > 0 ||
@@ -125,14 +141,107 @@ output$tournament_history <- renderReactable({
       `Winning Deck` = colDef(minWidth = 120)
     )
   )
-}) |> bindCache(
+})
+
+# ---------------------------------------------------------------------------
+# Mobile: Stacked tournament cards with load-more pagination
+# ---------------------------------------------------------------------------
+mobile_tournaments_limit <- reactiveVal(20)
+
+# Reset limit when filters change
+observeEvent(list(
   input$tournaments_format,
   input$tournaments_event_type,
-  tournaments_search_debounced(),
-  rv$current_scene,
-  rv$community_filter,
-  rv$data_refresh
-)
+  tournaments_search_debounced()
+), {
+  mobile_tournaments_limit(20)
+}, ignoreInit = TRUE)
+
+# Load more button
+observeEvent(input$load_more_mobile_tournaments, {
+  mobile_tournaments_limit(mobile_tournaments_limit() + 20)
+})
+
+output$mobile_tournaments_cards <- renderUI({
+  req(is_mobile())
+
+  result <- tournaments_data()
+
+  if (nrow(result) == 0) {
+    has_filters <- nchar(trimws(tournaments_search_debounced() %||% "")) > 0 ||
+                   nchar(trimws(input$tournaments_format %||% "")) > 0 ||
+                   nchar(trimws(input$tournaments_event_type %||% "")) > 0
+    if (has_filters) {
+      return(digital_empty_state(
+        title = "No tournaments match your filters",
+        subtitle = "// try adjusting search or filters",
+        icon = "funnel"
+      ))
+    } else {
+      return(digital_empty_state(
+        title = "No tournaments recorded",
+        subtitle = "// tournament data pending",
+        icon = "trophy",
+        mascot = "agumon"
+      ))
+    }
+  }
+
+  # Format event type nicely
+  result$Type <- sapply(result$Type, format_event_type)
+
+  total_rows <- nrow(result)
+  show_n <- min(mobile_tournaments_limit(), total_rows)
+  result <- result[seq_len(show_n), , drop = FALSE]
+
+  cards <- lapply(seq_len(nrow(result)), function(i) {
+    row <- result[i, ]
+
+    # Format date for display
+    date_display <- format(as.Date(row$Date), "%b %d, %Y")
+
+    # Build the secondary line: players + winner
+    detail_parts <- c()
+    if (!is.na(row$Players)) {
+      detail_parts <- c(detail_parts, paste0(row$Players, " players"))
+    }
+    if (!is.na(row$Winner) && nchar(row$Winner) > 0) {
+      detail_parts <- c(detail_parts, paste0("Winner: ", row$Winner))
+    }
+    detail_line <- paste(detail_parts, collapse = " \u00b7 ")
+
+    div(
+      class = "mobile-list-card",
+      onclick = sprintf(
+        "Shiny.setInputValue('tournament_clicked', %d, {priority: 'event'})",
+        row$tournament_id
+      ),
+      div(class = "mobile-card-row",
+        div(class = "mobile-card-tertiary", date_display),
+        div(class = "mobile-card-tertiary", row$Type)
+      ),
+      div(class = "mobile-card-primary", row$Store),
+      div(class = "mobile-card-secondary", detail_line)
+    )
+  })
+
+  # Build card list with optional load-more button
+  card_list <- div(class = "mobile-card-list", cards)
+
+  if (show_n < total_rows) {
+    remaining <- total_rows - show_n
+    tagList(
+      card_list,
+      tags$button(
+        class = "mobile-load-more",
+        onclick = "Shiny.setInputValue('load_more_mobile_tournaments', Math.random(), {priority: 'event'})",
+        sprintf("Show more (%d remaining)", remaining)
+      )
+    )
+  } else {
+    card_list
+  }
+})
 
 # Handle tournament row click - open detail modal
 observeEvent(input$tournament_clicked, {
