@@ -494,10 +494,14 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed version history.
 ## Frontmatter Sync
 
 The YAML frontmatter above is the machine-readable roadmap data. A GitHub Action in the
-`digilab-web` repo extracts it and converts it to `src/data/roadmap.yaml` for the website.
+`digilab-web` repo (`sync-roadmap.yml`) fetches this file from `main`, extracts the YAML
+between the `---` delimiters, and writes it to `src/data/roadmap.yaml` for the website.
+
+**Sync triggers:** Weekly (Monday 9am UTC), manual dispatch, or `roadmap-updated` repository dispatch.
 
 **To update the roadmap:** Edit the YAML frontmatter, then update the markdown sections
-to match. Push to main and the website syncs automatically.
+to match. Push to main, then trigger the sync manually from the `digilab-web` GitHub Actions
+UI, or wait for the weekly sync.
 
 **Available tags:** `ratings`, `methodology`, `new-app`, `analytics`, `feature`,
 `gamification`, `mobile`, `ux`, `website`, `content`, `integration`, `community`,
