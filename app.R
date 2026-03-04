@@ -430,6 +430,7 @@ ui <- page_fillable(
     # Standalone mode (iOS + Android)
     tags$meta(name = "mobile-web-app-capable", content = "yes"),
     tags$meta(name = "apple-mobile-web-app-status-bar-style", content = "black-translucent"),
+    tags$meta(name = "apple-mobile-web-app-title", content = "DigiLab"),
     # Google Analytics
     tags$script(async = NA, src = "https://www.googletagmanager.com/gtag/js?id=G-NJ3SMG8HGG"),
     tags$script(HTML("
