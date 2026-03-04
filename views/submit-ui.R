@@ -64,7 +64,7 @@ submit_ui <- tagList(
                 class = "mb-4 submit-form-inputs",
                 tags$label(class = "form-label fw-semibold text-muted small", "TOURNAMENT DETAILS"),
                 layout_columns(
-                  col_widths = c(6, 6),
+                  col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
                   div(
                     selectInput("submit_store", "Store",
                                 choices = c("Loading..." = ""),
@@ -75,7 +75,7 @@ submit_ui <- tagList(
                   dateInput("submit_date", "Date", value = NA)
                 ),
                 layout_columns(
-                  col_widths = c(4, 4, 2, 2),
+                  col_widths = breakpoints(sm = c(6, 6, 6, 6), md = c(4, 4, 2, 2)),
                   selectInput("submit_event_type", "Event Type",
                               choices = c("Select..." = "", EVENT_TYPES),
                               selectize = FALSE),
@@ -222,7 +222,7 @@ submit_ui <- tagList(
               class = "mb-4",
               tags$label(class = "form-label fw-semibold text-muted small", "SELECT TOURNAMENT"),
               layout_columns(
-                col_widths = c(6, 6),
+                col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
                 selectInput("match_store", "Store",
                             choices = c("All stores" = ""),
                             selectize = FALSE),
@@ -241,7 +241,7 @@ submit_ui <- tagList(
               class = "mb-4",
               tags$label(class = "form-label fw-semibold text-muted small", "YOUR PLAYER INFO"),
               layout_columns(
-                col_widths = c(6, 6),
+                col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
                 div(
                   textInput("match_player_username", "Username",
                             placeholder = "e.g., HappyCat"),
