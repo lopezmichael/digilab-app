@@ -4,6 +4,19 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-04: Mobile Meta & Tournament Card Redesign
+
+### Meta Cards
+Replaced basic three-row cards (color dot, entries/meta%, win%/tops) with a two-row layout matching the player card pattern. Deck color now appears as a left border instead of a small dot. Meta % is displayed as a pill badge tinted with the deck's color using `col2rgb()` → `rgba()` at 0.12 opacity. Row 2 shows entries (left) and win%/top 3s (right) via `justify-content: space-between`.
+
+### Tournament Cards
+Upgraded from three-row layout (date/type, store, players/winner) to two clean rows. Row 1 = store name + format pill badge (monospace, DigiLab blue). Row 2 = date · type (left) + gold trophy icon + winner name (right). Format badge uses the same monospace pill pattern as rating/meta badges.
+
+### Load More Consistency
+All three mobile tabs (Players, Meta, Tournaments) now use the redesigned all-caps "LOAD MORE" button with remaining count subtitle.
+
+---
+
 ## 2026-03-04: Mobile Player Card Redesign
 
 ### Rating Tier Badges

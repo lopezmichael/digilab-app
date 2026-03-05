@@ -671,7 +671,7 @@
 }
 
 /* ---------------------------------------------------------------------------
- * Deck Color Dots
+ * Deck Color Dots (legacy, kept for compatibility)
  * --------------------------------------------------------------------------- */
 
 .mobile-deck-dot {
@@ -681,6 +681,64 @@
   border-radius: 50%;
   margin-right: 0.35rem;
   vertical-align: middle;
+}
+
+/* ---------------------------------------------------------------------------
+ * Meta Card Enhancements — deck color borders, meta % badge
+ * --------------------------------------------------------------------------- */
+
+/* Deck color left border (applied via inline style on card) */
+.mobile-list-card.meta-deck-card {
+  border-left-width: 3px;
+  border-left-style: solid;
+}
+
+/* Meta % pill badge */
+.mobile-card-meta-badge {
+  font-family: 'Fira Code', monospace;
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+/* Meta stat row (no opacity, full color for stats) */
+.mobile-card-meta-stats {
+  font-size: 0.8rem;
+  color: rgba(0, 0, 0, 0.55);
+}
+
+[data-bs-theme="dark"] .mobile-card-meta-stats {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ---------------------------------------------------------------------------
+ * Tournament Card Enhancements — format badge, winner trophy
+ * --------------------------------------------------------------------------- */
+
+/* Format pill badge (neutral tint) */
+.mobile-card-format-badge {
+  font-family: 'Fira Code', monospace;
+  font-weight: 700;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(15, 76, 129, 0.1);
+  color: #0F4C81;
+  white-space: nowrap;
+}
+
+[data-bs-theme="dark"] .mobile-card-format-badge {
+  background: rgba(0, 200, 255, 0.12);
+  color: #00C8FF;
+}
+
+/* Trophy icon next to winner name */
+.mobile-tournament-trophy {
+  font-size: 0.65rem;
+  color: #FFD700;
+  margin-right: 0.25rem;
 }
 
 /* ---------------------------------------------------------------------------

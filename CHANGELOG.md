@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Store request shared function**: Extracted `show_store_request_modal()` so it can be triggered from the help modal, stores tab, and submit tab without requiring DOM elements to be rendered.
 - **Mobile player card redesign**: Upgraded from plain text rows to styled cards with tier-colored rating badges, gold/silver/bronze left borders for top 3, color-coded W-L-T records, and full-opacity deck badges.
 - **Rating tier system**: Fixed-threshold rating tiers (1800+ elite gold, 1700+ strong cyan, 1600+ good green, <1500 muted) displayed as pill badges with light/dark mode variants.
+- **Mobile meta card redesign**: Deck color left borders replace color dots, meta % shown as deck-color-tinted pill badge, two-row layout with entries and win%/top 3s.
+- **Mobile tournament card redesign**: Two-row layout with store name + format pill badge (top), date/type + trophy icon winner (bottom).
 
 ### Changed
 - **Mobile tab bar**: Reduced from 6 tabs to 5 (removed Upload Results) for a cleaner mobile navigation.

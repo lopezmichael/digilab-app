@@ -201,15 +201,18 @@ output$mobile_tournaments_cards <- renderUI({
     # Format date for display
     date_display <- format(as.Date(row$Date), "%b %d, %Y")
 
-    # Build the secondary line: players + winner
-    detail_parts <- c()
-    if (!is.na(row$Players)) {
-      detail_parts <- c(detail_parts, paste0(row$Players, " players"))
+    # Format badge
+    format_display <- if (!is.na(row$Format) && nchar(row$Format) > 0) row$Format else NULL
+
+    # Winner display
+    winner_tag <- if (!is.na(row$Winner) && nchar(row$Winner) > 0) {
+      span(class = "mobile-card-meta-stats",
+        bsicons::bs_icon("trophy-fill", class = "mobile-tournament-trophy"),
+        row$Winner)
     }
-    if (!is.na(row$Winner) && nchar(row$Winner) > 0) {
-      detail_parts <- c(detail_parts, paste0("Winner: ", row$Winner))
-    }
-    detail_line <- paste(detail_parts, collapse = " \u00b7 ")
+
+    # Players display
+    players_display <- if (!is.na(row$Players)) sprintf("%d players", row$Players) else NULL
 
     div(
       class = "mobile-list-card",
@@ -217,12 +220,25 @@ output$mobile_tournaments_cards <- renderUI({
         "Shiny.setInputValue('tournament_clicked', %d, {priority: 'event'})",
         row$tournament_id
       ),
+      # Row 1: Store name + Format badge
       div(class = "mobile-card-row",
-        div(class = "mobile-card-tertiary", date_display),
-        div(class = "mobile-card-tertiary", row$Type)
+        span(class = "mobile-card-primary", row$Store),
+        if (!is.null(format_display)) {
+          span(class = "mobile-card-format-badge", format_display)
+        }
       ),
-      div(class = "mobile-card-primary", row$Store),
-      div(class = "mobile-card-secondary", detail_line)
+      # Row 2: Date · Type (left) | Players · Winner (right)
+      div(class = "mobile-card-row",
+        span(class = "mobile-card-meta-stats",
+          date_display,
+          span(class = "mobile-card-separator", "\u00b7"),
+          row$Type),
+        if (!is.null(winner_tag)) {
+          winner_tag
+        } else if (!is.null(players_display)) {
+          span(class = "mobile-card-meta-stats", players_display)
+        }
+      )
     )
   })
 
@@ -236,7 +252,8 @@ output$mobile_tournaments_cards <- renderUI({
       tags$button(
         class = "mobile-load-more",
         onclick = "Shiny.setInputValue('load_more_mobile_tournaments', Math.random(), {priority: 'event'})",
-        sprintf("Show more (%d remaining)", remaining)
+        span(class = "mobile-load-more-label", "LOAD MORE"),
+        span(class = "mobile-load-more-count", sprintf("%d remaining", remaining))
       )
     )
   } else {

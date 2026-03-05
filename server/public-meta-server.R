@@ -192,38 +192,44 @@ output$mobile_meta_cards <- renderUI({
   cards <- lapply(seq_len(nrow(show_data)), function(i) {
     row <- show_data[i, ]
 
-    # Color dot
+    # Deck color for left border and badge tint
     color_hex <- digimon_deck_colors[row$Color]
     if (is.na(color_hex)) color_hex <- "#9CA3AF"
 
+    # Meta % badge with deck-color tint
+    meta_pct <- sprintf("%.1f%%", row$`Meta %`)
+    # Convert hex to rgba for translucent badge background
+    rgb <- col2rgb(color_hex)
+    badge_bg <- sprintf("background: rgba(%d, %d, %d, 0.12);", rgb[1], rgb[2], rgb[3])
+    badge_color <- paste0("color: ", color_hex, ";")
+    badge_style <- paste0(badge_bg, badge_color)
+
     # Win % display
-    win_pct <- if (!is.na(row$`Win %`)) paste0(row$`Win %`, "% win") else "- win"
+    win_pct <- if (!is.na(row$`Win %`)) paste0(row$`Win %`, "%") else "-"
 
     # Top 3s display
     tops_label <- if (row$`Top 3s` == 1) "top" else "tops"
 
     div(
-      class = "mobile-list-card",
+      class = "mobile-list-card meta-deck-card",
+      style = paste0("border-left-color: ", color_hex, ";"),
       onclick = sprintf(
         "Shiny.setInputValue('archetype_clicked', %d, {priority: 'event'})",
         row$archetype_id
       ),
+      # Row 1: Deck name + Meta % badge
       div(class = "mobile-card-row",
-        div(class = "mobile-card-primary",
-          span(class = "mobile-deck-dot",
-               style = paste0("background-color: ", color_hex, ";")),
-          row$Deck
-        )
+        span(class = "mobile-card-primary", row$Deck),
+        span(class = "mobile-card-meta-badge",
+             style = badge_style,
+             meta_pct)
       ),
+      # Row 2: Entries (left) | Win% · Top 3s (right)
       div(class = "mobile-card-row",
-        div(class = "mobile-card-secondary",
-          sprintf("%d entries \u00b7 %.1f%% meta", row$Entries, row$`Meta %`)
-        )
-      ),
-      div(class = "mobile-card-row",
-        div(class = "mobile-card-tertiary",
-          sprintf("%s \u00b7 %d %s", win_pct, row$`Top 3s`, tops_label)
-        )
+        span(class = "mobile-card-meta-stats",
+          sprintf("%d entries", row$Entries)),
+        span(class = "mobile-card-meta-stats",
+          sprintf("%s win \u00b7 %d %s", win_pct, row$`Top 3s`, tops_label))
       )
     )
   })
@@ -231,9 +237,13 @@ output$mobile_meta_cards <- renderUI({
   tagList(
     div(class = "mobile-card-list", cards),
     if (n < nrow(result)) {
-      actionButton("mobile_meta_load_more",
-                   sprintf("Load more (%d remaining)", nrow(result) - n),
-                   class = "mobile-load-more")
+      remaining <- nrow(result) - n
+      tags$button(
+        class = "mobile-load-more",
+        onclick = "Shiny.setInputValue('mobile_meta_load_more', Math.random(), {priority: 'event'})",
+        span(class = "mobile-load-more-label", "LOAD MORE"),
+        span(class = "mobile-load-more-count", sprintf("%d remaining", remaining))
+      )
     }
   )
 })
