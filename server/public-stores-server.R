@@ -1494,6 +1494,7 @@ output$mobile_stores_map <- renderMapboxgl({
     bounds_sf <- rbind(bounds_sf[, "geometry"], scene_point)
   }
 
+
   # Create the map (no popup theme helper needed for compact view)
   atom_mapgl(theme = "digital") |>
     mapgl::add_circle_layer(
@@ -1792,6 +1793,7 @@ output$mobile_stores_cards <- renderUI({
       )
     )
   })
+
 
   card_list <- div(class = "mobile-card-list", cards)
 

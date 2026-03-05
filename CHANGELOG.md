@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **CSV upload validation**: File size limit (500KB), row cap (300), required column checks, ranking/points range validation to prevent malformed uploads.
 
+
 ## [1.3.0] - 2026-03-04 - Mobile Views & PWA Fixes
 
 ### Added

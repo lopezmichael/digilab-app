@@ -329,6 +329,7 @@ body {
   margin-left: auto;
 }
 
+
 [data-bs-theme="dark"] .help-modal-item {
   color: rgba(255, 255, 255, 0.9) !important;
   background: rgba(255, 255, 255, 0.06);

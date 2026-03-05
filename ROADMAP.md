@@ -77,6 +77,7 @@ planned:
     tags: [scaling]
     targetVersion: "v1.7.0"
 
+
   # v1.8.0 — Achievement Badges & Gamification
   - id: achievement-badges
     title: "Achievement Badges"
@@ -122,6 +123,7 @@ planned:
     tags: [new-app, analytics]
     targetVersion: "Future"
 
+
   - id: mascot-branding
     title: "Mascot & Branding"
     description: "Commission custom Digimon SVG set, Digivice footer watermark, and expanded Agumon poses for achievements and celebrations."
@@ -162,6 +164,7 @@ completed:
     tags: [ux, feature]
     date: "2026-03"
     version: "v1.3.1"
+
 
   # v1.3.0
   - id: mobile-player-cards
@@ -591,6 +594,7 @@ This section is internal-only and not published to the website.
 
 ## v1.6.0 — UX Polish & Store Improvements
 
+
 ### Modal Improvements
 | ID | Type | Description |
 |----|------|-------------|
@@ -640,6 +644,7 @@ This section is internal-only and not published to the website.
 ---
 
 ## v1.9.0 — Regional Admin & Multi-Region
+
 
 ### Regional Admin Tier
 | ID | Type | Description |
