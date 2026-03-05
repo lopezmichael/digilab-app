@@ -1004,14 +1004,20 @@ body.bslib-gap-spacing {
   color: #FFFFFF;
 }
 
-.title-strip-select .form-select option {
-  background-color: #FFFFFF;
-  color: #1a1a1a;
+.title-strip-select .form-select option,
+.title-strip-controls .form-select option,
+.dashboard-title-strip .form-select option,
+.page-title-strip .form-select option {
+  background-color: #FFFFFF !important;
+  color: #1a1a1a !important;
 }
 
-[data-bs-theme="dark"] .title-strip-select .form-select option {
-  background-color: #0A3055;
-  color: #FFFFFF;
+[data-bs-theme="dark"] .title-strip-select .form-select option,
+[data-bs-theme="dark"] .title-strip-controls .form-select option,
+[data-bs-theme="dark"] .dashboard-title-strip .form-select option,
+[data-bs-theme="dark"] .page-title-strip .form-select option {
+  background-color: #0A3055 !important;
+  color: #FFFFFF !important;
 }
 
 .btn-title-strip-reset {
