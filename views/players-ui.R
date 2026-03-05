@@ -25,7 +25,8 @@ tagList(
           selectInput("players_format", NULL,
                       choices = format_choices_with_all,
                       selected = "",
-                      width = "140px")
+                      width = "140px",
+                      selectize = FALSE)
         ),
         span(class = "title-strip-pill-label",
           "Min Events:",

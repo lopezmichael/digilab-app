@@ -23,7 +23,8 @@ tagList(
           selectInput("dashboard_format", NULL,
                       choices = format_choices_with_all,
                       selected = "",
-                      width = "140px")
+                      width = "140px",
+                      selectize = FALSE)
         ),
         div(
           class = "title-strip-select",
@@ -33,7 +34,8 @@ tagList(
                         "Event Types" = EVENT_TYPES
                       ),
                       selected = "",
-                      width = "120px")
+                      width = "120px",
+                      selectize = FALSE)
         ),
         actionButton("reset_dashboard_filters", NULL,
                      icon = icon("rotate-right"),

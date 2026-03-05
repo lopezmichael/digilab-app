@@ -967,14 +967,14 @@ body.bslib-gap-spacing {
   box-shadow: 0 0 0 2px rgba(247, 148, 29, 0.25) !important;
 }
 
-.title-strip-select .form-select,
-.title-strip-select .form-control {
-  background-color: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #FFFFFF;
+.title-strip-select select {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #FFFFFF !important;
   font-size: 0.85rem;
   font-weight: 600;
-  padding: 0.4rem 2.2rem 0.4rem 0.7rem;
+  padding: 0.4rem 0.6rem;
+  padding-right: 1.5rem;
   border-radius: 6px;
   box-shadow: none;
   height: auto;
@@ -987,54 +987,26 @@ body.bslib-gap-spacing {
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23FFFFFF' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 0.6rem center;
+  background-position: right 0.5rem center;
 }
 
-.title-strip-select .form-select:hover,
-.title-strip-select .form-control:hover {
-  background-color: rgba(255, 255, 255, 0.2);
-  border-color: rgba(255, 255, 255, 0.3);
+.title-strip-select select:hover {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
 }
 
-.title-strip-select .form-select:focus,
-.title-strip-select .form-control:focus {
-  background-color: rgba(255, 255, 255, 0.15);
-  border-color: #00C8FF;
+.title-strip-select select:focus {
+  outline: none;
+  border-color: #00C8FF !important;
   box-shadow: 0 0 0 2px rgba(0, 200, 255, 0.2);
-  color: #FFFFFF;
 }
 
-/* Selectize dropdown options in title strips */
-.title-strip-select .selectize-dropdown .option,
-.title-strip-controls .selectize-dropdown .option,
-.dashboard-title-strip .selectize-dropdown .option,
-.page-title-strip .selectize-dropdown .option {
-  color: #1a1a1a;
-  background-color: #FFFFFF;
-}
-
-[data-bs-theme="dark"] .title-strip-select .selectize-dropdown .option,
-[data-bs-theme="dark"] .title-strip-controls .selectize-dropdown .option,
-[data-bs-theme="dark"] .dashboard-title-strip .selectize-dropdown .option,
-[data-bs-theme="dark"] .page-title-strip .selectize-dropdown .option {
-  color: #FFFFFF;
+/* Title strip native select options — match scene selector style */
+.title-strip-select select option,
+.page-title-strip select option,
+.dashboard-title-strip select option {
   background-color: #0A3055;
-}
-
-.title-strip-select .selectize-dropdown .option.active,
-.title-strip-controls .selectize-dropdown .option.active,
-.dashboard-title-strip .selectize-dropdown .option.active,
-.page-title-strip .selectize-dropdown .option.active {
-  background-color: rgba(15, 76, 129, 0.15);
-  color: #0F4C81;
-}
-
-[data-bs-theme="dark"] .title-strip-select .selectize-dropdown .option.active,
-[data-bs-theme="dark"] .title-strip-controls .selectize-dropdown .option.active,
-[data-bs-theme="dark"] .dashboard-title-strip .selectize-dropdown .option.active,
-[data-bs-theme="dark"] .page-title-strip .selectize-dropdown .option.active {
-  background-color: rgba(0, 200, 255, 0.15);
-  color: #00C8FF;
+  color: #FFFFFF;
 }
 
 .btn-title-strip-reset {
