@@ -4,6 +4,19 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-04: Three-Dot Menu → Modal & Store Request Refactor
+
+### Three-Dot Menu
+Replaced the Bootstrap dropdown (which felt inconsistent with the admin login modal pattern) with a Shiny `modalDialog`. Items styled as card-like rows with borders, hover slide effect, and dark/light theme support — matching the admin modal link aesthetic.
+
+### Mobile Tab Bar Cleanup
+Removed Upload Results (6th tab) from the mobile bottom nav. Upload is rarely used and crowded the bar. It's now accessible via the help modal on mobile only (`.help-modal-mobile-only` class, hidden on desktop via CSS media query).
+
+### Store Request Modal Extraction
+`shinyjs::click("open_store_request")` failed silently when triggered from the help modal because the Stores tab button wasn't in the DOM yet. Extracted the modal into `show_store_request_modal()` in `shared-server.R` — now called directly from help modal, stores tab, and submit tab.
+
+---
+
 ## 2026-03-04: Mobile Dashboard Redesign & Format Dropdown Fix
 
 ### Mobile Dashboard Overhaul

@@ -2,18 +2,7 @@
 currentVersion: "1.3.0"
 lastUpdated: "2026-03-04"
 
-inProgress:
-  - id: mobile-public-views
-    title: "Mobile Public Views"
-    description: "Dedicated mobile layouts for all 5 public tabs — Overview, Players, Meta, Tournaments, Stores — with device detection, stacked card layouts, and mobile-optimized charts."
-    tags: [mobile, ux]
-    targetVersion: "v1.3.0"
-
-  - id: pwa-enhancements
-    title: "PWA Enhancements"
-    description: "Expanded PWA icon sizes, dark mode tab bar, safe area insets for iPhone X+, and installability improvements."
-    tags: [mobile, ux]
-    targetVersion: "v1.3.0"
+inProgress: []
 
 planned:
   # v1.4.0 — Mobile Admin & Data Entry
@@ -169,6 +158,13 @@ planned:
 
 completed:
   # v1.3.0
+  - id: three-dot-modal
+    title: "Three-Dot Menu → Modal"
+    description: "Converted header three-dot dropdown to a styled modal matching admin login pattern. Moved Upload Results from mobile tab bar into the modal (mobile only), reducing tabs from 6 to 5."
+    tags: [ux, mobile]
+    date: "2026-03"
+    version: "v1.3.0"
+
   - id: mobile-views
     title: "Mobile Views & PWA Fixes"
     description: "Dedicated mobile views for all 5 public pages with JS device detection, stacked card layouts, mobile CSS foundation, and PWA improvements including icon sizes and safe area insets."
