@@ -448,13 +448,7 @@ output$mobile_players_cards <- renderUI({
       else "")
 
     # Win percentage
-    win_pct_num <- if (!is.na(row$Win_Pct)) row$Win_Pct else 0
     win_pct <- if (!is.na(row$Win_Pct)) paste0(row$Win_Pct, "%") else "-"
-
-    # Win rate bar color
-    winrate_color <- if (win_pct_num >= 60) "winrate-high"
-                     else if (win_pct_num >= 40) "winrate-mid"
-                     else "winrate-low"
 
     # Record string: W-L or W-L-T
     record <- sprintf("%d-%d", as.integer(row$W), as.integer(row$L))
@@ -489,22 +483,18 @@ output$mobile_players_cards <- renderUI({
         span(class = paste("mobile-card-rating", rating_class), rating)
       ),
 
-      # Row 2: Deck badge + Record + Win%
+      # Row 2: Deck badge + Record | Win% | Events
       div(class = "mobile-card-row",
         div(class = "mobile-card-secondary",
-          if (!is.null(deck_tag)) tagList(deck_tag, span(style = "margin-left: 0.5rem;", record, " ", win_pct))
-          else tagList(span(record), span(style = "margin-left: 0.5rem;", win_pct))
+          if (!is.null(deck_tag)) tagList(deck_tag)
+          else NULL
         ),
-        div(class = "mobile-card-tertiary",
-          sprintf("%d events", as.integer(row$Events))
-        )
-      ),
-
-      # Row 3: Win rate bar
-      div(class = "mobile-card-row", style = "align-items: center;",
-        div(class = "mobile-winrate-bar",
-          div(class = paste("mobile-winrate-fill", winrate_color),
-              style = sprintf("width: %s%%", win_pct_num))
+        div(class = "mobile-card-secondary",
+          span(record),
+          span(class = "mobile-card-separator", "\u00b7"),
+          span(win_pct),
+          span(class = "mobile-card-separator", "\u00b7"),
+          span(sprintf("%d events", as.integer(row$Events)))
         )
       )
     )
