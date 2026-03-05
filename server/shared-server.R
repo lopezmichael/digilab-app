@@ -991,7 +991,9 @@ safe_query <- function(pool, query, params = NULL, default = data.frame()) {
     grepl("prepared statement", msg, ignore.case = TRUE) ||
     grepl("bind message supplies", msg, ignore.case = TRUE) ||
     grepl("needs to be bound", msg, ignore.case = TRUE) ||
-    grepl("multiple queries.*same column", msg, ignore.case = TRUE)
+    grepl("multiple queries.*same column", msg, ignore.case = TRUE) ||
+    grepl("Query requires \\d+ params", msg, ignore.case = TRUE) ||
+    grepl("invalid input syntax", msg, ignore.case = TRUE)
   }
 
   # First attempt
@@ -1057,7 +1059,9 @@ safe_execute <- function(pool, query, params = NULL) {
     grepl("prepared statement", msg, ignore.case = TRUE) ||
     grepl("bind message supplies", msg, ignore.case = TRUE) ||
     grepl("needs to be bound", msg, ignore.case = TRUE) ||
-    grepl("multiple queries.*same column", msg, ignore.case = TRUE)
+    grepl("multiple queries.*same column", msg, ignore.case = TRUE) ||
+    grepl("Query requires \\d+ params", msg, ignore.case = TRUE) ||
+    grepl("invalid input syntax", msg, ignore.case = TRUE)
   }
 
   # First attempt

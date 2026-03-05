@@ -50,8 +50,8 @@ meta_archetype_data <- reactive({
     start_idx = search_filters$next_idx
   )
 
-  min_entries <- as.numeric(input$meta_min_entries)
-  if (is.na(min_entries)) min_entries <- 0
+  min_entries <- as.numeric(input$meta_min_entries %||% 0)
+  if (length(min_entries) == 0 || is.na(min_entries)) min_entries <- 0
 
   # HAVING clause parameter is numbered after all filter params
   having_idx <- format_filters$next_idx

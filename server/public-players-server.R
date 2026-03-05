@@ -127,8 +127,8 @@ output$player_standings <- renderReactable({
   filter_sql <- paste(search_filters$sql, format_filters$sql)
   filter_params <- c(search_filters$params, format_filters$params)
 
-  min_events <- as.numeric(input$players_min_events)
-  if (is.na(min_events)) min_events <- 0
+  min_events <- as.numeric(input$players_min_events %||% 0)
+  if (length(min_events) == 0 || is.na(min_events)) min_events <- 0
 
   # HAVING clause parameter is numbered after all filter params
   having_idx <- format_filters$next_idx
@@ -367,8 +367,8 @@ output$mobile_players_cards <- renderUI({
   filter_sql <- paste(search_filters$sql, format_filters$sql)
   filter_params <- c(search_filters$params, format_filters$params)
 
-  min_events <- as.numeric(input$players_min_events)
-  if (is.na(min_events)) min_events <- 0
+  min_events <- as.numeric(input$players_min_events %||% 0)
+  if (length(min_events) == 0 || is.na(min_events)) min_events <- 0
   having_idx <- format_filters$next_idx
 
   query <- sprintf("

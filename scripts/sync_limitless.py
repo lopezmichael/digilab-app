@@ -360,15 +360,12 @@ def resolve_deck(cursor, deck_info, deck_map_cache):
     """, (deck_id, deck_name))
 
     # Create a deck request for admin review
-    cursor.execute(
-        "SELECT COALESCE(MAX(request_id), 0) + 1 FROM deck_requests"
-    )
-    next_request_id = cursor.fetchone()[0]
-
     cursor.execute("""
-        INSERT INTO deck_requests (request_id, deck_name, primary_color, status, submitted_at)
-        VALUES (%s, %s, 'Unknown', 'pending', CURRENT_TIMESTAMP)
-    """, (next_request_id, f"[Limitless] {deck_name}"))
+        INSERT INTO deck_requests (deck_name, primary_color, status, submitted_at)
+        VALUES (%s, 'Unknown', 'pending', CURRENT_TIMESTAMP)
+        RETURNING request_id
+    """, (f"[Limitless] {deck_name}",))
+    next_request_id = cursor.fetchone()[0]
 
     deck_map_cache[deck_id] = None
     return None, next_request_id
@@ -1381,27 +1378,23 @@ def run_classify_decklists(cursor):
     requests_created = 0
     for archetype_name, result_list in missing_archetypes.items():
         # Create one deck request for this missing archetype
-        cursor.execute(
-            "SELECT COALESCE(MAX(request_id), 0) + 1 FROM deck_requests"
-        )
-        next_request_id = cursor.fetchone()[0]
-
         # Use the first result's decklist as the example
         first_result_id, first_decklist = result_list[0]
 
         cursor.execute("""
             INSERT INTO deck_requests
-                (request_id, deck_name, primary_color, status, submitted_at,
+                (deck_name, primary_color, status, submitted_at,
                  suggested_archetype_name, decklist_json, source, result_id)
-            VALUES (%s, %s, 'Unknown', 'pending', CURRENT_TIMESTAMP,
+            VALUES (%s, 'Unknown', 'pending', CURRENT_TIMESTAMP,
                     %s, %s, 'classification', %s)
+            RETURNING request_id
         """, (
-            next_request_id,
             f"[Auto] {archetype_name}",
             archetype_name,
             first_decklist,
             first_result_id
         ))
+        next_request_id = cursor.fetchone()[0]
 
         # Link all results with this archetype to this deck request
         for result_id, _ in result_list:
@@ -1415,23 +1408,19 @@ def run_classify_decklists(cursor):
 
     # Create deck_requests for unclassifiable decklists (one per result)
     for result_id, decklist_json in unclassifiable:
-        cursor.execute(
-            "SELECT COALESCE(MAX(request_id), 0) + 1 FROM deck_requests"
-        )
-        next_request_id = cursor.fetchone()[0]
-
         cursor.execute("""
             INSERT INTO deck_requests
-                (request_id, deck_name, primary_color, status, submitted_at,
+                (deck_name, primary_color, status, submitted_at,
                  suggested_archetype_name, decklist_json, source, result_id)
-            VALUES (%s, %s, 'Unknown', 'needs_classification', CURRENT_TIMESTAMP,
+            VALUES (%s, 'Unknown', 'needs_classification', CURRENT_TIMESTAMP,
                     NULL, %s, 'classification', %s)
+            RETURNING request_id
         """, (
-            next_request_id,
             "[Auto] Unclassified Deck",
             decklist_json,
             result_id
         ))
+        next_request_id = cursor.fetchone()[0]
 
         cursor.execute(
             "UPDATE results SET pending_deck_request_id = %s WHERE result_id = %s",
