@@ -447,14 +447,13 @@ output$mobile_players_cards <- renderUI({
       else if (rank == 3) "player-rank-3"
       else "")
 
-    # Win percentage
-    win_pct <- if (!is.na(row$Win_Pct)) paste0(row$Win_Pct, "%") else "-"
-
-    # Record string: W-L or W-L-T
-    record <- sprintf("%d-%d", as.integer(row$W), as.integer(row$L))
-    if (!is.na(row$T) && row$T > 0) {
-      record <- sprintf("%s-%d", record, as.integer(row$T))
-    }
+    # Color-coded record (matches desktop table)
+    record_tag <- tagList(
+      span(style = "color: #22c55e;", as.integer(row$W)),
+      "-",
+      span(style = "color: #ef4444;", as.integer(row$L)),
+      if (!is.na(row$T) && row$T > 0) tagList("-", span(style = "color: #f97316;", as.integer(row$T)))
+    )
 
     # Main deck badge (unchanged logic)
     deck_tag <- if (nchar(row$main_deck) > 0) {
@@ -483,16 +482,19 @@ output$mobile_players_cards <- renderUI({
         span(class = paste("mobile-card-rating", rating_class), rating)
       ),
 
-      # Row 2: Deck badge + Record | Win% | Events
+      # Row 2: Deck badge (left-aligned under name)
+      if (!is.null(deck_tag)) {
+        div(class = "mobile-card-row",
+          div(class = "mobile-card-secondary", style = "padding-left: 2.5rem;",
+            deck_tag
+          )
+        )
+      },
+
+      # Row 3: Record | Events (left-aligned under name)
       div(class = "mobile-card-row",
-        div(class = "mobile-card-secondary",
-          if (!is.null(deck_tag)) tagList(deck_tag)
-          else NULL
-        ),
-        div(class = "mobile-card-secondary",
-          span(record),
-          span(class = "mobile-card-separator", "\u00b7"),
-          span(win_pct),
+        div(class = "mobile-card-secondary", style = "padding-left: 2.5rem;",
+          record_tag,
           span(class = "mobile-card-separator", "\u00b7"),
           span(sprintf("%d events", as.integer(row$Events)))
         )
