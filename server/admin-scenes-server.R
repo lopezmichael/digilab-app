@@ -145,8 +145,12 @@ output$scene_minimap <- renderMapboxgl({
     params = list(sid),
     default = data.frame())
 
-  map <- atom_mapgl(theme = "digital") |>
-    mapgl::set_view(center = c(scene_lng, scene_lat), zoom = 10)
+  # Start with scene center point for bounds
+  scene_point <- sf::st_sf(
+    geometry = sf::st_sfc(sf::st_point(c(scene_lng, scene_lat)), crs = 4326)
+  )
+
+  map <- atom_mapgl(theme = "digital")
 
   if (nrow(stores) > 0) {
     store_points <- sf::st_sf(
@@ -159,6 +163,9 @@ output$scene_minimap <- renderMapboxgl({
       )
     )
 
+    # Combine scene center + store points for bounding box
+    bounds_sf <- rbind(scene_point, store_points[, "geometry"])
+
     map <- map |>
       mapgl::add_circle_layer(
         id = "scene-stores",
@@ -169,7 +176,12 @@ output$scene_minimap <- renderMapboxgl({
         circle_stroke_width = 2,
         circle_opacity = 0.9,
         tooltip = "name"
-      )
+      ) |>
+      mapgl::fit_bounds(bounds_sf, padding = 40, maxZoom = 11)
+  } else {
+    # No stores — just center on scene
+    map <- map |>
+      mapgl::set_view(center = c(scene_lng, scene_lat), zoom = 10)
   }
 
   map

@@ -1384,6 +1384,18 @@ output$stores_map <- renderMapboxgl({
     )
   })
 
+  # Build bounding box sf that includes stores + scene center
+  bounds_sf <- stores_sf
+  scene_coords <- safe_query(db_pool,
+    "SELECT latitude, longitude FROM scenes WHERE slug = $1 AND latitude IS NOT NULL",
+    params = list(scene), default = data.frame())
+  if (nrow(scene_coords) > 0) {
+    scene_point <- st_sf(
+      geometry = st_sfc(st_point(c(scene_coords$longitude[1], scene_coords$latitude[1])), crs = 4326)
+    )
+    bounds_sf <- rbind(bounds_sf[, "geometry"], scene_point)
+  }
+
   # Create the map
   # Using digital theme for basemap, light theme for popups
   # Bubble size based on average event size
@@ -1399,7 +1411,7 @@ output$stores_map <- renderMapboxgl({
       circle_opacity = 0.85,
       popup = "popup"
     ) |>
-    mapgl::fit_bounds(stores_sf, padding = 50, maxZoom = 9)
+    mapgl::fit_bounds(bounds_sf, padding = 50, maxZoom = 9)
 
   map
 }) |> bindCache(rv$current_scene, rv$community_filter, input$dark_mode, rv$data_refresh)
@@ -1470,6 +1482,18 @@ output$mobile_stores_map <- renderMapboxgl({
     )
   })
 
+  # Build bounding box sf that includes stores + scene center
+  bounds_sf <- stores_sf
+  scene_coords <- safe_query(db_pool,
+    "SELECT latitude, longitude FROM scenes WHERE slug = $1 AND latitude IS NOT NULL",
+    params = list(scene), default = data.frame())
+  if (nrow(scene_coords) > 0) {
+    scene_point <- st_sf(
+      geometry = st_sfc(st_point(c(scene_coords$longitude[1], scene_coords$latitude[1])), crs = 4326)
+    )
+    bounds_sf <- rbind(bounds_sf[, "geometry"], scene_point)
+  }
+
   # Create the map (no popup theme helper needed for compact view)
   atom_mapgl(theme = "digital") |>
     mapgl::add_circle_layer(
@@ -1482,7 +1506,7 @@ output$mobile_stores_map <- renderMapboxgl({
       circle_opacity = 0.85,
       popup = "popup"
     ) |>
-    mapgl::fit_bounds(stores_sf, padding = 30, maxZoom = 9)
+    mapgl::fit_bounds(bounds_sf, padding = 30, maxZoom = 9)
 }) |> bindCache(rv$current_scene, rv$community_filter, input$dark_mode, rv$data_refresh)
 
 # =============================================================================
