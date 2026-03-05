@@ -158,6 +158,13 @@ planned:
 
 completed:
   # v1.3.0
+  - id: mobile-player-cards
+    title: "Mobile Player Card Redesign"
+    description: "Styled player cards with tier-colored rating badges, top-3 left borders, color-coded W-L-T records, full-opacity deck badges, and stronger card borders."
+    tags: [mobile, ux]
+    date: "2026-03"
+    version: "v1.3.0"
+
   - id: three-dot-modal
     title: "Three-Dot Menu → Modal"
     description: "Converted header three-dot dropdown to a styled modal matching admin login pattern. Moved Upload Results from mobile tab bar into the modal (mobile only), reducing tabs from 6 to 5."
