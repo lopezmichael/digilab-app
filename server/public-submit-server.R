@@ -1455,9 +1455,11 @@ observe({
     WHERE is_active = TRUE
     ORDER BY name
   ")
-  choices <- setNames(stores$store_id, stores$name)
-  updateSelectInput(session, "match_store",
-                    choices = c("All stores" = "", choices))
+  if (nrow(stores) > 0 && !is.null(stores$store_id)) {
+    choices <- setNames(stores$store_id, stores$name)
+    updateSelectInput(session, "match_store",
+                      choices = c("All stores" = "", choices))
+  }
 })
 
 # Populate tournament dropdown based on store selection
@@ -1486,7 +1488,7 @@ observe({
     ")
   }
 
-  if (nrow(tournaments) > 0) {
+  if (nrow(tournaments) > 0 && !is.null(tournaments$tournament_id)) {
     labels <- paste0(tournaments$store_name, " - ",
                      format(as.Date(tournaments$event_date), "%b %d, %Y"),
                      " (", tournaments$event_type, ")")
