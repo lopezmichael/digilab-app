@@ -89,17 +89,62 @@
  * Player Card Enhancements — tier colors, left borders, win rate bar
  * --------------------------------------------------------------------------- */
 
-/* Rating tier colors (fixed thresholds) */
-.rating-tier-elite  { color: #FFD700 !important; }
-.rating-tier-strong { color: #00C8FF !important; }
-.rating-tier-good   { color: #4CAF50 !important; }
-.rating-tier-low    { opacity: 0.5; }
-
-/* Rating value in monospace */
+/* Rating badge in monospace */
 .mobile-card-rating {
   font-family: 'Fira Code', monospace;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.7);
+}
+
+/* Rating tier badge colors (fixed thresholds) */
+.rating-tier-elite {
+  background: rgba(255, 215, 0, 0.15) !important;
+  color: #B8860B !important;
+}
+
+.rating-tier-strong {
+  background: rgba(0, 200, 255, 0.12) !important;
+  color: #0088AA !important;
+}
+
+.rating-tier-good {
+  background: rgba(76, 175, 80, 0.12) !important;
+  color: #2E7D32 !important;
+}
+
+.rating-tier-low {
+  background: rgba(0, 0, 0, 0.04) !important;
+  color: rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Dark mode rating badges */
+[data-bs-theme="dark"] .mobile-card-rating {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+[data-bs-theme="dark"] .rating-tier-elite {
+  background: rgba(255, 215, 0, 0.2) !important;
+  color: #FFD700 !important;
+}
+
+[data-bs-theme="dark"] .rating-tier-strong {
+  background: rgba(0, 200, 255, 0.15) !important;
+  color: #00C8FF !important;
+}
+
+[data-bs-theme="dark"] .rating-tier-good {
+  background: rgba(76, 175, 80, 0.15) !important;
+  color: #4CAF50 !important;
+}
+
+[data-bs-theme="dark"] .rating-tier-low {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: rgba(255, 255, 255, 0.35) !important;
 }
 
 /* Top 3 left border accents */
