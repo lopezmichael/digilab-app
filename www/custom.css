@@ -6871,7 +6871,14 @@ div.player-match-indicator.new {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
+/* Scene summary cards (All Scenes view) */
+.scene-card-item {
+  border-left: 3px solid #0F4C81;
+}
 
+[data-bs-theme="dark"] .scene-card-item {
+  border-left-color: #00C8FF;
+}
 
 /* =============================================================================
    Community Filter Banner

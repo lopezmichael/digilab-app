@@ -4,6 +4,18 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-04: All Scenes Store Directory → Scene Cards
+
+### Problem
+With growing number of scenes/stores, the "All Scenes" view on the Stores tab was overwhelming — it listed every individual store card globally. The schedule view had the same issue.
+
+### Solution
+When `rv$current_scene == "all"`, both the cards and schedule views now show **scene summary cards** instead of individual stores. Each card shows: scene name, store count, total events, avg players. Clicking a scene card calls `updateSelectInput(session, "scene_selector", ...)` to navigate into that scene, reusing 100% of existing filtering logic.
+
+Applied to both desktop (grid cards with left border accent) and mobile (mobile-list-card with same layout patterns as meta/tournament cards). The map still shows all stores globally for geographic context.
+
+---
+
 ## 2026-03-04: Mobile Meta & Tournament Card Redesign
 
 ### Meta Cards

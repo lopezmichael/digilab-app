@@ -59,11 +59,36 @@ output$stores_schedule_content <- renderUI({
 
   rv$data_refresh  # Trigger refresh on admin changes
 
+  # For "All Scenes", show scene summary cards (same as cards view)
+  scene <- rv$current_scene
+  if (is.null(scene) || scene == "" || scene == "all") {
+    scene_stats <- safe_query(db_pool, "
+      SELECT sc.slug, sc.display_name, sc.name as scene_name,
+             COUNT(DISTINCT s.store_id) as store_count,
+             COUNT(t.tournament_id) as total_events,
+             COALESCE(ROUND(AVG(t.player_count), 1), 0) as avg_players
+      FROM scenes sc
+      JOIN stores s ON s.scene_id = sc.scene_id
+        AND s.is_active = TRUE
+        AND (s.is_online = FALSE OR s.is_online IS NULL)
+      LEFT JOIN tournaments t ON s.store_id = t.store_id
+      WHERE sc.is_active = TRUE
+        AND sc.scene_type = 'metro'
+      GROUP BY sc.scene_id, sc.slug, sc.display_name, sc.name
+      ORDER BY COUNT(t.tournament_id) DESC
+    ")
+
+    if (nrow(scene_stats) == 0) {
+      return(digital_empty_state("No scenes available", "// check back soon", "geo-alt", mascot = "agumon"))
+    }
+
+    return(render_scene_cards(scene_stats))
+  }
+
   # Get current day of week (0=Sunday in JS, but R's wday returns 1=Sunday)
   today_wday <- as.integer(format(Sys.Date(), "%w"))  # 0=Sunday, 6=Saturday
 
   # Build scene filter for stores table
-  scene <- rv$current_scene
   scene_sql <- ""
   scene_params <- list()
   if (!is.null(scene) && scene != "" && scene != "all") {
@@ -324,7 +349,32 @@ output$stores_cards_content <- renderUI({
     return(render_store_cards(online_stores, is_online = TRUE))
   }
 
-  # For physical scenes, show physical stores
+  # For "All Scenes", show scene summary cards instead of individual stores
+  if (is.null(scene) || scene == "" || scene == "all") {
+    scene_stats <- safe_query(db_pool, "
+      SELECT sc.slug, sc.display_name, sc.name as scene_name,
+             COUNT(DISTINCT s.store_id) as store_count,
+             COUNT(t.tournament_id) as total_events,
+             COALESCE(ROUND(AVG(t.player_count), 1), 0) as avg_players
+      FROM scenes sc
+      JOIN stores s ON s.scene_id = sc.scene_id
+        AND s.is_active = TRUE
+        AND (s.is_online = FALSE OR s.is_online IS NULL)
+      LEFT JOIN tournaments t ON s.store_id = t.store_id
+      WHERE sc.is_active = TRUE
+        AND sc.scene_type = 'metro'
+      GROUP BY sc.scene_id, sc.slug, sc.display_name, sc.name
+      ORDER BY COUNT(t.tournament_id) DESC
+    ")
+
+    if (nrow(scene_stats) == 0) {
+      return(digital_empty_state("No scenes available", "// check back soon", "geo-alt", mascot = "agumon"))
+    }
+
+    return(render_scene_cards(scene_stats))
+  }
+
+  # For specific scenes, show physical stores
   stores <- stores_data()
 
   if (is.null(stores) || nrow(stores) == 0) {
@@ -368,6 +418,42 @@ render_store_cards <- function(stores, is_online = FALSE) {
     })
   )
 }
+
+# Helper: Render scene summary cards for "All Scenes" view
+render_scene_cards <- function(scenes) {
+  div(
+    class = "row g-3",
+    lapply(1:nrow(scenes), function(i) {
+      sc <- scenes[i, ]
+      scene_label <- if (!is.na(sc$display_name) && nchar(sc$display_name) > 0) sc$display_name else sc$scene_name
+      stores_label <- if (sc$store_count == 1) "store" else "stores"
+      events_label <- if (sc$total_events == 1) "event" else "events"
+
+      div(
+        class = "col-md-4 col-lg-3",
+        tags$button(
+          type = "button",
+          class = "store-card-item scene-card-item p-3 h-100 w-100 text-start border-0",
+          onclick = sprintf("Shiny.setInputValue('scene_card_clicked', '%s', {priority: 'event'})", sc$slug),
+          h6(class = "mb-1 fw-semibold", bsicons::bs_icon("geo-alt-fill", class = "me-1"), scene_label),
+          p(class = "small mb-1 text-primary",
+            bsicons::bs_icon("shop"), " ", sc$store_count, " ", stores_label,
+            span(class = "text-muted ms-2",
+              bsicons::bs_icon("trophy"), " ", sc$total_events, " ", events_label)),
+          if (sc$avg_players > 0) {
+            p(class = "small mb-0 text-muted",
+              paste0("~", sc$avg_players, " avg players"))
+          }
+        )
+      )
+    })
+  )
+}
+
+# Handle scene card click - navigate to that scene
+observeEvent(input$scene_card_clicked, {
+  updateSelectInput(session, "scene_selector", selected = input$scene_card_clicked)
+})
 
 # Handle store row click - open detail modal
 observeEvent(input$store_clicked, {
@@ -1483,6 +1569,58 @@ output$mobile_stores_cards <- renderUI({
       ))
     }
     return(card_list)
+  }
+
+  # For "All Scenes", show scene summary cards (mobile version)
+  if (is.null(scene) || scene == "" || scene == "all") {
+    scene_stats <- safe_query(db_pool, "
+      SELECT sc.slug, sc.display_name, sc.name as scene_name,
+             COUNT(DISTINCT s.store_id) as store_count,
+             COUNT(t.tournament_id) as total_events,
+             COALESCE(ROUND(AVG(t.player_count), 1), 0) as avg_players
+      FROM scenes sc
+      JOIN stores s ON s.scene_id = sc.scene_id
+        AND s.is_active = TRUE
+        AND (s.is_online = FALSE OR s.is_online IS NULL)
+      LEFT JOIN tournaments t ON s.store_id = t.store_id
+      WHERE sc.is_active = TRUE
+        AND sc.scene_type = 'metro'
+      GROUP BY sc.scene_id, sc.slug, sc.display_name, sc.name
+      ORDER BY COUNT(t.tournament_id) DESC
+    ")
+
+    if (nrow(scene_stats) == 0) {
+      return(digital_empty_state("No scenes available", "// check back soon", "geo-alt", mascot = "agumon"))
+    }
+
+    cards <- lapply(seq_len(nrow(scene_stats)), function(i) {
+      sc <- scene_stats[i, ]
+      scene_label <- if (!is.na(sc$display_name) && nchar(sc$display_name) > 0) sc$display_name else sc$scene_name
+      stores_label <- if (sc$store_count == 1) "store" else "stores"
+
+      div(
+        class = "mobile-list-card",
+        style = "border-left: 3px solid #0F4C81;",
+        onclick = sprintf("Shiny.setInputValue('scene_card_clicked', '%s', {priority: 'event'})", sc$slug),
+        div(class = "mobile-card-row",
+          span(class = "mobile-card-primary",
+            bsicons::bs_icon("geo-alt-fill", class = "me-1"),
+            scene_label),
+          span(class = "mobile-card-format-badge",
+            sprintf("%d %s", sc$store_count, stores_label))
+        ),
+        div(class = "mobile-card-row",
+          span(class = "mobile-card-meta-stats",
+            sprintf("%d events", sc$total_events)),
+          if (sc$avg_players > 0) {
+            span(class = "mobile-card-meta-stats",
+              sprintf("~%s avg players", sc$avg_players))
+          }
+        )
+      )
+    })
+
+    return(div(class = "mobile-card-list", cards))
   }
 
   # For physical scenes, show physical store cards
