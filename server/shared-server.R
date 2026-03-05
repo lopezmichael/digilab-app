@@ -105,11 +105,6 @@ observeEvent(input$mob_stores, {
   rv$current_nav <- "stores"
   session$sendCustomMessage("updateSidebarNav", "nav_stores")
 })
-observeEvent(input$mob_submit, {
-  nav_select("main_content", "submit")
-  rv$current_nav <- "submit"
-  session$sendCustomMessage("updateSidebarNav", "nav_submit")
-})
 
 observeEvent(input$nav_admin_results, {
   nav_select("main_content", "admin_results")
@@ -197,14 +192,63 @@ observeEvent(input$modal_admin_scenes, {
 # Header Help Dropdown Actions
 # ---------------------------------------------------------------------------
 
-# Bug report from header dropdown
-observeEvent(input$header_bug_report, {
+# Help & Resources modal (three-dot menu)
+observeEvent(input$help_menu_link, {
+  showModal(modalDialog(
+    title = tagList(bsicons::bs_icon("three-dots-vertical"), " Help & Resources"),
+    div(
+      class = "help-modal-links",
+      tags$a(href = "https://digilab.cards/faq",
+             target = "_blank", rel = "noopener noreferrer",
+             class = "help-modal-item",
+             bsicons::bs_icon("question-circle"), " FAQ"),
+      tags$a(href = "https://digilab.cards/organizers",
+             target = "_blank", rel = "noopener noreferrer",
+             class = "help-modal-item",
+             bsicons::bs_icon("person-badge"), " For Organizers"),
+      tags$a(href = "https://digilab.cards/roadmap",
+             target = "_blank", rel = "noopener noreferrer",
+             class = "help-modal-item",
+             bsicons::bs_icon("map"), " Roadmap")
+    ),
+    tags$hr(class = "my-2", style = "border-color: rgba(255,255,255,0.1);"),
+    div(
+      class = "help-modal-actions",
+      actionLink("help_modal_bug_report",
+                 tagList(bsicons::bs_icon("bug"), " Report a Bug"),
+                 class = "help-modal-item"),
+      actionLink("help_modal_store_request",
+                 tagList(bsicons::bs_icon("plus-circle"), " Request a Store"),
+                 class = "help-modal-item")
+    ),
+    div(
+      class = "help-modal-mobile-only",
+      tags$hr(class = "my-2", style = "border-color: rgba(255,255,255,0.1);"),
+      actionLink("help_modal_upload",
+                 tagList(bsicons::bs_icon("cloud-upload"), " Upload Results"),
+                 class = "help-modal-item")
+    ),
+    footer = modalButton("Close"),
+    easyClose = TRUE
+  ))
+})
+
+# Help modal actions
+observeEvent(input$help_modal_bug_report, {
+  removeModal()
   show_bug_report_modal()
 })
 
-# Store/Scene request from header dropdown
-observeEvent(input$header_store_request, {
+observeEvent(input$help_modal_store_request, {
+  removeModal()
   shinyjs::click("open_store_request")
+})
+
+observeEvent(input$help_modal_upload, {
+  removeModal()
+  nav_select("main_content", "submit")
+  rv$current_nav <- "submit"
+  session$sendCustomMessage("updateSidebarNav", "nav_submit")
 })
 
 # ---------------------------------------------------------------------------

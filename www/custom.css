@@ -166,14 +166,16 @@ body {
 
 /* Header icon styling with pulse animation */
 .header-icon {
-  font-size: 1.25rem !important;
+  font-size: 1.6rem !important;
   color: #FFFFFF !important;
   animation: icon-pulse 3s ease-in-out infinite;
+  position: relative;
+  top: -1px;
 }
 
 .header-icon svg {
-  width: 1.4rem;
-  height: 1.4rem;
+  width: 1.8rem;
+  height: 1.8rem;
   fill: currentColor;
 }
 
@@ -264,58 +266,39 @@ body {
   color: #FFFFFF !important;
 }
 
-/* Help dropdown in header */
-.header-help-dropdown {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.header-help-dropdown .dropdown-toggle {
-  border: none;
-  box-shadow: none;
-}
-
-.header-help-dropdown .dropdown-toggle:focus,
-.header-help-dropdown .dropdown-toggle:active {
-  box-shadow: none;
-  outline: none;
-}
-
-.header-help-dropdown .dropdown-toggle::after {
-  display: none; /* Hide default caret */
-}
-
-.header-help-dropdown .dropdown-menu {
-  background: #0A3055;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
-  min-width: 200px;
-  padding: 0.5rem 0;
-  z-index: 1050;
-  margin-top: 0.25rem;
-}
-
-.header-help-dropdown .dropdown-item {
-  color: rgba(255, 255, 255, 0.9) !important;
-  padding: 0.5rem 1rem;
+/* Help & Resources modal */
+.help-modal-item {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  transition: all 0.15s ease;
-  text-decoration: none;
+  padding: 0.6rem 0.75rem;
+  color: rgba(255, 255, 255, 0.9) !important;
+  text-decoration: none !important;
+  border-radius: 6px;
+  transition: background 0.15s ease;
 }
 
-.header-help-dropdown .dropdown-item:hover,
-.header-help-dropdown .dropdown-item:focus {
-  background: rgba(255, 255, 255, 0.1);
+.help-modal-item:hover,
+.help-modal-item:focus {
+  background: rgba(255, 255, 255, 0.08);
   color: #FFFFFF !important;
 }
 
-.header-help-dropdown .dropdown-divider {
-  border-color: rgba(255, 255, 255, 0.1);
-  margin: 0.25rem 0;
+.help-modal-links,
+.help-modal-actions {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Upload Results link: hidden on desktop, shown on mobile */
+.help-modal-mobile-only {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .help-modal-mobile-only {
+    display: block;
+  }
 }
 
 /* Scene selector dropdown in header */
@@ -374,24 +357,47 @@ body {
   .header-title {
     min-width: 0;
     flex-shrink: 1;
+    align-items: center;
   }
 
   .header-title-text {
-    font-size: 1.1rem;
+    font-size: 1.25rem;
+    line-height: 1;
   }
 
   .header-badge {
     display: none;
   }
 
+  .header-icon {
+    font-size: 1.4rem !important;
+  }
+
+  .header-icon svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
   .header-actions {
     flex-shrink: 0;
     gap: 0.5rem;
+    align-items: center;
+  }
+
+  .header-action-btn {
+    padding: 0.35rem 0.5rem;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
   }
 
   /* Dark mode toggle stays in top row on mobile */
   .app-header > .bslib-dark-mode {
     order: 2;
+  }
+
+  .app-header .bslib-dark-mode {
+    font-size: 1rem;
   }
 
   /* Scene selector wraps to full-width row below header items on mobile */
@@ -407,15 +413,6 @@ body {
     font-size: 0.8rem;
     padding: 0.3rem 0.4rem;
     padding-right: 1.3rem;
-  }
-
-  .header-action-btn {
-    padding: 0.3rem 0.5rem;
-    font-size: 0.8rem;
-  }
-
-  .app-header .bslib-dark-mode {
-    font-size: 0.9rem;
   }
 
   /* Slightly reduce top padding on tablet/mobile */
@@ -1618,7 +1615,7 @@ body.bslib-gap-spacing {
 .rising-star-rating .rating-value {
   font-size: 1.1rem;
   font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Fira Code', monospace;
   color: #0F4C81;
 }
 
@@ -4222,33 +4219,10 @@ a:hover, .nav-link:hover {
     font-size: 0.9rem;
   }
 
-  .header-action-btn {
-    padding: 0.25rem 0.4rem;
-    font-size: 0.75rem;
-  }
-
   /* Scale down circuit node and line on small phones */
   .app-header::before {
     width: 6px;
     height: 6px;
-  }
-
-  /* Reduce header icon size on mobile */
-  .header-icon {
-    font-size: 1rem !important;
-  }
-
-  .header-icon svg {
-    width: 1.1rem;
-    height: 1.1rem;
-  }
-
-  .header-title {
-    gap: 0.5rem;
-  }
-
-  .header-actions {
-    gap: 0.4rem;
   }
 
   /* Smaller page titles on mobile */
@@ -4382,7 +4356,7 @@ a:hover, .nav-link:hover {
   color: rgba(0, 200, 255, 0.8);
   font-size: 0.85rem;
   margin-top: 0.5rem;
-  font-family: monospace;
+  font-family: 'Fira Code', monospace;
 }
 
 /* Scan line effect on loading */
@@ -4652,7 +4626,7 @@ a:hover, .nav-link:hover {
 .empty-state-subtitle {
   color: rgba(0, 200, 255, 0.6);
   font-size: 0.8rem;
-  font-family: monospace;
+  font-family: 'Fira Code', monospace;
 }
 
 /* Dark mode */
@@ -4943,17 +4917,23 @@ select,
   gap: 1rem;
   font-size: 0.85rem;
   position: relative;
-  /* Edge-to-edge layout */
   margin: 0;
   margin-top: auto;
   width: 100%;
   min-height: 40px;
 }
 
+.footer-left,
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .footer-version {
   color: rgba(255, 255, 255, 0.6);
   font-size: 0.75rem;
-  font-family: monospace;
+  font-family: 'Fira Code', monospace;
 }
 
 .footer-social {
@@ -4979,12 +4959,6 @@ select,
 .footer-copyright {
   color: rgba(255, 255, 255, 0.5);
   font-size: 0.75rem;
-}
-
-.footer-links {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
 }
 
 .footer-link {
@@ -5014,31 +4988,17 @@ select,
   background: rgba(255, 255, 255, 0.1);
 }
 
-/* Footer responsive */
-@media (max-width: 576px) {
+/* Footer responsive — match mobile view breakpoint (768px) */
+@media (max-width: 768px) {
   .app-footer {
-    flex-wrap: wrap;
-    justify-content: center;
+    flex-wrap: nowrap;
+    justify-content: space-between;
     gap: 0.5rem;
     padding: 0.5rem 1rem;
   }
 
-  .footer-version {
-    order: 3;
-    width: 100%;
-    text-align: center;
-  }
-
-  .footer-social {
-    order: 1;
-  }
-
-  .footer-copyright {
+  .footer-right {
     display: none;
-  }
-
-  .footer-links {
-    order: 2;
   }
 }
 
@@ -5189,7 +5149,7 @@ select,
 
 /* Formula/code display */
 .formula-box {
-  font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-family: 'Fira Code', monospace;
   background: rgba(10, 48, 85, 0.08);
   border-left: 3px solid #0F4C81;
   padding: 0.75rem 1rem;
