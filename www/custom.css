@@ -272,7 +272,7 @@ body {
   align-items: center;
   gap: 0.5rem;
   padding: 0.6rem 0.75rem;
-  color: rgba(255, 255, 255, 0.9) !important;
+  color: rgba(0, 0, 0, 0.8) !important;
   text-decoration: none !important;
   border-radius: 6px;
   transition: background 0.15s ease;
@@ -280,6 +280,16 @@ body {
 
 .help-modal-item:hover,
 .help-modal-item:focus {
+  background: rgba(0, 0, 0, 0.06);
+  color: #000000 !important;
+}
+
+[data-bs-theme="dark"] .help-modal-item {
+  color: rgba(255, 255, 255, 0.9) !important;
+}
+
+[data-bs-theme="dark"] .help-modal-item:hover,
+[data-bs-theme="dark"] .help-modal-item:focus {
   background: rgba(255, 255, 255, 0.08);
   color: #FFFFFF !important;
 }
