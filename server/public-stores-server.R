@@ -1609,57 +1609,7 @@ output$mobile_stores_cards <- renderUI({
 
 # Open store request modal
 observeEvent(input$open_store_request, {
-  scenes <- safe_query(db_pool,
-    "SELECT scene_id, display_name FROM scenes WHERE is_active = TRUE ORDER BY display_name",
-    default = data.frame())
-
-  scene_choices <- c("My area isn't listed" = "new")
-  if (nrow(scenes) > 0) {
-    named <- setNames(as.character(scenes$scene_id), scenes$display_name)
-    scene_choices <- c(scene_choices, named)  # "My area isn't listed" first
-  }
-
-  showModal(modalDialog(
-    title = tagList(span(id = "store_req_title", "Request a Store")),
-    div(
-      selectInput("store_req_scene", "Scene / Area",
-                  choices = scene_choices,
-                  selectize = FALSE),
-
-      textInput("store_req_name", "Store Name"),
-      textInput("store_req_location", "City / State"),
-
-      # Extra fields for new scene requests (shown when "My area isn't listed")
-      div(id = "store_req_new_scene_fields", style = "display: none;",
-        tags$small(class = "form-text text-muted d-block mb-2",
-                   "Include country if outside the US (e.g., 'S\u00e3o Paulo, Brazil')"),
-        textInput("store_req_discord", "Your Discord Username"),
-        div(class = "mt-2 text-center",
-          tags$a(
-            href = LINKS$discord, target = "_blank",
-            class = "btn btn-sm btn-outline-primary",
-            bsicons::bs_icon("discord", class = "me-1"),
-            "Join our Discord"
-          )
-        )
-      ),
-
-      tags$script(HTML("
-        $(document).on('change', '#store_req_scene', function() {
-          var isNew = $(this).val() === 'new';
-          $('#store_req_new_scene_fields').toggle(isNew);
-          $('#store_req_title').text(isNew ? 'Request a Scene' : 'Request a Store');
-          $('label[for=store_req_name]').text(isNew ? 'Store or Community Name' : 'Store Name');
-          $('label[for=store_req_location]').text(isNew ? 'City / Region' : 'City / State');
-        });
-      "))
-    ),
-    footer = tagList(
-      modalButton("Cancel"),
-      actionButton("submit_store_request", "Submit", class = "btn-primary")
-    ),
-    easyClose = TRUE
-  ))
+  show_store_request_modal()
 })
 
 # Handle store request submission

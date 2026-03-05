@@ -1300,9 +1300,9 @@ observeEvent(input$submit_tournament, {
   })
 })
 
-# Request new store - reuse the modal from Stores tab
+# Request new store - reuse the shared modal function
 observeEvent(input$submit_request_store, {
-  shinyjs::click("open_store_request")
+  show_store_request_modal()
 })
 
 # =============================================================================

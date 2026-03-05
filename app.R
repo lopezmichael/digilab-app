@@ -449,10 +449,7 @@ ui <- page_fillable(
     ")),
     # Flag icons CSS for country flags in tables
     tags$link(rel = "stylesheet", href = "https://cdn.jsdelivr.net/npm/flag-icons@7.2.3/css/flag-icons.min.css"),
-    # Google Fonts: Righteous for header title
-    tags$link(rel = "preconnect", href = "https://fonts.googleapis.com"),
-    tags$link(rel = "preconnect", href = "https://fonts.gstatic.com", crossorigin = NA),
-    tags$link(rel = "stylesheet", href = "https://fonts.googleapis.com/css2?family=Righteous&display=swap"),
+    # Righteous font now loaded via _brand.yml (bslib headings font)
     tags$link(rel = "stylesheet", type = "text/css", href = "custom.css"),
     tags$link(rel = "stylesheet", type = "text/css", href = "mobile.css"),
     # Deep linking URL routing
@@ -731,37 +728,11 @@ ui <- page_fillable(
                  bsicons::bs_icon("lock"),
                  class = "header-action-btn",
                  title = "Admin Login"),
-      # Help dropdown (three-dots menu)
-      div(
-        class = "header-help-dropdown dropdown",
-        tags$button(
-          id = "help_dropdown_toggle",
-          class = "header-action-btn dropdown-toggle",
-          type = "button",
-          `data-bs-toggle` = "dropdown",
-          `data-bs-auto-close` = "true",
-          `aria-expanded` = "false",
-          title = "Help & Resources",
-          bsicons::bs_icon("three-dots-vertical")
-        ),
-        tags$ul(
-          class = "dropdown-menu dropdown-menu-end",
-          tags$li(tags$a(class = "dropdown-item", href = "https://digilab.cards/faq",
-                         target = "_blank", rel = "noopener noreferrer",
-                         bsicons::bs_icon("question-circle"), " FAQ")),
-          tags$li(tags$a(class = "dropdown-item", href = "https://digilab.cards/organizers",
-                         target = "_blank", rel = "noopener noreferrer",
-                         bsicons::bs_icon("person-badge"), " For Organizers")),
-          tags$li(tags$a(class = "dropdown-item", href = "https://digilab.cards/roadmap",
-                         target = "_blank", rel = "noopener noreferrer",
-                         bsicons::bs_icon("map"), " Roadmap")),
-          tags$li(tags$hr(class = "dropdown-divider")),
-          tags$li(actionLink("header_bug_report", class = "dropdown-item",
-                             tagList(bsicons::bs_icon("bug"), " Report a Bug"))),
-          tags$li(actionLink("header_store_request", class = "dropdown-item",
-                             tagList(bsicons::bs_icon("plus-circle"), " Request a Store")))
-        )
-      )
+      # Help menu (three-dots icon → modal)
+      actionLink("help_menu_link",
+                 bsicons::bs_icon("three-dots-vertical"),
+                 class = "header-action-btn",
+                 title = "Help & Resources")
     ),
     # Scene selector (separate child so it can wrap to its own row on mobile)
     div(
@@ -891,10 +862,14 @@ ui <- page_fillable(
   # Footer (minimal layout for iframe embedding)
   tags$footer(
     class = "app-footer",
-    # Left: Version
+    # Left: Version + Welcome Guide
     tags$div(
-      class = "footer-version",
-      paste0("v", APP_VERSION)
+      class = "footer-left",
+      tags$span(class = "footer-version", paste0("v", APP_VERSION)),
+      actionLink("open_welcome_guide",
+                 bsicons::bs_icon("lightbulb"),
+                 class = "footer-guide-btn",
+                 title = "Welcome Guide")
     ),
     # Center: Social icons
     tags$div(
@@ -924,25 +899,17 @@ ui <- page_fillable(
         bsicons::bs_icon("cup-hot")
       )
     ),
-    # Center-right: Copyright
+    # Right: Copyright + Privacy
     tags$div(
-      class = "footer-copyright",
-      "\u00A9 2026 DigiLab"
-    ),
-    # Right: Privacy + Welcome Guide
-    tags$div(
-      class = "footer-links",
+      class = "footer-right",
+      tags$span(class = "footer-copyright", "\u00A9 2026 DigiLab"),
       tags$a(
         href = "https://digilab.cards/privacy",
         target = "_blank",
         rel = "noopener noreferrer",
         class = "footer-link",
         "Privacy"
-      ),
-      actionLink("open_welcome_guide",
-                 bsicons::bs_icon("lightbulb"),
-                 class = "footer-guide-btn",
-                 title = "Welcome Guide")
+      )
     )
   ),
 
@@ -976,11 +943,6 @@ ui <- page_fillable(
       bsicons::bs_icon("geo-alt"),
       span(class = "tab-bar-label", "Stores")
     )),
-    actionLink("mob_submit", div(
-      class = "tab-bar-item",
-      bsicons::bs_icon("cloud-upload"),
-      span(class = "tab-bar-label", "Upload")
-    ))
   )
 )
 

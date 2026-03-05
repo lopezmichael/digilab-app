@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.3.0] - 2026-03-04 - Mobile Views & PWA Fixes
 
 ### Added
+- **Three-dot menu modal**: Replaced Bootstrap dropdown with a styled modal matching the admin login pattern. Contains FAQ, For Organizers, Roadmap (external links), Report a Bug, and Request a Store actions.
+- **Mobile Upload in help modal**: Upload Results link appears in the help modal on mobile only, replacing the former 6th tab bar item.
+- **Store request shared function**: Extracted `show_store_request_modal()` so it can be triggered from the help modal, stores tab, and submit tab without requiring DOM elements to be rendered.
+- **Mobile player card redesign**: Upgraded from plain text rows to styled cards with tier-colored rating badges, gold/silver/bronze left borders for top 3, color-coded W-L-T records, and full-opacity deck badges.
+- **Rating tier system**: Fixed-threshold rating tiers (1800+ elite gold, 1700+ strong cyan, 1600+ good green, <1500 muted) displayed as pill badges with light/dark mode variants.
+
+### Changed
+- **Mobile tab bar**: Reduced from 6 tabs to 5 (removed Upload Results) for a cleaner mobile navigation.
+- **Mobile card borders**: Increased border contrast and added box-shadow for better card separation.
+
+### Added (prior)
 - **Mobile device detection**: JS detects device type on page load, sends to Shiny via `input$device_info`. Server-side `is_mobile()` reactive drives conditional rendering.
 - **Dedicated mobile views**: 5 new mobile view files (`views/mobile-dashboard-ui.R`, `mobile-players-ui.R`, `mobile-meta-ui.R`, `mobile-tournaments-ui.R`, `mobile-stores-ui.R`) with purpose-built layouts for small screens.
 - **Mobile stacked cards**: Players, Meta, Tournaments, and Stores pages replace reactable tables with tappable card layouts on mobile. Load-more pagination (20 cards at a time).

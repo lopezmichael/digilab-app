@@ -4,6 +4,35 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-04: Mobile Player Card Redesign
+
+### Rating Tier Badges
+Replaced plain text ratings with pill badges colored by fixed thresholds (1800+ gold, 1700+ cyan, 1600+ green, 1500s neutral, <1500 muted). Badges use background tints with readable text for both light/dark modes. Thresholds are fixed CSS classes — new tiers (1900+, 2000+) can be added as one-line CSS additions.
+
+### Card Layout Evolution
+Iterated through several layouts before landing on: Row 1 = rank + name + rating badge, Row 2 = deck badge (left) + color-coded W-L-T · events (right, aligned under rating). Key learnings:
+- `.mobile-card-secondary` had `opacity: 0.7` which washed out deck badge colors — extracted deck badges to their own container
+- `justify-content: space-between` on Row 2 naturally aligns events under the rating badge
+- Win% removed as too much info density for mobile cards
+
+### Card Border Definition
+Original cards used `rgba(0, 200, 255, 0.1)` borders which were nearly invisible. Increased to `rgba(0, 40, 80, 0.15)` + `box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08)` for clear card separation.
+
+---
+
+## 2026-03-04: Three-Dot Menu → Modal & Store Request Refactor
+
+### Three-Dot Menu
+Replaced the Bootstrap dropdown (which felt inconsistent with the admin login modal pattern) with a Shiny `modalDialog`. Items styled as card-like rows with borders, hover slide effect, and dark/light theme support — matching the admin modal link aesthetic.
+
+### Mobile Tab Bar Cleanup
+Removed Upload Results (6th tab) from the mobile bottom nav. Upload is rarely used and crowded the bar. It's now accessible via the help modal on mobile only (`.help-modal-mobile-only` class, hidden on desktop via CSS media query).
+
+### Store Request Modal Extraction
+`shinyjs::click("open_store_request")` failed silently when triggered from the help modal because the Stores tab button wasn't in the DOM yet. Extracted the modal into `show_store_request_modal()` in `shared-server.R` — now called directly from help modal, stores tab, and submit tab.
+
+---
+
 ## 2026-03-04: Mobile Dashboard Redesign & Format Dropdown Fix
 
 ### Mobile Dashboard Overhaul

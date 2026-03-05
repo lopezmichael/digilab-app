@@ -17,9 +17,10 @@
 
 .mobile-list-card {
   padding: 0.75rem 1rem;
-  border: 1px solid rgba(0, 200, 255, 0.1);
+  border: 1px solid rgba(0, 40, 80, 0.15);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   cursor: pointer;
   -webkit-tap-highlight-color: rgba(0, 200, 255, 0.1);
   transition: background 0.15s ease;
@@ -30,12 +31,13 @@
 }
 
 [data-bs-theme="dark"] .mobile-list-card {
-  border-color: rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 [data-bs-theme="dark"] .mobile-list-card:active {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 /* Card layout helpers */
@@ -56,10 +58,33 @@
   margin-top: 0.15rem;
 }
 
+/* Player card detail row — deck badge + record on one line */
+.mobile-card-details {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+  flex-wrap: wrap;
+}
+
+.mobile-card-details .deck-badge {
+  opacity: 1;
+}
+
+.mobile-card-record {
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+
 .mobile-card-tertiary {
   font-size: 0.75rem;
   opacity: 0.55;
   margin-top: 0.15rem;
+}
+
+.mobile-card-separator {
+  margin: 0 0.35rem;
+  opacity: 0.4;
 }
 
 .mobile-card-stat {
@@ -77,6 +102,83 @@
 .mobile-card-rank.rank-1 { color: #FFD700; }
 .mobile-card-rank.rank-2 { color: #C0C0C0; }
 .mobile-card-rank.rank-3 { color: #CD7F32; }
+
+/* ---------------------------------------------------------------------------
+ * Player Card Enhancements — tier colors, left borders, win rate bar
+ * --------------------------------------------------------------------------- */
+
+/* Rating badge in monospace */
+.mobile-card-rating {
+  font-family: 'Fira Code', monospace;
+  font-weight: 700;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.7);
+}
+
+/* Rating tier badge colors (fixed thresholds) */
+.rating-tier-elite {
+  background: rgba(255, 215, 0, 0.15) !important;
+  color: #B8860B !important;
+}
+
+.rating-tier-strong {
+  background: rgba(0, 200, 255, 0.12) !important;
+  color: #0088AA !important;
+}
+
+.rating-tier-good {
+  background: rgba(76, 175, 80, 0.12) !important;
+  color: #2E7D32 !important;
+}
+
+.rating-tier-low {
+  background: rgba(0, 0, 0, 0.04) !important;
+  color: rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Dark mode rating badges */
+[data-bs-theme="dark"] .mobile-card-rating {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+[data-bs-theme="dark"] .rating-tier-elite {
+  background: rgba(255, 215, 0, 0.2) !important;
+  color: #FFD700 !important;
+}
+
+[data-bs-theme="dark"] .rating-tier-strong {
+  background: rgba(0, 200, 255, 0.15) !important;
+  color: #00C8FF !important;
+}
+
+[data-bs-theme="dark"] .rating-tier-good {
+  background: rgba(76, 175, 80, 0.15) !important;
+  color: #4CAF50 !important;
+}
+
+[data-bs-theme="dark"] .rating-tier-low {
+  background: rgba(255, 255, 255, 0.04) !important;
+  color: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* Top 3 left border accents */
+.mobile-list-card.player-rank-1 {
+  border-left: 3px solid #FFD700;
+}
+
+.mobile-list-card.player-rank-2 {
+  border-left: 3px solid #C0C0C0;
+}
+
+.mobile-list-card.player-rank-3 {
+  border-left: 3px solid #CD7F32;
+}
+
+/* Win rate bar (kept for future use, currently unused) */
 
 /* ---------------------------------------------------------------------------
  * Horizontal Scroll — rising stars, top decks on dashboard
@@ -310,7 +412,7 @@
 .mobile-star-card-rating-value {
   font-size: 0.85rem;
   font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Fira Code', monospace;
   color: #0F4C81;
 }
 
@@ -461,7 +563,7 @@
 .mobile-tournament-players-count {
   font-size: 0.9rem;
   font-weight: 700;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'Fira Code', monospace;
   color: #0F4C81;
 }
 

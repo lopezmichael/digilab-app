@@ -4,6 +4,60 @@
 # =============================================================================
 
 # ---------------------------------------------------------------------------
+# Shared Helper: Store Request Modal
+# ---------------------------------------------------------------------------
+
+show_store_request_modal <- function() {
+  scenes <- safe_query(db_pool,
+    "SELECT scene_id, display_name FROM scenes WHERE is_active = TRUE ORDER BY display_name",
+    default = data.frame())
+
+  scene_choices <- c("My area isn't listed" = "new")
+  if (nrow(scenes) > 0) {
+    named <- setNames(as.character(scenes$scene_id), scenes$display_name)
+    scene_choices <- c(scene_choices, named)
+  }
+
+  showModal(modalDialog(
+    title = tagList(span(id = "store_req_title", "Request a Store")),
+    div(
+      selectInput("store_req_scene", "Scene / Area",
+                  choices = scene_choices,
+                  selectize = FALSE),
+      textInput("store_req_name", "Store Name"),
+      textInput("store_req_location", "City / State"),
+      div(id = "store_req_new_scene_fields", style = "display: none;",
+        tags$small(class = "form-text text-muted d-block mb-2",
+                   "Include country if outside the US (e.g., 'S\u00e3o Paulo, Brazil')"),
+        textInput("store_req_discord", "Your Discord Username"),
+        div(class = "mt-2 text-center",
+          tags$a(
+            href = LINKS$discord, target = "_blank",
+            class = "btn btn-sm btn-outline-primary",
+            bsicons::bs_icon("discord", class = "me-1"),
+            "Join our Discord"
+          )
+        )
+      ),
+      tags$script(HTML("
+        $(document).on('change', '#store_req_scene', function() {
+          var isNew = $(this).val() === 'new';
+          $('#store_req_new_scene_fields').toggle(isNew);
+          $('#store_req_title').text(isNew ? 'Request a Scene' : 'Request a Store');
+          $('label[for=store_req_name]').text(isNew ? 'Store or Community Name' : 'Store Name');
+          $('label[for=store_req_location]').text(isNew ? 'City / Region' : 'City / State');
+        });
+      "))
+    ),
+    footer = tagList(
+      modalButton("Cancel"),
+      actionButton("submit_store_request", "Submit", class = "btn-primary")
+    ),
+    easyClose = TRUE
+  ))
+}
+
+# ---------------------------------------------------------------------------
 # Database Connection
 # ---------------------------------------------------------------------------
 
@@ -105,11 +159,6 @@ observeEvent(input$mob_stores, {
   rv$current_nav <- "stores"
   session$sendCustomMessage("updateSidebarNav", "nav_stores")
 })
-observeEvent(input$mob_submit, {
-  nav_select("main_content", "submit")
-  rv$current_nav <- "submit"
-  session$sendCustomMessage("updateSidebarNav", "nav_submit")
-})
 
 observeEvent(input$nav_admin_results, {
   nav_select("main_content", "admin_results")
@@ -197,14 +246,76 @@ observeEvent(input$modal_admin_scenes, {
 # Header Help Dropdown Actions
 # ---------------------------------------------------------------------------
 
-# Bug report from header dropdown
-observeEvent(input$header_bug_report, {
+# Help & Resources modal (three-dot menu)
+observeEvent(input$help_menu_link, {
+  showModal(modalDialog(
+    title = tagList(bsicons::bs_icon("three-dots-vertical"), " Help & Resources"),
+    # Links section
+    tags$div(class = "help-modal-section-label", "LINKS"),
+    div(
+      class = "help-modal-group",
+      tags$a(href = "https://digilab.cards/faq",
+             target = "_blank", rel = "noopener noreferrer",
+             class = "help-modal-item",
+             bsicons::bs_icon("question-circle"),
+             span("FAQ"),
+             bsicons::bs_icon("box-arrow-up-right", class = "help-modal-external")),
+      tags$a(href = "https://digilab.cards/organizers",
+             target = "_blank", rel = "noopener noreferrer",
+             class = "help-modal-item",
+             bsicons::bs_icon("person-badge"),
+             span("For Organizers"),
+             bsicons::bs_icon("box-arrow-up-right", class = "help-modal-external")),
+      tags$a(href = "https://digilab.cards/roadmap",
+             target = "_blank", rel = "noopener noreferrer",
+             class = "help-modal-item",
+             bsicons::bs_icon("map"),
+             span("Roadmap"),
+             bsicons::bs_icon("box-arrow-up-right", class = "help-modal-external"))
+    ),
+    # Actions section
+    tags$div(class = "help-modal-section-label", "ACTIONS"),
+    div(
+      class = "help-modal-group",
+      actionLink("help_modal_bug_report",
+                 tagList(bsicons::bs_icon("bug"), span("Report a Bug")),
+                 class = "help-modal-item"),
+      actionLink("help_modal_store_request",
+                 tagList(bsicons::bs_icon("plus-circle"), span("Request a Store")),
+                 class = "help-modal-item")
+    ),
+    # Upload (mobile only)
+    div(
+      class = "help-modal-mobile-only",
+      tags$div(class = "help-modal-section-label", "QUICK NAV"),
+      div(
+        class = "help-modal-group",
+        actionLink("help_modal_upload",
+                   tagList(bsicons::bs_icon("cloud-upload"), span("Upload Results")),
+                   class = "help-modal-item")
+      )
+    ),
+    footer = modalButton("Close"),
+    easyClose = TRUE
+  ))
+})
+
+# Help modal actions
+observeEvent(input$help_modal_bug_report, {
+  removeModal()
   show_bug_report_modal()
 })
 
-# Store/Scene request from header dropdown
-observeEvent(input$header_store_request, {
-  shinyjs::click("open_store_request")
+observeEvent(input$help_modal_store_request, {
+  removeModal()
+  show_store_request_modal()
+})
+
+observeEvent(input$help_modal_upload, {
+  removeModal()
+  nav_select("main_content", "submit")
+  rv$current_nav <- "submit"
+  session$sendCustomMessage("updateSidebarNav", "nav_submit")
 })
 
 # ---------------------------------------------------------------------------
