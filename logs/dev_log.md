@@ -4,6 +4,14 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-06: Geocoding Fix — Mapbox Blocked on Posit Connect Cloud
+
+Mapbox Geocoding API (both v5 and v6) returns HTTP 403 from Posit Connect Cloud server IPs — same pattern as DigimonCard.io API blocking cloud IPs. Map tiles work because they load client-side in the browser, but server-side `httr2` geocoding calls are blocked.
+
+Added ArcGIS as an automatic fallback in `geocode_with_mapbox()` and `reverse_geocode_with_mapbox()` in `admin-stores-server.R`. Mapbox v6 is tried first (works locally), and if it fails, ArcGIS geocoding is used (free, no token, no IP restrictions). ArcGIS returns country codes (USA, GBR) instead of full names, so a mapping table converts common codes to full country names for consistency with existing data.
+
+---
+
 ## 2026-03-06: PWA Icon Fix & GitHub Pages Migration
 
 ### PWA Icons Were Invisible
