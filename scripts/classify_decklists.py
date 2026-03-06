@@ -120,6 +120,13 @@ CLASSIFICATION_RULES = [
     ("Gigaseadramon", ["GigaSeadramon", "MegaSeadramon", "Seadramon"], 3),
     ("Gigaseadramon", ["MetalSeadramon", "MegaSeadramon", "Seadramon"], 3),
 
+    # Hudiemon (includes Gotsumon) — MUST come before Shakkoumon
+    # BT20 Hudiemon decks include Shakkoumon as tech
+    ("Hudiemon", ["Hudiemon", "Wormmon", "Gotsumon"], 2),
+    ("Hudiemon", ["Hudiemon", "Wormmon"], 2),
+    ("Hudiemon", ["Hudiemon", "Gotsumon"], 2),
+    ("Hudiemon", ["Hudiemon", "Shakkoumon"], 2),
+
     # Shakkoumon
     ("Shakkoumon", ["Shakkoumon", "Angemon", "Patamon"], 2),
     ("Shakkoumon", ["Shakkoumon", "Ankylomon"], 2),
@@ -148,8 +155,8 @@ CLASSIFICATION_RULES = [
     # Gallantmon
     ("Gallantmon", ["Gallantmon", "Guilmon", "Growlmon"], 3),
 
-    # Eaters
-    ("Eaters", ["Eater", "EDEN's Javelin"], 1),
+    # Eaters — min=2 required: "Eater" substring matches "In-Between Theater"
+    ("Eaters", ["Eater", "EDEN's Javelin"], 2),
 
     # Imperialdramon variants
     ("Imperialdramon (UG)", ["Imperialdramon", "Paildramon", "ExVeemon"], 3),
@@ -160,11 +167,11 @@ CLASSIFICATION_RULES = [
     # Jesmon
     ("Jesmon", ["Jesmon", "Sistermon", "Huckmon"], 2),
 
-    # Mastemon (includes Gatomon/Salamon/Patamon variants)
-    ("Mastemon", ["Mastemon", "Angewomon", "LadyDevimon"], 2),
-    ("Mastemon", ["Mastemon", "Gatomon", "LadyDevimon"], 2),
-    ("Mastemon", ["Mastemon", "Gatomon", "Salamon"], 2),
-    ("Mastemon", ["Mastemon", "Gatomon", "Patamon"], 2),
+    # CS Mastemon (includes Gatomon/Salamon/Patamon variants)
+    ("CS Mastemon", ["Mastemon", "Angewomon", "LadyDevimon"], 2),
+    ("CS Mastemon", ["Mastemon", "Gatomon", "LadyDevimon"], 2),
+    ("CS Mastemon", ["Mastemon", "Gatomon", "Salamon"], 2),
+    ("CS Mastemon", ["Mastemon", "Gatomon", "Patamon"], 2),
 
     # Blue Flare
     ("Blue Flare", ["MetalGreymon", "MailBirdramon", "Greymon"], 3),
@@ -258,19 +265,14 @@ CLASSIFICATION_RULES = [
     # Kentaurosmon
     ("Kentaurosmon", ["Kentaurosmon", "Sleipmon"], 1),
 
-    # Hudiemon (includes Gotsumon)
-    ("Hudiemon", ["Hudiemon", "Wormmon", "Gotsumon"], 2),
-    ("Hudiemon", ["Hudiemon", "Wormmon"], 2),
-    ("Hudiemon", ["Hudiemon", "Gotsumon"], 2),
-
     # Gammamon
     ("Gammamon", ["Gammamon", "BetelGammamon", "Canoweissmon"], 2),
 
     # Jellymon
     ("Jellymon", ["Jellymon", "TeslaJellymon"], 2),
 
-    # Angoramon
-    ("Angoramon", ["Angoramon", "SymbareAngoramon"], 2),
+    # Diarbbitmon (Angoramon line)
+    ("Diarbbitmon", ["Angoramon", "SymbareAngoramon"], 2),
 
     # Phoenixmon (Biyomon line)
     ("Phoenixmon", ["Phoenixmon", "Garudamon", "Birdramon", "Biyomon"], 3),
@@ -382,9 +384,11 @@ CLASSIFICATION_RULES = [
     ("Dinomon", ["Dinomon", "Ryutaro Williams"], 2),
     ("Dinomon", ["Dinorexmon", "Dinomon", "Agumon"], 2),
 
-    # Red Hybrid (Takuya line)
-    ("Red Hybrid", ["EmperorGreymon", "Aldamon", "BurningGreymon"], 2),
-    ("Red Hybrid", ["Aldamon", "Agunimon", "Flamemon"], 2),
+    # Red Hybrid (Takuya line) — split by mega
+    ("Red Hybrid EmperorGreymon", ["EmperorGreymon", "Aldamon", "BurningGreymon"], 2),
+    ("Red Hybrid EmperorGreymon", ["EmperorGreymon", "Agunimon", "Flamemon"], 2),
+    ("Red Hybrid AncientGreymon", ["AncientGreymon", "Aldamon", "BurningGreymon"], 2),
+    ("Red Hybrid AncientGreymon", ["AncientGreymon", "Agunimon", "Flamemon"], 2),
 
     # Ariemon
     ("Ariemon", ["Ariemon", "Huankunmon", "Sanzomon"], 2),
