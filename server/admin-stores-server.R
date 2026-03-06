@@ -5,13 +5,11 @@
 # -----------------------------------------------------------------------------
 # Mapbox Geocoding Helper
 # -----------------------------------------------------------------------------
-#' Geocode an address using Mapbox Geocoding API
+#' Geocode an address using Mapbox Geocoding v6 API
 #'
 #' @param address Full address string to geocode
 #' @return List with lat and lng, or list(lat = NA, lng = NA) if failed
 geocode_with_mapbox <- function(address) {
-  # Get Mapbox token from environment
-
   mapbox_token <- Sys.getenv("MAPBOX_ACCESS_TOKEN")
   if (mapbox_token == "") {
     warning("MAPBOX_ACCESS_TOKEN not set")
@@ -19,32 +17,26 @@ geocode_with_mapbox <- function(address) {
   }
 
   tryCatch({
-    # URL encode the address
     encoded_address <- utils::URLencode(address, reserved = TRUE)
 
-    # Build request URL
     url <- sprintf(
-      "https://api.mapbox.com/geocoding/v5/mapbox.places/%s.json?access_token=%s&limit=1",
+      "https://api.mapbox.com/search/geocode/v6/forward?q=%s&access_token=%s&limit=1",
       encoded_address,
       mapbox_token
     )
 
-    # Make request using httr2
     resp <- httr2::request(url) |>
       httr2::req_timeout(10) |>
       httr2::req_perform()
 
-    # Parse response
     result <- httr2::resp_body_json(resp)
 
-    # Check if we got results
     if (length(result$features) == 0) {
       return(list(lat = NA_real_, lng = NA_real_))
     }
 
-    # Mapbox returns [longitude, latitude]
-    coords <- result$features[[1]]$center
-    list(lat = coords[[2]], lng = coords[[1]])
+    coords <- result$features[[1]]$properties$coordinates
+    list(lat = coords$latitude, lng = coords$longitude)
 
   }, error = function(e) {
     warning(paste("Mapbox geocoding error:", e$message))
@@ -53,9 +45,9 @@ geocode_with_mapbox <- function(address) {
 }
 
 # -----------------------------------------------------------------------------
-# Mapbox Reverse Geocoding Helper
+# Mapbox Reverse Geocoding Helper (v6)
 # -----------------------------------------------------------------------------
-#' Reverse geocode coordinates using Mapbox Geocoding API
+#' Reverse geocode coordinates using Mapbox Geocoding v6 API
 #'
 #' @param lat Latitude
 #' @param lng Longitude
@@ -69,7 +61,7 @@ reverse_geocode_with_mapbox <- function(lat, lng) {
 
   tryCatch({
     url <- sprintf(
-      "https://api.mapbox.com/geocoding/v5/mapbox.places/%s,%s.json?access_token=%s&types=region,country",
+      "https://api.mapbox.com/search/geocode/v6/reverse?longitude=%s&latitude=%s&access_token=%s&types=region,country",
       lng, lat, mapbox_token
     )
 
@@ -84,11 +76,11 @@ reverse_geocode_with_mapbox <- function(lat, lng) {
 
     if (length(result$features) > 0) {
       for (feat in result$features) {
-        feat_id <- feat$id %||% ""
-        if (grepl("^country\\.", feat_id)) {
-          country <- feat$text
-        } else if (grepl("^region\\.", feat_id)) {
-          state_region <- feat$text
+        feat_type <- feat$properties$feature_type %||% ""
+        if (feat_type == "country") {
+          country <- feat$properties$name
+        } else if (feat_type == "region") {
+          state_region <- feat$properties$name
         }
       }
     }
