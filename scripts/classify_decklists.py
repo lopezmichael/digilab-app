@@ -176,6 +176,16 @@ CLASSIFICATION_RULES = [
     ("Lucemon", ["Lucemon", "Lucemon: Chaos Mode", "Lucemon: Satan Mode"], 2),
     ("Lucemon", ["Lucemon: Chaos Mode", "Lucemon: Satan Mode"], 2),
 
+    # Royal Knights (multiple Royal Knight Digimon + King Drasil)
+    # MUST come before CS Alphamon and Chronicle to avoid misclassification
+    ("Royal Knights", ["King Drasil", "Omnimon", "Alphamon"], 2),
+    ("Royal Knights", ["King Drasil", "Gallantmon", "UlforceVeedramon"], 2),
+    ("Royal Knights", ["King Drasil", "Magnamon", "Dynasmon"], 2),
+    ("Royal Knights", ["Magnamon", "Omnimon", "Alphamon"], 2),
+    ("Royal Knights", ["Magnamon", "Omekamon", "Gallantmon"], 2),
+    ("Royal Knights", ["Magnamon", "Omekamon", "Jesmon", "Dynasmon"], 3),
+    ("Royal Knights", ["Omekamon", "Jesmon", "Gallantmon", "Dynasmon"], 3),
+
     # Alphamon (CS variant)
     ("CS Alphamon", ["Alphamon", "Dorumon", "DexDorugoramon"], 2),
 
@@ -198,13 +208,6 @@ CLASSIFICATION_RULES = [
     # Omnimon variants (CS with Nokia tamer, DNA without)
     ("CS Omnimon", ["Omnimon", "WarGreymon", "MetalGarurumon", "Nokia"], 4),
     ("DNA Omnimon", ["Omnimon", "WarGreymon", "MetalGarurumon"], 3),
-
-    # Royal Knights (multiple Royal Knight Digimon + King Drasil)
-    ("Royal Knights", ["King Drasil", "Omnimon", "Alphamon"], 2),
-    ("Royal Knights", ["King Drasil", "Gallantmon", "UlforceVeedramon"], 2),
-    ("Royal Knights", ["King Drasil", "Magnamon", "Dynasmon"], 2),
-    ("Royal Knights", ["Magnamon", "Omnimon", "Alphamon"], 2),
-    ("Royal Knights", ["Magnamon", "Omekamon", "Gallantmon"], 2),
 
     # Numemon
     ("Numemon", ["Numemon", "PlatinumNumemon", "Monzaemon"], 2),
@@ -354,11 +357,11 @@ CLASSIFICATION_RULES = [
     # Lilithmon
     ("Lilithmon", ["Lilithmon", "LadyDevimon", "BlackGatomon"], 2),
 
-    # Vortexdramon (was Zephagamon / Vortex Warriors)
-    ("Vortexdramon", ["Zephagamon", "Pteromon", "Vortexdramon"], 2),
-    ("Vortexdramon", ["Zephagamon", "Vortexdramon"], 2),
-    ("Vortexdramon", ["Zephagamon", "Zephagamon ACE"], 2),
-    ("Vortexdramon", ["Zephagamon ACE", "MedievalGallantmon"], 2),
+    # Vortex (Zephagamon / Vortexdramon line)
+    ("Vortex", ["Zephagamon", "Pteromon", "Vortexdramon"], 2),
+    ("Vortex", ["Zephagamon", "Vortexdramon"], 2),
+    ("Vortex", ["Zephagamon", "Zephagamon ACE"], 2),
+    ("Vortex", ["Zephagamon ACE", "MedievalGallantmon"], 2),
 
     # Sistermon Puppets (Sistermon + Gankoomon)
     ("Sistermon Puppets", ["Sistermon Blanc", "Sistermon Ciel", "Gankoomon"], 3),
