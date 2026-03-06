@@ -167,11 +167,20 @@ CLASSIFICATION_RULES = [
     # Jesmon
     ("Jesmon", ["Jesmon", "Sistermon", "Huckmon"], 2),
 
-    # CS Mastemon (includes Gatomon/Salamon/Patamon variants)
-    ("CS Mastemon", ["Mastemon", "Angewomon", "LadyDevimon"], 2),
-    ("CS Mastemon", ["Mastemon", "Gatomon", "LadyDevimon"], 2),
-    ("CS Mastemon", ["Mastemon", "Gatomon", "Salamon"], 2),
-    ("CS Mastemon", ["Mastemon", "Gatomon", "Patamon"], 2),
+    # Mastemon variants — order: Tribal (most specific) → KDA → CS (fallback)
+    # Tribal: full package — Gatomon + Angewomon + LadyDevimon + Mastemon + Mirei
+    ("Mastemon (Tribal)", ["Mastemon", "Gatomon", "Angewomon", "LadyDevimon", "Mirei"], 5),
+    ("Mastemon (Tribal)", ["Mastemon", "Angewomon", "LadyDevimon", "Mirei"], 4),
+
+    # KDA: Dark Animals variant — Mastemon + dark animal cards, no Angewomon/LadyDevimon
+    ("Mastemon (KDA)", ["Mastemon", "SkullBaluchimon"], 2),
+    ("Mastemon (KDA)", ["Mastemon", "Cerberusmon", "Dobermon"], 2),
+    ("Mastemon (KDA)", ["Mastemon", "X Antibody Proto Form"], 2),
+
+    # CS Mastemon: CS rookies (Gotsumon, Betamon, Seadramon), usually no Gatomon
+    ("CS Mastemon", ["Mastemon", "Gotsumon", "Betamon"], 2),
+    ("CS Mastemon", ["Mastemon", "Gotsumon", "Seadramon"], 2),
+    ("CS Mastemon", ["Mastemon", "Betamon", "Seadramon"], 2),
 
     # Blue Flare
     ("Blue Flare", ["MetalGreymon", "MailBirdramon", "Greymon"], 3),
