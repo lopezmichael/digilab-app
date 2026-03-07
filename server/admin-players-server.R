@@ -57,14 +57,21 @@ output$player_list <- renderReactable({
   query <- sprintf("
     SELECT p.player_id,
            p.display_name as \"Player Name\",
+           p.competitive_rating,
            COUNT(r.result_id) as \"Results\",
            SUM(CASE WHEN r.placement = 1 THEN 1 ELSE 0 END) as \"Wins\",
+           (SELECT STRING_AGG(DISTINCT sc.display_name, ', ' ORDER BY sc.display_name)
+            FROM results r2
+            JOIN tournaments t2 ON r2.tournament_id = t2.tournament_id
+            JOIN stores st2 ON t2.store_id = st2.store_id
+            JOIN scenes sc ON st2.scene_id = sc.scene_id
+            WHERE r2.player_id = p.player_id) as scenes,
            MAX(t.event_date) as \"Last Event\"
     FROM players p
     LEFT JOIN results r ON p.player_id = r.player_id
     LEFT JOIN tournaments t ON r.tournament_id = t.tournament_id
     WHERE 1=1 %s %s
-    GROUP BY p.player_id, p.display_name
+    GROUP BY p.player_id, p.display_name, p.competitive_rating
     ORDER BY p.display_name
   ", scene_filter, search_filter)
 
@@ -91,8 +98,14 @@ output$player_list <- renderReactable({
     columns = list(
       player_id = colDef(show = FALSE),
       `Player Name` = colDef(minWidth = 150),
+      competitive_rating = colDef(name = "Rating", maxWidth = 80, align = "right",
+        cell = function(value) if (is.na(value)) "\u2014" else as.character(value)
+      ),
       Results = colDef(width = 80),
       Wins = colDef(width = 60),
+      scenes = colDef(name = "Scene(s)", minWidth = 120,
+        cell = function(value) if (is.na(value) || value == "") "\u2014" else value
+      ),
       `Last Event` = colDef(width = 100)
     )
   )

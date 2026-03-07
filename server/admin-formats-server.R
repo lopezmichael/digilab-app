@@ -29,6 +29,7 @@ output$admin_format_list <- renderReactable({
 
   reactable(
     data,
+    searchable = TRUE,
     selection = "single",
     onClick = "select",
     highlight = TRUE,

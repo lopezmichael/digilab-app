@@ -17,7 +17,8 @@ scenes_data <- reactive({
     "SELECT s.scene_id, s.display_name, s.slug, s.scene_type, s.latitude, s.longitude,
             s.is_active, s.discord_thread_id, s.country, s.state_region,
             TO_CHAR(s.created_at, 'YYYY-MM-DD') as created_at,
-            COUNT(st.store_id) as store_count
+            COUNT(st.store_id) as store_count,
+            (SELECT COUNT(*) FROM admin_users au WHERE au.scene_id = s.scene_id) as admin_count
      FROM scenes s
      LEFT JOIN stores st ON s.scene_id = st.scene_id AND st.is_active = TRUE
      GROUP BY s.scene_id, s.display_name, s.slug, s.scene_type, s.latitude, s.longitude,
@@ -50,7 +51,8 @@ output$admin_scenes_table <- renderReactable({
       country = colDef(show = FALSE),
       state_region = colDef(show = FALSE),
       created_at = colDef(name = "Created", maxWidth = 100),
-      store_count = colDef(name = "Stores", maxWidth = 70)
+      store_count = colDef(name = "Stores", maxWidth = 70),
+      admin_count = colDef(name = "Admins", maxWidth = 70)
     ),
     searchable = TRUE,
     defaultPageSize = 10,

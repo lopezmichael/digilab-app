@@ -151,6 +151,7 @@ output$admin_tournament_list <- renderReactable({
   reactable(
     display_data,
     selection = "single",
+    searchable = TRUE,
     onClick = JS("function(rowInfo, column) {
       if (rowInfo) {
         Shiny.setInputValue('admin_tournament_list_clicked', {
@@ -159,6 +160,11 @@ output$admin_tournament_list <- renderReactable({
         }, {priority: 'event'});
       }
     }"),
+    rowStyle = function(index) {
+      if (!is.null(display_data$Results[index]) && display_data$Results[index] == 0) {
+        list(background = "rgba(245, 183, 0, 0.15)", borderLeft = "2px solid #F5B700")
+      }
+    },
     highlight = TRUE,
     compact = TRUE,
     pagination = TRUE,
