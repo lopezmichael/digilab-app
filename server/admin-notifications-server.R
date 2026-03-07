@@ -1,6 +1,7 @@
 # =============================================================================
-# Admin Notification Bar
+# Admin Notification Bar + Request Queue
 # Shows pending request counts with clickable navigation to relevant admin tabs
+# Renders pending request cards on admin tabs with approve/reject actions
 # =============================================================================
 
 # 5-minute background refresh timer
@@ -11,7 +12,6 @@ admin_refresh_timer <- reactiveTimer(300000)
 # ---------------------------------------------------------------------------
 
 get_pending_request_counts <- function(pool, scene_id, is_superadmin) {
-  # Base query: count pending requests grouped by type
   if (is_superadmin) {
     counts <- safe_query(pool, "
       SELECT request_type, COUNT(*) as n
@@ -20,7 +20,6 @@ get_pending_request_counts <- function(pool, scene_id, is_superadmin) {
       GROUP BY request_type
     ", default = data.frame(request_type = character(), n = integer()))
   } else {
-    # Scene admins only see requests for their scene
     counts <- safe_query(pool, "
       SELECT request_type, COUNT(*) as n
       FROM admin_requests
@@ -29,7 +28,6 @@ get_pending_request_counts <- function(pool, scene_id, is_superadmin) {
     ", params = list(scene_id), default = data.frame(request_type = character(), n = integer()))
   }
 
-  # Convert to named list with defaults
   type_counts <- list(
     store_request = 0,
     scene_request = 0,
@@ -43,17 +41,92 @@ get_pending_request_counts <- function(pool, scene_id, is_superadmin) {
 }
 
 # ---------------------------------------------------------------------------
+# Query: Get pending requests by type
+# ---------------------------------------------------------------------------
+
+get_pending_requests <- function(pool, request_type, scene_id = NULL, is_superadmin = TRUE) {
+  if (is_superadmin || is.null(scene_id)) {
+    safe_query(pool, "
+      SELECT id, request_type, scene_id, payload, discord_username, submitted_at
+      FROM admin_requests
+      WHERE status = 'pending' AND request_type = $1
+      ORDER BY submitted_at DESC
+    ", params = list(request_type), default = data.frame())
+  } else {
+    safe_query(pool, "
+      SELECT id, request_type, scene_id, payload, discord_username, submitted_at
+      FROM admin_requests
+      WHERE status = 'pending' AND request_type = $1 AND scene_id = $2
+      ORDER BY submitted_at DESC
+    ", params = list(request_type, scene_id), default = data.frame())
+  }
+}
+
+# ---------------------------------------------------------------------------
+# Helper: Render a single request card
+# ---------------------------------------------------------------------------
+
+render_request_card <- function(req_row) {
+  payload <- tryCatch(
+    jsonlite::fromJSON(req_row$payload),
+    error = function(e) list()
+  )
+
+  # Build detail lines from payload
+  details <- list()
+  for (key in names(payload)) {
+    if (key == "request_subtype") next
+    label <- gsub("_", " ", key)
+    label <- paste0(toupper(substring(label, 1, 1)), substring(label, 2))
+    val <- payload[[key]]
+    if (!is.null(val) && nchar(as.character(val)) > 0) {
+      details <- c(details, list(
+        div(class = "req-detail",
+          tags$span(class = "req-label", paste0(label, ":")),
+          tags$span(val)
+        )
+      ))
+    }
+  }
+
+  time_ago <- format(as.POSIXct(req_row$submitted_at), "%b %d, %Y %I:%M %p")
+
+  div(
+    class = "request-card",
+    div(class = "request-card-header",
+      div(
+        tags$span(class = "req-discord", paste0("@", req_row$discord_username)),
+        tags$span(class = "req-time text-muted", time_ago)
+      ),
+      div(class = "request-card-actions",
+        actionButton(
+          paste0("resolve_req_", req_row$id),
+          "Resolve",
+          class = "btn btn-sm btn-outline-success",
+          onclick = sprintf("Shiny.setInputValue('resolve_request', {id: %d, action: 'resolved', ts: Date.now()}, {priority: 'event'})", req_row$id)
+        ),
+        actionButton(
+          paste0("reject_req_", req_row$id),
+          "Reject",
+          class = "btn btn-sm btn-outline-danger",
+          onclick = sprintf("Shiny.setInputValue('resolve_request', {id: %d, action: 'rejected', ts: Date.now()}, {priority: 'event'})", req_row$id)
+        )
+      )
+    ),
+    div(class = "request-card-body", details)
+  )
+}
+
+# ---------------------------------------------------------------------------
 # Notification Bar UI
 # ---------------------------------------------------------------------------
 
 output$admin_notification_bar <- renderUI({
   req(rv$is_admin)
 
-  # Reactive dependencies: timer + manual refresh
   admin_refresh_timer()
   rv$requests_refresh
 
-  # Get scene_id for scene admins
   scene_id <- if (!rv$is_superadmin && !is.null(rv$admin_user)) {
     rv$admin_user$scene_id
   } else {
@@ -65,7 +138,6 @@ output$admin_notification_bar <- renderUI({
 
   if (total == 0) return(NULL)
 
-  # Build notification items as clickable links
   items <- list()
 
   if (counts$store_request > 0) {
@@ -100,7 +172,6 @@ output$admin_notification_bar <- renderUI({
     ))
   }
 
-  # Join items with separator
   separated <- list()
   for (i in seq_along(items)) {
     if (i > 1) separated <- c(separated, list(span(class = "notif-sep", "\u00b7")))
@@ -112,6 +183,80 @@ output$admin_notification_bar <- renderUI({
     bsicons::bs_icon("bell-fill", class = "notif-icon"),
     div(class = "notif-items", separated)
   )
+})
+
+# ---------------------------------------------------------------------------
+# Pending Request Panels (rendered on admin tabs)
+# ---------------------------------------------------------------------------
+
+output$pending_store_requests <- renderUI({
+  req(rv$is_admin)
+  rv$requests_refresh
+
+  scene_id <- if (!rv$is_superadmin && !is.null(rv$admin_user)) {
+    rv$admin_user$scene_id
+  } else {
+    NULL
+  }
+
+  reqs <- get_pending_requests(db_pool, "store_request", scene_id, rv$is_superadmin)
+  if (nrow(reqs) == 0) return(NULL)
+
+  div(class = "pending-requests-panel",
+    h4(class = "pending-requests-title",
+      bsicons::bs_icon("inbox-fill", class = "me-2"),
+      paste0("Pending Store Requests (", nrow(reqs), ")")
+    ),
+    lapply(seq_len(nrow(reqs)), function(i) render_request_card(reqs[i, ])),
+    tags$hr()
+  )
+})
+
+output$pending_scene_requests <- renderUI({
+  req(rv$is_superadmin)
+  rv$requests_refresh
+
+  reqs <- get_pending_requests(db_pool, "scene_request")
+  if (nrow(reqs) == 0) return(NULL)
+
+  div(class = "pending-requests-panel",
+    h4(class = "pending-requests-title",
+      bsicons::bs_icon("inbox-fill", class = "me-2"),
+      paste0("Pending Scene Requests (", nrow(reqs), ")")
+    ),
+    lapply(seq_len(nrow(reqs)), function(i) render_request_card(reqs[i, ])),
+    tags$hr()
+  )
+})
+
+# ---------------------------------------------------------------------------
+# Resolution handler: approve/reject requests
+# ---------------------------------------------------------------------------
+
+observeEvent(input$resolve_request, {
+  req(rv$is_admin)
+
+  req_id <- input$resolve_request$id
+  action <- input$resolve_request$action
+  req(req_id, action %in% c("resolved", "rejected"))
+
+  admin_name <- current_admin_username(rv)
+
+  tryCatch({
+    safe_execute(db_pool, "
+      UPDATE admin_requests
+      SET status = $1, resolved_at = NOW(), resolved_by = $2
+      WHERE id = $3 AND status = 'pending'
+    ", params = list(action, admin_name, req_id))
+
+    rv$requests_refresh <- (rv$requests_refresh %||% 0) + 1
+
+    label <- if (action == "resolved") "resolved" else "rejected"
+    notify(paste("Request", label), type = "message")
+  }, error = function(e) {
+    warning(paste("Failed to resolve request:", e$message))
+    notify("Failed to update request", type = "warning")
+  })
 })
 
 # ---------------------------------------------------------------------------

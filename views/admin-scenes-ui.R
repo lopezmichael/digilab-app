@@ -2,6 +2,7 @@
 # Admin - Manage scenes UI (super admin only)
 
 admin_scenes_ui <- tagList(
+  uiOutput("pending_scene_requests"),
   h2("Manage Scenes"),
   div(class = "page-help-text",
     div(class = "info-hint-box",

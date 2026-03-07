@@ -1846,6 +1846,68 @@ body.bslib-gap-spacing {
 }
 
 /* =============================================================================
+   PENDING REQUEST CARDS
+   ============================================================================= */
+
+.pending-requests-panel {
+  margin-bottom: 1rem;
+}
+
+.pending-requests-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--bs-warning);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+}
+
+.request-card {
+  background: rgba(var(--bs-warning-rgb), 0.06);
+  border: 1px solid rgba(var(--bs-warning-rgb), 0.2);
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+}
+
+.request-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.request-card-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.req-discord {
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.req-time {
+  font-size: 0.8rem;
+}
+
+.request-card-body {
+  font-size: 0.875rem;
+}
+
+.req-detail {
+  margin-bottom: 2px;
+}
+
+.req-label {
+  color: rgba(var(--bs-body-color-rgb), 0.6);
+  margin-right: 4px;
+}
+
+/* =============================================================================
    ADMIN PANELS
    ============================================================================= */
 

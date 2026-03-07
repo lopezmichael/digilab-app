@@ -2,6 +2,7 @@
 # Admin - Manage stores UI
 
 admin_stores_ui <- tagList(
+  uiOutput("pending_store_requests"),
   h2("Edit Stores"),
   # Scene filter indicator and override toggle for superadmins
   conditionalPanel(
