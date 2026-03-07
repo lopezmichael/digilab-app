@@ -1801,6 +1801,51 @@ body.bslib-gap-spacing {
 }
 
 /* =============================================================================
+   ADMIN NOTIFICATION BAR
+   ============================================================================= */
+
+.admin-notification-bar {
+  background: rgba(var(--bs-warning-rgb), 0.12);
+  border-left: 3px solid var(--bs-warning);
+  padding: 8px 16px;
+  margin-bottom: 12px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+}
+
+.admin-notification-bar .notif-icon {
+  color: var(--bs-warning);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.admin-notification-bar .notif-items {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.admin-notification-bar .notif-link {
+  color: var(--bs-warning);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.admin-notification-bar .notif-link:hover {
+  text-decoration: underline;
+}
+
+.admin-notification-bar .notif-sep {
+  color: rgba(var(--bs-body-color-rgb), 0.4);
+  margin: 0 4px;
+}
+
+/* =============================================================================
    ADMIN PANELS
    ============================================================================= */
 

@@ -262,6 +262,7 @@ Pattern: `{scope}_refresh` - increment to trigger reactive invalidation.
 | `format_refresh` | integer | Refresh format dropdowns |
 | `tournament_refresh` | integer | Refresh tournament tables |
 | `schedules_refresh` | integer | Refresh store schedules table in admin |
+| `requests_refresh` | integer | Refresh admin notification bar counts |
 
 **Usage:**
 ```r

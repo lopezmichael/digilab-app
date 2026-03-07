@@ -850,6 +850,9 @@ ui <- page_fillable(
     div(
       class = "main-content",
 
+      # Admin notification bar (pending requests — shown only to admins)
+      uiOutput("admin_notification_bar"),
+
       # Community filter banner (shown when filtering by store)
       uiOutput("community_banner"),
 
@@ -1024,6 +1027,7 @@ server <- function(input, output, session) {
     format_refresh = 0,
     tournament_refresh = 0,
     schedules_refresh = 0,
+    requests_refresh = 0,
 
     # === STORE FORM STATE ===
     pending_schedules = list(),  # Schedules to add when creating new store
@@ -1103,6 +1107,7 @@ server <- function(input, output, session) {
       source("server/admin-players-server.R", local = TRUE)
       source("server/admin-users-server.R", local = TRUE)
       source("server/admin-scenes-server.R", local = TRUE)
+      source("server/admin-notifications-server.R", local = TRUE)
       admin_modules_loaded(TRUE)
     }
   }, ignoreInit = TRUE)
