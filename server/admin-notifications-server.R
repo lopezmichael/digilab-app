@@ -101,7 +101,7 @@ render_request_card <- function(req_row) {
       div(class = "request-card-actions",
         actionButton(
           paste0("resolve_req_", req_row$id),
-          "Resolve",
+          "Mark as Done",
           class = "btn btn-sm btn-outline-success",
           onclick = sprintf("Shiny.setInputValue('resolve_request', {id: %d, action: 'resolved', ts: Date.now()}, {priority: 'event'})", req_row$id)
         ),
@@ -207,6 +207,10 @@ output$pending_store_requests <- renderUI({
       bsicons::bs_icon("inbox-fill", class = "me-2"),
       paste0("Pending Store Requests (", nrow(reqs), ")")
     ),
+    div(class = "pending-requests-hint",
+      "These are community requests \u2014 they don't add anything automatically.",
+      "Use the form below to add the store, then mark the request as done."
+    ),
     lapply(seq_len(nrow(reqs)), function(i) render_request_card(reqs[i, ])),
     tags$hr()
   )
@@ -223,6 +227,10 @@ output$pending_scene_requests <- renderUI({
     h4(class = "pending-requests-title",
       bsicons::bs_icon("inbox-fill", class = "me-2"),
       paste0("Pending Scene Requests (", nrow(reqs), ")")
+    ),
+    div(class = "pending-requests-hint",
+      "These are community requests \u2014 they don't add anything automatically.",
+      "Use the form below to add the scene, then mark the request as done."
     ),
     lapply(seq_len(nrow(reqs)), function(i) render_request_card(reqs[i, ])),
     tags$hr()

@@ -1862,6 +1862,13 @@ body.bslib-gap-spacing {
   align-items: center;
 }
 
+.pending-requests-hint {
+  font-size: 0.8rem;
+  color: rgba(var(--bs-body-color-rgb), 0.6);
+  margin-bottom: 0.75rem;
+  font-style: italic;
+}
+
 .request-card {
   background: rgba(var(--bs-warning-rgb), 0.06);
   border: 1px solid rgba(var(--bs-warning-rgb), 0.2);
