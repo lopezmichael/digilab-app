@@ -117,7 +117,7 @@ output$stores_schedule_content <- renderUI({
       FROM tournaments
       GROUP BY store_id
     )
-    SELECT ss.day_of_week, ss.start_time, ss.frequency,
+    SELECT ss.day_of_week, ss.start_time, ss.frequency, ss.week_of_month, ss.next_occurrence,
            s.store_id, s.name as store_name, s.city,
            COALESCE(st.avg_players, 0) as avg_players
     FROM store_schedules ss
@@ -558,7 +558,7 @@ output$store_detail_modal <- renderUI({
 
   # Get store schedules
   store_schedules <- safe_query(db_pool, "
-    SELECT day_of_week, start_time, frequency
+    SELECT day_of_week, start_time, frequency, week_of_month, next_occurrence
     FROM store_schedules
     WHERE store_id = $1 AND is_active = TRUE
     ORDER BY day_of_week, start_time
@@ -718,10 +718,18 @@ output$store_detail_modal <- renderUI({
         hour12 <- if (hour == 0) 12 else if (hour > 12) hour - 12 else hour
         time_display <- sprintf("%d:%s %s", hour12, minute, ampm)
 
+        freq_display <- if (sched$frequency == "monthly" && !is.na(sched$week_of_month)) {
+          paste0(tools::toTitleCase(sched$week_of_month), " ", day_name, "/mo")
+        } else if (sched$frequency == "biweekly" && !is.na(sched$next_occurrence)) {
+          paste0("Biweekly (next: ", format(as.Date(sched$next_occurrence), "%b %d"), ")")
+        } else {
+          tools::toTitleCase(sched$frequency)
+        }
+
         tags$tr(
           tags$td(day_name),
           tags$td(time_display),
-          tags$td(tools::toTitleCase(sched$frequency))
+          tags$td(freq_display)
         )
       })
 
@@ -1677,7 +1685,7 @@ output$mobile_stores_cards <- renderUI({
   if (length(store_ids) > 0) {
     placeholders <- paste0("$", seq_along(store_ids), collapse = ", ")
     schedules_query <- sprintf("
-      SELECT store_id, day_of_week, start_time, frequency
+      SELECT store_id, day_of_week, start_time, frequency, week_of_month, next_occurrence
       FROM store_schedules
       WHERE store_id IN (%s) AND is_active = TRUE
       ORDER BY store_id, day_of_week, start_time
@@ -1721,7 +1729,11 @@ output$mobile_stores_cards <- renderUI({
         hour <- as.integer(time_parts[1])
         ampm <- if (hour >= 12) "pm" else "am"
         hour12 <- if (hour == 0) 12 else if (hour > 12) hour - 12 else hour
-        freq_label <- if (!is.null(sched$frequency) && !is.na(sched$frequency) && sched$frequency != "weekly") {
+        freq_label <- if (!is.null(sched$frequency) && !is.na(sched$frequency) && sched$frequency == "monthly" && !is.na(sched$week_of_month)) {
+          paste0(" (", sched$week_of_month, "/mo)")
+        } else if (!is.null(sched$frequency) && !is.na(sched$frequency) && sched$frequency == "biweekly") {
+          " (biweekly)"
+        } else if (!is.null(sched$frequency) && !is.na(sched$frequency) && sched$frequency != "weekly") {
           paste0(" (", sched$frequency, ")")
         } else {
           ""

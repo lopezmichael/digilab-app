@@ -136,6 +136,23 @@ admin_stores_ui <- tagList(
                   class = "d-flex align-items-end h-100",
                   actionButton("add_schedule", "Add", class = "btn-outline-primary btn-sm")
                 )
+              ),
+              # Conditional qualifier inputs for biweekly/monthly
+              conditionalPanel(
+                condition = "input.schedule_frequency == 'monthly'",
+                selectInput("schedule_week_of_month", "Week of Month",
+                  choices = list(
+                    "1st" = "1st", "2nd" = "2nd", "3rd" = "3rd",
+                    "4th" = "4th", "Last" = "last"
+                  ),
+                  selected = "1st",
+                  selectize = FALSE
+                )
+              ),
+              conditionalPanel(
+                condition = "input.schedule_frequency == 'biweekly'",
+                dateInput("schedule_next_occurrence", "Next Occurrence",
+                  value = Sys.Date())
               )
             )
           ),

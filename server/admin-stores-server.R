@@ -212,6 +212,13 @@ observeEvent(input$add_store, {
     return()
   }
 
+  # Street address is required for physical stores
+  if (!is_online && nchar(trimws(input$store_address)) == 0) {
+    show_field_error(session, "store_address")
+    notify("Please enter a street address", type = "error")
+    return()
+  }
+
   # ZIP code is required for physical stores
   if (!is_online && nchar(trimws(input$store_zip)) == 0) {
     show_field_error(session, "store_zip")
@@ -309,9 +316,10 @@ observeEvent(input$add_store, {
       for (i in seq_along(rv$pending_schedules)) {
         sched <- rv$pending_schedules[[i]]
         dbExecute(db_pool, "
-          INSERT INTO store_schedules (store_id, day_of_week, start_time, frequency)
-          VALUES ($1, $2, $3, $4)
-        ", params = list(new_id, sched$day_of_week, sched$start_time, sched$frequency))
+          INSERT INTO store_schedules (store_id, day_of_week, start_time, frequency, week_of_month, next_occurrence)
+          VALUES ($1, $2, $3, $4, $5, $6::date)
+        ", params = list(new_id, sched$day_of_week, sched$start_time, sched$frequency,
+                         sched$week_of_month, if (is.na(sched$next_occurrence)) NA else sched$next_occurrence))
       }
 
       notify(paste("Added store:", store_name, "with", length(rv$pending_schedules), "schedule(s)"), type = "message")
@@ -811,7 +819,16 @@ output$pending_schedules_display <- renderUI({
       div(
         span(class = "fw-medium", day_name),
         span(class = "text-muted mx-2", time_display),
-        span(class = "badge bg-secondary", tools::toTitleCase(sched$frequency))
+        span(class = "badge bg-secondary", {
+          freq <- sched$frequency
+          if (freq == "monthly" && !is.na(sched$week_of_month)) {
+            paste0(tools::toTitleCase(sched$week_of_month), " ", day_name, "/mo")
+          } else if (freq == "biweekly" && !is.na(sched$next_occurrence)) {
+            paste0("Biweekly (next: ", format(as.Date(sched$next_occurrence), "%b %d"), ")")
+          } else {
+            tools::toTitleCase(freq)
+          }
+        })
       ),
       actionButton(
         inputId = paste0("remove_pending_schedule_", i),
@@ -848,7 +865,7 @@ output$store_schedules_table <- renderReactable({
   rv$schedules_refresh
 
   schedules <- dbGetQuery(db_pool, "
-    SELECT schedule_id, day_of_week, start_time, frequency
+    SELECT schedule_id, day_of_week, start_time, frequency, week_of_month, next_occurrence
     FROM store_schedules
     WHERE store_id = $1 AND is_active = TRUE
     ORDER BY day_of_week, start_time
@@ -871,8 +888,17 @@ output$store_schedules_table <- renderReactable({
     sprintf("%d:%s %s", hour12, minute, ampm)
   })
 
-  # Capitalize frequency
-  schedules$freq_display <- tools::toTitleCase(schedules$frequency)
+  # Build frequency display with qualifier
+  schedules$freq_display <- sapply(seq_len(nrow(schedules)), function(i) {
+    freq <- schedules$frequency[i]
+    if (freq == "monthly" && !is.na(schedules$week_of_month[i])) {
+      paste0(tools::toTitleCase(schedules$week_of_month[i]), " ", schedules$day_name[i], "/mo")
+    } else if (freq == "biweekly" && !is.na(schedules$next_occurrence[i])) {
+      paste0("Biweekly (next: ", format(as.Date(schedules$next_occurrence[i]), "%b %d"), ")")
+    } else {
+      tools::toTitleCase(freq)
+    }
+  })
 
   reactable(
     schedules[, c("schedule_id", "day_name", "time_display", "freq_display")],
@@ -882,7 +908,7 @@ output$store_schedules_table <- renderReactable({
       schedule_id = colDef(show = FALSE),
       day_name = colDef(name = "Day", width = 100),
       time_display = colDef(name = "Time", width = 90),
-      freq_display = colDef(name = "Frequency", width = 90)
+      freq_display = colDef(name = "Frequency", minWidth = 120)
     ),
     onClick = JS("function(rowInfo, column) {
       if (column.id !== 'delete') {
@@ -901,6 +927,12 @@ observeEvent(input$add_schedule, {
   day_of_week <- as.integer(input$schedule_day)
   start_time <- input$schedule_time
   frequency <- input$schedule_frequency
+  week_of_month <- if (frequency == "monthly") input$schedule_week_of_month else NA_character_
+  next_occurrence <- if (frequency == "biweekly" && !is.null(input$schedule_next_occurrence)) {
+    as.character(input$schedule_next_occurrence)
+  } else {
+    NA_character_
+  }
 
   # Validate time format
   if (is.null(start_time) || start_time == "") {
@@ -929,9 +961,10 @@ observeEvent(input$add_schedule, {
       }
 
       dbExecute(db_pool, "
-        INSERT INTO store_schedules (store_id, day_of_week, start_time, frequency)
-        VALUES ($1, $2, $3, $4)
-      ", params = list(store_id, day_of_week, start_time, frequency))
+        INSERT INTO store_schedules (store_id, day_of_week, start_time, frequency, week_of_month, next_occurrence)
+        VALUES ($1, $2, $3, $4, $5, $6::date)
+      ", params = list(store_id, day_of_week, start_time, frequency, week_of_month,
+                       if (is.na(next_occurrence)) NA else next_occurrence))
 
       notify(sprintf("Added %s schedule", DAY_LABELS[day_of_week + 1]), type = "message")
 
@@ -958,7 +991,9 @@ observeEvent(input$add_schedule, {
     new_schedule <- list(
       day_of_week = day_of_week,
       start_time = start_time,
-      frequency = frequency
+      frequency = frequency,
+      week_of_month = week_of_month,
+      next_occurrence = next_occurrence
     )
     rv$pending_schedules <- c(rv$pending_schedules, list(new_schedule))
 
@@ -969,6 +1004,8 @@ observeEvent(input$add_schedule, {
   updateSelectInput(session, "schedule_day", selected = "1")
   updateTextInput(session, "schedule_time", value = "19:00")
   updateSelectInput(session, "schedule_frequency", selected = "weekly")
+  updateSelectInput(session, "schedule_week_of_month", selected = "1st")
+  updateDateInput(session, "schedule_next_occurrence", value = Sys.Date())
 })
 
 # Delete schedule (triggered by clicking a row)
