@@ -37,6 +37,17 @@ get_pending_request_counts <- function(pool, scene_id, is_superadmin) {
   for (i in seq_len(nrow(counts))) {
     type_counts[[counts$request_type[i]]] <- counts$n[i]
   }
+
+  # Deck requests use a separate table (deck_requests)
+  if (is_superadmin) {
+    deck_count <- safe_query(pool, "
+      SELECT COUNT(*) as n FROM deck_requests WHERE status = 'pending'
+    ", default = data.frame(n = 0))
+    type_counts$deck_request <- deck_count$n[1]
+  } else {
+    type_counts$deck_request <- 0
+  }
+
   type_counts
 }
 
@@ -200,6 +211,14 @@ output$admin_notification_bar <- renderUI({
     ))
   }
 
+  if (counts$deck_request > 0 && rv$is_superadmin) {
+    items <- c(items, list(
+      actionLink("notif_decks", paste0(counts$deck_request, " deck ",
+        if (counts$deck_request == 1) "request" else "requests"),
+        class = "notif-link")
+    ))
+  }
+
   separated <- list()
   for (i in seq_along(items)) {
     if (i > 1) separated <- c(separated, list(span(class = "notif-sep", "\u00b7")))
@@ -317,4 +336,9 @@ observeEvent(input$notif_data_errors, {
 observeEvent(input$notif_bugs, {
   nav_select("main_content", "admin_results")
   session$sendCustomMessage("updateSidebarNav", "nav_admin_results")
+})
+
+observeEvent(input$notif_decks, {
+  nav_select("main_content", "admin_decks")
+  session$sendCustomMessage("updateSidebarNav", "nav_admin_decks")
 })
