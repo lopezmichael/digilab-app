@@ -44,56 +44,106 @@ admin_users_data <- reactive({
   req(db_pool, rv$is_superadmin)
   safe_query(db_pool,
     "SELECT u.user_id, u.username, u.display_name, u.role,
-            u.is_active, u.created_at, s.display_name as scene_name
+            u.is_active, u.created_at, u.scene_id, s.display_name as scene_name
      FROM admin_users u
      LEFT JOIN scenes s ON u.scene_id = s.scene_id
      ORDER BY u.role DESC, u.display_name",
     default = data.frame())
 })
 
-output$admin_users_table <- renderReactable({
+output$admin_users_grouped <- renderUI({
   df <- admin_users_data()
   req(nrow(df) > 0)
 
-  reactable(
-    df,
-    columns = list(
-      user_id = colDef(show = FALSE),
-      username = colDef(name = "Username", minWidth = 100),
-      display_name = colDef(name = "Name", minWidth = 100),
-      role = colDef(name = "Role", minWidth = 100, cell = function(value) {
-        if (value == "super_admin") "Super Admin" else "Scene Admin"
-      }),
-      scene_name = colDef(name = "Scene", minWidth = 100, cell = function(value) {
-        if (is.na(value) || is.null(value)) "All (Super)" else value
-      }),
-      is_active = colDef(name = "Active", maxWidth = 80, cell = function(value) {
-        if (value) "\u2705" else "\u274c"
-      }),
-      created_at = colDef(name = "Created", minWidth = 100, cell = function(value) {
-        format(as.Date(value), "%b %d, %Y")
-      })
-    ),
-    selection = "single",
-    onClick = "select",
-    highlight = TRUE,
-    compact = TRUE,
-    theme = reactableTheme(
-      rowSelectedStyle = list(backgroundColor = "rgba(0, 123, 255, 0.1)")
-    )
-  )
-})
+  # Get all active scenes to find uncovered ones
+  all_scenes <- safe_query(db_pool,
+    "SELECT scene_id, display_name FROM scenes WHERE is_active = TRUE ORDER BY display_name",
+    default = data.frame())
 
-# --- Row Selection: Populate edit form ---
-observeEvent(getReactableState("admin_users_table", "selected"), {
-  selected <- getReactableState("admin_users_table", "selected")
-  if (is.null(selected) || length(selected) == 0) {
-    editing_admin_id(NULL)
-    return()
+  # Split into groups
+  supers <- df[df$role == "super_admin", ]
+  scene_admins <- df[df$role == "scene_admin", ]
+  covered_scene_ids <- unique(scene_admins$scene_id)
+  uncovered <- if (nrow(all_scenes) > 0) {
+    all_scenes[!all_scenes$scene_id %in% covered_scene_ids, ]
+  } else {
+    data.frame()
   }
 
+  # Helper to build a user row
+  make_user_row <- function(row) {
+    div(
+      class = "admin-user-row",
+      onclick = sprintf("Shiny.setInputValue('admin_user_clicked', {user_id: %d, nonce: Math.random()}, {priority: 'event'})", row$user_id),
+      div(class = "admin-user-row-name", row$display_name),
+      div(class = "admin-user-row-username", paste0("@", row$username)),
+      div(class = "admin-user-row-status", if (row$is_active) "\u2705" else "\u274c")
+    )
+  }
+
+  sections <- tagList()
+
+  # Super admins section
+  if (nrow(supers) > 0) {
+    super_rows <- lapply(seq_len(nrow(supers)), function(i) make_user_row(supers[i, ]))
+    sections <- tagAppendChildren(sections,
+      div(class = "admin-users-group",
+        div(class = "admin-users-group-header",
+          "All Scenes",
+          span(class = "badge bg-primary", nrow(supers))
+        ),
+        tagList(super_rows)
+      )
+    )
+  }
+
+  # Scene admins grouped by scene
+  if (nrow(scene_admins) > 0) {
+    scene_names <- unique(scene_admins$scene_name)
+    scene_names <- sort(scene_names)
+    for (sname in scene_names) {
+      group <- scene_admins[scene_admins$scene_name == sname, ]
+      group_rows <- lapply(seq_len(nrow(group)), function(i) make_user_row(group[i, ]))
+      sections <- tagAppendChildren(sections,
+        div(class = "admin-users-group",
+          div(class = "admin-users-group-header",
+            sname,
+            span(class = "badge bg-secondary", nrow(group))
+          ),
+          tagList(group_rows)
+        )
+      )
+    }
+  }
+
+  # Uncovered scenes section
+  if (nrow(uncovered) > 0) {
+    badges <- lapply(uncovered$display_name, function(name) {
+      span(class = "uncovered-scene-badge", name)
+    })
+    sections <- tagAppendChildren(sections,
+      div(class = "admin-users-group",
+        div(class = "admin-users-group-header",
+          "No Admin Assigned",
+          span(class = "badge bg-warning text-dark", nrow(uncovered))
+        ),
+        div(class = "uncovered-scenes-list", tagList(badges))
+      )
+    )
+  }
+
+  sections
+})
+
+# --- Row Click: Populate edit form ---
+observeEvent(input$admin_user_clicked, {
+  clicked <- input$admin_user_clicked
+  if (is.null(clicked) || is.null(clicked$user_id)) return()
+
   df <- admin_users_data()
-  row <- df[selected, ]
+  row <- df[df$user_id == clicked$user_id, ]
+  if (nrow(row) == 0) return()
+  row <- row[1, ]
 
   editing_admin_id(row$user_id)
   updateTextInput(session, "admin_username", value = row$username)
@@ -131,7 +181,6 @@ observeEvent(input$clear_admin_form_btn, {
   updateTextInput(session, "admin_password", value = "")
   updateSelectInput(session, "admin_role", selected = "scene_admin")
   updateSelectInput(session, "admin_scene", selected = "")
-  updateReactable("admin_users_table", selected = NA)
   shinyjs::html("admin_form_title", "Add Admin")
 })
 
@@ -215,7 +264,6 @@ observeEvent(input$save_admin_btn, {
       updateTextInput(session, "admin_password", value = "")
       updateSelectInput(session, "admin_role", selected = "scene_admin")
       updateSelectInput(session, "admin_scene", selected = "")
-      updateReactable("admin_users_table", selected = NA)
     } else {
       notify("Failed to create admin", type = "error")
     }
@@ -302,6 +350,5 @@ observeEvent(input$toggle_admin_active_btn, {
 
   # Clear selection
   editing_admin_id(NULL)
-  updateReactable("admin_users_table", selected = NA)
   shinyjs::html("admin_form_title", "Add Admin")
 })

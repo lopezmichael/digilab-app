@@ -2227,6 +2227,38 @@ a:hover, .nav-link:hover {
   border-radius: 0 4px 4px 0;
 }
 
+/* ── Deck Color Filter Chips ── */
+.deck-color-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.deck-filter-chip {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.7);
+  cursor: pointer;
+  text-decoration: none !important;
+  transition: all 0.15s ease;
+}
+
+.deck-filter-chip:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none !important;
+}
+
+.deck-filter-chip.active {
+  background: rgba(0, 200, 255, 0.2);
+  border-color: rgba(0, 200, 255, 0.5);
+  color: rgba(0, 200, 255, 0.9);
+}
+
 /* Dark mode - colors stay vibrant, minor adjustments */
 [data-bs-theme="dark"] .deck-badge-white { background-color: #A0AEC0; color: #1A202C; border-color: #718096; }
 [data-bs-theme="dark"] .deck-badge-yellow { background-color: #D69E2E; }
@@ -6878,6 +6910,79 @@ div.player-match-indicator.new {
 [data-bs-theme="dark"] .mobile-tab-bar {
   background: linear-gradient(135deg, #0A1F33 0%, #0A3055 100%);
   border-top-color: rgba(0, 200, 255, 0.2);
+}
+
+/* =============================================================================
+   ADMIN USERS GROUPED VIEW
+   ============================================================================= */
+
+.admin-users-group {
+  margin-bottom: 1rem;
+}
+
+.admin-users-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  margin-bottom: 4px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.admin-users-group-header .badge {
+  font-size: 0.75rem;
+}
+
+.admin-user-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.admin-user-row:hover {
+  background: rgba(0, 123, 255, 0.08);
+}
+
+.admin-user-row.selected {
+  background: rgba(0, 123, 255, 0.1);
+}
+
+.admin-user-row-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.admin-user-row-username {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.85rem;
+}
+
+.admin-user-row-status {
+  width: 24px;
+  text-align: center;
+}
+
+.uncovered-scenes-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 12px;
+}
+
+.uncovered-scene-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  background: rgba(245, 183, 0, 0.15);
+  color: rgba(245, 183, 0, 0.9);
+  border: 1px solid rgba(245, 183, 0, 0.3);
 }
 
 /* =============================================================================

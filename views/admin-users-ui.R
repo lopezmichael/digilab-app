@@ -19,7 +19,7 @@ admin_users_ui <- tagList(
       card(
         card_header("Admin Accounts"),
         card_body(
-          reactableOutput("admin_users_table")
+          uiOutput("admin_users_grouped")
         )
       ),
 

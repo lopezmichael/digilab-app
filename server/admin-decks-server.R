@@ -239,9 +239,30 @@ observeEvent(input$add_archetype, {
   })
 })
 
+# Color filter for archetype list
+rv$deck_color_filter <- "All"
+
+set_deck_filter <- function(color, input_id) {
+  rv$deck_color_filter <- color
+  shinyjs::runjs(sprintf(
+    "$('.deck-filter-chip').removeClass('active'); $('#%s').addClass('active');",
+    input_id
+  ))
+}
+
+observeEvent(input$deck_filter_all, { set_deck_filter("All", "deck_filter_all") })
+observeEvent(input$deck_filter_red, { set_deck_filter("Red", "deck_filter_red") })
+observeEvent(input$deck_filter_blue, { set_deck_filter("Blue", "deck_filter_blue") })
+observeEvent(input$deck_filter_yellow, { set_deck_filter("Yellow", "deck_filter_yellow") })
+observeEvent(input$deck_filter_green, { set_deck_filter("Green", "deck_filter_green") })
+observeEvent(input$deck_filter_purple, { set_deck_filter("Purple", "deck_filter_purple") })
+observeEvent(input$deck_filter_black, { set_deck_filter("Black", "deck_filter_black") })
+observeEvent(input$deck_filter_white, { set_deck_filter("White", "deck_filter_white") })
+
 # Archetype list
 output$archetype_list <- renderReactable({
 
+  rv$deck_color_filter
 
   # Trigger refresh when archetype added/updated/deleted/merged
   input$add_archetype
@@ -263,10 +284,16 @@ output$archetype_list <- renderReactable({
       display_card_id,
       archetype_name
   ")
+  # Apply color filter
+  color_filter <- rv$deck_color_filter %||% "All"
+  if (color_filter != "All") {
+    data <- data[data$primary_color == color_filter | (!is.na(data$secondary_color) & data$secondary_color == color_filter), ]
+  }
+
   if (nrow(data) == 0) {
     return(reactable(data.frame(Message = "No archetypes yet"), compact = TRUE))
   }
-  reactable(data, compact = TRUE, striped = TRUE,
+  reactable(data, compact = TRUE, striped = TRUE, searchable = TRUE,
     highlight = TRUE,
     onClick = JS("function(rowInfo, column) {
       if (rowInfo) {

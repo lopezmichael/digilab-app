@@ -116,6 +116,16 @@ admin_decks_ui <- tagList(
           span(class = "small text-muted", "Click a row to edit")
         ),
         card_body(
+          div(class = "deck-color-filters mb-2",
+            actionLink("deck_filter_all", "All", class = "deck-filter-chip active"),
+            actionLink("deck_filter_red", "Red", class = "deck-filter-chip"),
+            actionLink("deck_filter_blue", "Blue", class = "deck-filter-chip"),
+            actionLink("deck_filter_yellow", "Yellow", class = "deck-filter-chip"),
+            actionLink("deck_filter_green", "Green", class = "deck-filter-chip"),
+            actionLink("deck_filter_purple", "Purple", class = "deck-filter-chip"),
+            actionLink("deck_filter_black", "Black", class = "deck-filter-chip"),
+            actionLink("deck_filter_white", "White", class = "deck-filter-chip")
+          ),
           reactableOutput("archetype_list")
         )
       )
