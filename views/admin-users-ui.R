@@ -31,6 +31,7 @@ admin_users_ui <- tagList(
           )
         ),
         card_body(
+          class = "p-0",
           uiOutput("admin_users_grouped")
         )
       ),

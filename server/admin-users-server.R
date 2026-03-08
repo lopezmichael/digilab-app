@@ -41,6 +41,11 @@ observe({
 # --- Populate scene filter dropdown ---
 observe({
   req(rv$current_nav == "admin_users", db_pool, rv$is_superadmin)
+  # Wait for UI to render
+  if (is.null(input$admin_users_scene_filter)) {
+    invalidateLater(100)
+    return()
+  }
   scenes <- safe_query(db_pool,
     "SELECT scene_id, display_name FROM scenes WHERE is_active = TRUE ORDER BY display_name",
     default = data.frame())
