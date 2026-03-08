@@ -534,23 +534,23 @@ version_changelog_content <- function() {
     div(class = "version-changelog-items",
       div(class = "version-changelog-item",
         bsicons::bs_icon("bell-fill", class = "text-warning"),
-        span("Admin notification bar for pending requests")
-      ),
-      div(class = "version-changelog-item",
-        bsicons::bs_icon("search", class = "text-info"),
-        span("Search bars and filters on all admin tables")
+        span("Admin notification bar with pending request queue")
       ),
       div(class = "version-changelog-item",
         bsicons::bs_icon("megaphone-fill", class = "text-primary"),
         span("Announcement system for community updates")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("calendar-check", class = "text-success"),
-        span("Store schedule qualifiers (monthly, biweekly)")
+        bsicons::bs_icon("search", class = "text-info"),
+        span("Search, filters, and scene grouping on admin tables")
+      ),
+      div(class = "version-changelog-item",
+        bsicons::bs_icon("shop", class = "text-success"),
+        span("Duplicate detection when requesting stores or scenes")
       ),
       div(class = "version-changelog-item",
         bsicons::bs_icon("palette-fill", class = "text-danger"),
-        span("Deck color filter chips")
+        span("Deck color filter chips on the Decks tab")
       )
     )
   )

@@ -95,9 +95,9 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.3.2 - Sentry Error Fixes
+### Latest Release: v1.4.0 - Admin Infrastructure & Request Queue
 
-NULL guards for dynamic UI inputs, expanded query retry patterns, and duplicate key race condition fixes. See `CHANGELOG.md` for full details.
+Admin notification bar, request queue with approve/reject workflow, announcement system, fuzzy duplicate detection on request modals, scene onboarding automation, admin table search/filters, and audit columns. See `CHANGELOG.md` for full details.
 
 See `ROADMAP.md` for the full version plan.
 
@@ -105,6 +105,7 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v1.4.0 | Admin Infrastructure & Request Queue |
 | v1.3.2 | Sentry Error Fixes |
 | v1.3.1 | Fixes & Upload Improvements |
 | v1.3.0 | Mobile Views & PWA Fixes |
@@ -374,6 +375,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.3.2** - Sentry Error Fixes
+**v1.4.0** - Admin Infrastructure & Request Queue
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

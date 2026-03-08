@@ -7,19 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-03-08 - Admin Infrastructure & Request Queue
+
 ### Added
-- **Admin requests table**: Unified `admin_requests` table for store requests, scene requests, data errors, and bug reports with JSONB payload and approve/reject workflow (INF-AR1)
-- **Announcements table**: Admin-managed announcements with type (info/donation/update/event) and optional expiry (INF-AN1)
-- **Audit columns**: `updated_by` column on tournaments, stores, players, deck_archetypes, and scenes tables with `current_admin_username()` helper (INF-AU1)
-- **Schedule qualifiers**: `week_of_month` for monthly schedules and `next_occurrence` anchor date for biweekly schedules on store_schedules (AT4 prep)
-- **postMessage storage bridge**: `DigilabStorage` abstraction in scene-selector.js for cross-origin iframe localStorage fix via parent frame relay (INF-PM1)
-- **Expanse Italia organizer**: Added Limitless organizer 2536 (Expanse Italia) to Tier 1 sync. Synced 4 tournaments, 18 results.
+- **Admin notification bar**: Pending request counts with clickable navigation to relevant admin tabs. Auto-refreshes every 5 minutes. Shows store requests, scene requests, data errors, deck requests, and missing schedules.
+- **Admin request queue**: Unified `admin_requests` table for store requests, scene requests, data errors, and bug reports with JSONB payload. Approve/reject workflow with "Mark as Done" and "Reject" actions on pending request cards.
+- **Announcement system**: Admin-managed announcements with type (info/donation/update/event) and optional expiry. Shown as styled modals on page load with priority chain: Welcome > Announcement > Version changelog.
+- **Version changelog modal**: "What's New" modal shown once per version to returning users. Hardcoded highlights updated each feature release.
+- **Fuzzy duplicate detection**: On-submit check for store and scene request modals using PostgreSQL pg_trgm. Store requests compare against existing stores in the selected scene. Scene requests check both scene display names and store cities (e.g., typing "Arlington" surfaces "Texas (Dallas-Fort Worth)"). Confirmation modal with match percentages and "Go Back & Edit" prefill support.
+- **Scene onboarding automation**: Discord forum thread creation via webhook API with preview modal. Auto-saves thread ID. Optional cross-post to #scene-updates. Welcome DM template with copy-to-clipboard for new scene admins.
+- **Admin table improvements**: Search bars on all admin tables (stores, players, tournaments, users, decks, formats). Scene filter dropdown on stores tab. "Incomplete only" filter for stores missing schedules or ZIP codes. Users tab grouped by scene with collapsible headers. Deck color filter chips.
+- **Pending data error cards**: Data error request cards shown on the Tournaments admin tab, matching the existing pattern for store/scene/deck requests. Scene-filtered for scene admins.
+- **Missing schedule notifications**: Notification bar pill for stores without active schedules, linking to the stores admin tab.
+- **Audit columns**: `updated_by` column on tournaments, stores, players, deck_archetypes, and scenes tables with `current_admin_username()` helper.
+- **Schedule qualifiers**: `week_of_month` for monthly schedules and `next_occurrence` anchor date for biweekly schedules.
+- **postMessage storage bridge**: `DigilabStorage` abstraction in scene-selector.js for cross-origin iframe localStorage fix via parent frame relay.
+- **Expanse Italia organizer**: Added Limitless organizer 2536 (Expanse Italia) to Tier 1 sync.
 
 ### Fixed
-- **Deck classification audit**: Fixed rule ordering bugs causing 62 Rocks→Bagra Army, 50 Royal Knights→Chronicle, and 152 Hudiemon→Shakkoumon misclassifications. Moved specific rules before generic ones.
+- **Deck classification audit**: Fixed rule ordering bugs causing 62 Rocks→Bagra Army, 50 Royal Knights→Chronicle, and 152 Hudiemon→Shakkoumon misclassifications.
 - **Eaters false positive**: "Eater" substring matched "In-Between Theater" card — changed to require both Eater AND EDEN's Javelin.
-- **Archetype name mismatches**: Fixed Fenriloggamon→Fenriloogamon, Olympos XII→Olympus XII typos in DB. Renamed Vortexdramon→Vortex, Angoramon→Diarbbitmon in classifier.
-- **Mastemon classification**: Split generic Mastemon into three subtypes — Tribal (Gatomon+Angewomon+LadyDevimon+Mirei), KDA (SkullBaluchimon/Cerberusmon/Dobermon), CS (Gotsumon/Betamon/Seadramon).
+- **Archetype name mismatches**: Fixed Fenriloggamon→Fenriloogamon, Olympos XII→Olympus XII typos in DB.
+- **Mastemon classification**: Split generic Mastemon into three subtypes — Tribal, KDA, CS.
 - **Red Hybrid classification**: Split into Red Hybrid EmperorGreymon and Red Hybrid AncientGreymon variants.
 
 ## [1.3.2] - 2026-03-05 - Sentry Error Fixes

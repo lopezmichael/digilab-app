@@ -1,52 +1,47 @@
 ---
-currentVersion: "1.3.2"
-lastUpdated: "2026-03-06"
+currentVersion: "1.4.0"
+lastUpdated: "2026-03-08"
 
 inProgress: []
 
-planned:
-  # v1.4.0 — Admin Improvements & Request Queue
+completed:
+  # v1.4.0 — Admin Improvements & Request Queue (2026-03-08)
   - id: admin-request-queue
     title: "Admin Request Queue & Notification Widget"
-    description: "Unified admin_requests table for all community submissions (store requests, scene requests, data errors, bug reports). Notification bar surfaces pending items to admins. Approve/reject workflow with Discord webhook integration."
     tags: [admin, ux]
-    targetVersion: "v1.4.0"
+    completedVersion: "v1.4.0"
 
   - id: webhook-modal-improvements
-    title: "Webhook Modal Improvements"
-    description: "Required Discord username on all modals, fuzzy store matching, request type dropdowns, DB persistence. Scene requests include suggested store names."
+    title: "Webhook Modal Improvements & Fuzzy Duplicate Detection"
     tags: [admin, ux]
-    targetVersion: "v1.4.0"
+    completedVersion: "v1.4.0"
 
   - id: scene-onboarding-automation
     title: "Scene Onboarding Automation"
-    description: "Automated Discord forum thread creation in #scene-coordination via webhook API. Preview modal for welcome message. Auto-save thread ID. Auto-post to #scene-updates. End-to-end scene creation flow from request to live scene."
     tags: [admin, integration]
-    targetVersion: "v1.4.0"
+    completedVersion: "v1.4.0"
 
   - id: admin-tab-improvements
     title: "Admin Tab Improvements"
-    description: "Search bars and filters on all admin tables. Users tab grouped by scene (50+ scenes). Stores tab: required street/city, schedule frequency qualifiers, geocode status. Players tab: rating and scene columns. Auto-message copy buttons for scene admin DMs and scene announcements."
     tags: [admin, ux]
-    targetVersion: "v1.4.0"
+    completedVersion: "v1.4.0"
 
   - id: iframe-storage-fix
     title: "iframe localStorage Fix & Announcement System"
-    description: "postMessage bridge to fix mobile localStorage bug in PWA iframe. Announcements table with admin UI on Scenes tab. Welcome modal -> announcement -> version changelog priority flow."
     tags: [ux, fix]
-    targetVersion: "v1.4.0"
+    completedVersion: "v1.4.0"
 
   - id: audit-columns
     title: "Audit Columns (updated_at/updated_by)"
-    description: "Add updated_at and updated_by columns to tournaments, stores, players, deck_archetypes, and scenes tables. Track last modifier on all admin edits."
     tags: [admin, data]
-    targetVersion: "v1.4.0"
+    completedVersion: "v1.4.0"
 
   - id: pending-requests-on-tabs
     title: "Data Error Cards on Tournaments Tab"
-    description: "Show pending data error request cards on the Tournaments tab, matching the existing pattern for store/scene/deck requests. Scene admins see errors for their scene, super admins see all. Bug reports stay Discord-only."
     tags: [admin, ux]
-    targetVersion: "v1.4.0"
+    completedVersion: "v1.4.0"
+
+planned:
 
   # v1.5.0 — Results Redesign & Data Entry
   - id: results-upload-redesign
