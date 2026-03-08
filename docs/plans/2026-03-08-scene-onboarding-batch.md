@@ -59,7 +59,7 @@ Reach out before creating scenes so you know who's confirmed as admin.
 | 2 | **BBoyHung** | Netherlands admin | Would they admin Heerlen too, or just Aachen? Get Pop's Card Shop address |
 | 3 | **Doombraker#4046** | Italy (Lombardia) admin | Interested in admin? Get Cards Capital City address |
 | 4 | **jhowpharos** | Brazil (Goiás) admin | Interested in admin? Get Paladins store address |
-| 5 | **Magitek submitter** (no Discord yet) | Bay Area admin | Reply in thread asking for Discord + admin interest |
+| 5 | **princehero** | Bay Area admin | Confirm admin role for California (Bay Area) |
 | 6 | **Cleveland submitter** (no Discord yet) | Cleveland admin | Reply in thread asking for Discord + admin interest, Gold and Glory address |
 | 7 | **Central Valley submitters** | Central Valley admin | Check if any of the 3 store submitters want to admin |
 | 8 | **Paraná submitters** | Paraná admin | No Discord provided — reply in threads asking |
@@ -70,13 +70,9 @@ Don't block on responses — you can create scenes without admins and assign the
 
 ## Phase 3: Quick Wins (no new scenes needed)
 
-### Add Mazinger store to Spain (Galicia) — scene 49
+### Add Mazinger store to Spain (Galicia) — DONE
 
-- Store name: Mazinger
-- City: Vigo
-- State: Galicia
-- Country: Spain
-- Scene: Spain (Galicia)
+- Store 159, assigned to Spain (Galicia) scene 49.
 
 ### Mallorca stores — DONE
 
@@ -154,7 +150,7 @@ As outreach responses come in:
 | Doombraker | Italy (Lombardia) | Scene Admin | Pending outreach |
 | jhowpharos | Brazil (Goiás) | Scene Admin | Pending outreach |
 | TBD | Ohio (Cleveland) | Scene Admin | Need candidate |
-| TBD | California (Bay Area) | Scene Admin | Need candidate |
+| princehero | California (Bay Area) | Scene Admin | Pending outreach |
 | TBD | California (Central Valley) | Scene Admin | Need candidate |
 | TBD | Brazil (Paraná) | Scene Admin | Need candidate |
 
@@ -165,10 +161,10 @@ As outreach responses come in:
 | Phase | Items | Blocked on | Status |
 |-------|-------|------------|--------|
 | 1. Discord cleanup | Delete 5 threads, consolidate 3 groups, keep 5 | Nothing | TODO |
-| 2. Outreach DMs | 8 messages | Nothing | TODO |
-| 3. Quick wins | Add Mazinger to Galicia | Nothing | TODO (Mallorca DONE) |
-| 4. Create scenes | 8 new scenes | Nothing (admins can be added later) | TODO |
-| 5. Add stores | ~13 stores | Store addresses (from outreach) | BLOCKED |
+| 2. Outreach DMs | 8 messages | Nothing | IN PROGRESS |
+| 3. Quick wins | Mazinger + Mallorca | Nothing | DONE |
+| 4. Create scenes | 8 new scenes | Nothing | DONE |
+| 5. Add stores | 13 stores | Store addresses | DONE |
 | 6. Admin accounts | Up to 8 admins | Outreach confirmations | BLOCKED |
 
 Phases 1-4 can be done immediately. Phases 5-6 trickle in as people respond.
