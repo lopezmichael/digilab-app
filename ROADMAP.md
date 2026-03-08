@@ -783,6 +783,7 @@ Items for future consideration, not scheduled:
 | DC4 | INTEGRATION | Link Discord users to DigiLab accounts | Enables bot-based workflows |
 | INF1 | DEVEX | Sentry MCP integration | Claude Code workflow for proactive error monitoring |
 | INF2 | DEVEX | Sentry error collection workflow | Process for identifying and addressing production errors |
+| PD1 | IMPROVEMENT | Cross-scene player disambiguation | Stronger safeguards against name collisions — e.g., admin confirmation when matching a player who has never played in the current scene, member number required for ambiguous names, or merge review UI |
 
 ---
 

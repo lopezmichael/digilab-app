@@ -233,9 +233,9 @@ observeEvent(input$update_player, {
   tryCatch({
     dbExecute(db_pool, "
       UPDATE players
-      SET display_name = $1, member_number = $2, updated_at = CURRENT_TIMESTAMP
-      WHERE player_id = $3
-    ", params = list(new_name, new_member, player_id))
+      SET display_name = $1, member_number = $2, updated_at = CURRENT_TIMESTAMP, updated_by = $3
+      WHERE player_id = $4
+    ", params = list(new_name, new_member, current_admin_username(rv), player_id))
 
     notify(sprintf("Updated player: %s", new_name), type = "message")
 
@@ -480,22 +480,22 @@ observeEvent(input$confirm_merge_players, {
       UPDATE players
       SET limitless_username = (
         SELECT limitless_username FROM players WHERE player_id = $1
-      )
+      ), updated_at = CURRENT_TIMESTAMP, updated_by = $3
       WHERE player_id = $2 AND (limitless_username IS NULL OR limitless_username = '')
-    ", params = list(source_id, target_id))
+    ", params = list(source_id, target_id, current_admin_username(rv)))
 
     # Copy member_number from source to target (if target doesn't have one)
     safe_execute(db_pool, "
       UPDATE players
       SET member_number = (
         SELECT member_number FROM players WHERE player_id = $1
-      )
+      ), updated_at = CURRENT_TIMESTAMP, updated_by = $3
       WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
-    ", params = list(source_id, target_id))
+    ", params = list(source_id, target_id, current_admin_username(rv)))
 
     # Soft-delete source player instead of hard DELETE
-    safe_execute(db_pool, "UPDATE players SET is_active = FALSE WHERE player_id = $1",
-                 params = list(source_id))
+    safe_execute(db_pool, "UPDATE players SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP, updated_by = $2 WHERE player_id = $1",
+                 params = list(source_id, current_admin_username(rv)))
 
     notify("Players merged successfully", type = "message")
 

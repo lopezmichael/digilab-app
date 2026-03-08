@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-03-08 - Audit Trail & Scene Guard
+
+### Fixed
+- **Scene dropdown race condition**: Store edit form could silently clear the scene assignment when the dropdown repopulated mid-edit, setting `scene_id` to NULL. Added database fallback lookup during repopulation and required scene validation on save.
+- **Missing `updated_by` audit trail**: 12 UPDATE statements across 5 admin server files were not setting `updated_by`, making it impossible to trace who made changes. All admin mutations now record the admin username.
+  - `admin-stores-server.R`: store update, store soft-delete
+  - `admin-tournaments-server.R`: tournament update, player display_name change, player member_number update, tournament player_count update
+  - `admin-results-server.R`: player member_number update during result entry
+  - `admin-decks-server.R`: deck archetype update
+  - `admin-players-server.R`: player update, merge (limitless_username copy, member_number copy, source soft-delete)
+- **Missing `updated_at` timestamps**: 4 of the above UPDATE statements were also missing `updated_at`, losing the timestamp of the change entirely (player display_name change in edit grid, all 3 merge operations in player merge).
+
+### Data Fixes
+- Deleted duplicate tournament 698 (Jan 18 Regulation Battle incorrectly at Evolution Games; real event was at Heroes and Games, Columbus OH)
+- Split player "Vee" — Brazilian Vee (player 1733) separated from Ohio Vee (player 1034, member 0000779001) with 15 results reassigned
+- Reassigned 4 Santa Catarina stores (CCG Floripa, Shiny store, Covil da Lua, Refúgio Floripa) back to scene 21 after accidental scene clearing
+- Assigned 3 Mallorca stores (Ludicon, Magic Mallorca, Gamers) to Spain (Mallorca) scene 47
+
 ## [1.4.0] - 2026-03-08 - Admin Infrastructure & Request Queue
 
 ### Added

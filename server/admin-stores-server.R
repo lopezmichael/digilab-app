@@ -150,8 +150,21 @@ observe({
   )
   if (nrow(scenes) > 0) {
     choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
-    # Preserve current selection when repopulating choices (fixes scene clearing bug)
+    # Preserve current selection when repopulating choices
+    # Use editing_store_id to detect if admin is mid-edit; if so, keep their selection stable
     current_selection <- isolate(input$store_scene)
+    editing_id <- isolate(input$editing_store_id)
+    if (!is.null(editing_id) && nchar(editing_id) > 0 && (is.null(current_selection) || current_selection == "")) {
+      # Mid-edit but selection is empty — look up the store's actual scene_id to prevent NULL
+      stored_scene <- tryCatch(
+        dbGetQuery(db_pool, "SELECT scene_id FROM stores WHERE store_id = $1",
+                   params = list(as.integer(editing_id))),
+        error = function(e) data.frame()
+      )
+      if (nrow(stored_scene) > 0 && !is.na(stored_scene$scene_id)) {
+        current_selection <- as.character(stored_scene$scene_id)
+      }
+    }
     updateSelectInput(session, "store_scene",
                       choices = c("Select scene..." = "", choices),
                       selected = current_selection)
@@ -627,6 +640,13 @@ observeEvent(input$update_store, {
     return()
   }
 
+  # Scene required for all stores
+  if (is.null(input$store_scene) || input$store_scene == "") {
+    show_field_error(session, "store_scene")
+    notify("Please select a scene", type = "error")
+    return()
+  }
+
   # Validate website URL format if provided
   if (nchar(input$store_website) > 0 && !grepl("^https?://", input$store_website)) {
     show_field_error(session, "store_website")
@@ -678,9 +698,10 @@ observeEvent(input$update_store, {
     safe_execute(db_pool, "
       UPDATE stores
       SET name = $1, address = $2, city = $3, state = $4, zip_code = $5,
-          latitude = $6, longitude = $7, website = $8, is_online = $9, country = $10, scene_id = $11, updated_at = CURRENT_TIMESTAMP
-      WHERE store_id = $12
-    ", params = list(store_name, address, store_city_db, state, zip_code, lat, lng, website, is_online, store_country, scene_id, store_id))
+          latitude = $6, longitude = $7, website = $8, is_online = $9, country = $10, scene_id = $11,
+          updated_at = CURRENT_TIMESTAMP, updated_by = $12
+      WHERE store_id = $13
+    ", params = list(store_name, address, store_city_db, state, zip_code, lat, lng, website, is_online, store_country, scene_id, current_admin_username(rv), store_id))
 
     notify(sprintf("Updated store: %s", store_name), type = "message")
 
@@ -784,8 +805,8 @@ observeEvent(input$confirm_delete_store, {
   # Soft delete: set is_active = FALSE instead of hard DELETE.
   # All queries already filter WHERE is_active = TRUE.
   rows_updated <- safe_execute(db_pool,
-    "UPDATE stores SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP WHERE store_id = $1",
-    params = list(store_id))
+    "UPDATE stores SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP, updated_by = $2 WHERE store_id = $1",
+    params = list(store_id, current_admin_username(rv)))
   delete_ok <- rows_updated > 0
 
   if (!delete_ok) {
