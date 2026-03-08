@@ -294,7 +294,7 @@ discord_create_scene_thread <- function(scene_name, message_content, lat = NULL,
 
 # Post a short announcement to #scene-updates
 discord_post_scene_update <- function(scene_name) {
-  webhook_url <- Sys.getenv("DISCORD_WEBHOOK_SCENE_REQUESTS")
+  webhook_url <- Sys.getenv("DISCORD_WEBHOOK_SCENE_UPDATES")
 
   if (is.null(webhook_url) || nchar(webhook_url) == 0) return(invisible(FALSE))
 
