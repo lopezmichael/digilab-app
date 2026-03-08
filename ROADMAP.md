@@ -42,6 +42,12 @@ planned:
     tags: [admin, data]
     targetVersion: "v1.4.0"
 
+  - id: pending-requests-on-tabs
+    title: "Data Error & Bug Report Cards on Admin Tabs"
+    description: "Show pending data error request cards on the Tournaments tab and pending bug report cards on the Results tab — matching the existing pattern for store/scene/deck requests. Scene admins see errors for their scene, super admins see all."
+    tags: [admin, ux]
+    targetVersion: "v1.4.0"
+
   # v1.5.0 — Results Redesign & Data Entry
   - id: results-upload-redesign
     title: "Results & Upload Tab Redesign"
