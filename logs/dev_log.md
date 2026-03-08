@@ -4,6 +4,26 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-08: v1.4.1 Audit Trail & Scene Guard
+
+**Bug discovered:** Scene admin in Brazil (Santa Catarina) reported all records vanished. Investigation found 4 stores had `scene_id` set to NULL after a store edit. Root cause was a race condition in the scene dropdown observer in `admin-stores-server.R` — when `rv$data_refresh` triggered mid-edit, `updateSelectInput()` could reset the selection to `""`, which the save handler converted to `NA_integer_` (PostgreSQL NULL).
+
+**Fixes applied:**
+- Dropdown observer now falls back to the store's actual `scene_id` from the database when the selection is empty during an edit
+- Added required scene validation that blocks save if no scene is selected
+- Added `updated_by` to 12 UPDATE statements across 5 admin files — previously none of them recorded who made the change
+- Fixed 4 UPDATEs that were also missing `updated_at`
+
+**Data fixes (manual, via R console):**
+- Deleted duplicate tournament 698 (Jan 18 Regulation Battle duplicated across Evolution Games and Heroes and Games)
+- Split player "Vee" — Ohio Vee (0000779001) vs Brazilian Vee (new player 1733)
+- Reassigned 4 Santa Catarina stores back to scene 21
+- Assigned 3 Mallorca stores to Spain (Mallorca) scene 47
+
+**Lesson learned:** Audit columns are only useful if they're actually populated. The `updated_by` column was added in v1.4.0 but wasn't wired into any of the existing UPDATE statements.
+
+---
+
 ## 2026-03-06: v1.4 Phase 1 Infrastructure
 
 Started v1.4 implementation on `feature/v1.4-infrastructure` branch.

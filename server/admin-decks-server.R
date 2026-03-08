@@ -399,9 +399,10 @@ observeEvent(input$update_archetype, {
   tryCatch({
     dbExecute(db_pool, "
       UPDATE deck_archetypes
-      SET archetype_name = $1, primary_color = $2, secondary_color = $3, display_card_id = $4, is_multi_color = $5, updated_at = CURRENT_TIMESTAMP
-      WHERE archetype_id = $6
-    ", params = list(name, primary_color, secondary_color, card_id, isTRUE(input$deck_multi_color), archetype_id))
+      SET archetype_name = $1, primary_color = $2, secondary_color = $3, display_card_id = $4, is_multi_color = $5,
+          updated_at = CURRENT_TIMESTAMP, updated_by = $6
+      WHERE archetype_id = $7
+    ", params = list(name, primary_color, secondary_color, card_id, isTRUE(input$deck_multi_color), current_admin_username(rv), archetype_id))
 
     notify(sprintf("Updated archetype: %s", name), type = "message")
 

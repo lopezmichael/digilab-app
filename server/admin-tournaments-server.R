@@ -286,10 +286,10 @@ observeEvent(input$update_tournament, {
     dbExecute(db_pool, "
       UPDATE tournaments
       SET store_id = $1, event_date = $2, event_type = $3, format = $4,
-          player_count = $5, rounds = $6, updated_at = CURRENT_TIMESTAMP
-      WHERE tournament_id = $7
+          player_count = $5, rounds = $6, updated_at = CURRENT_TIMESTAMP, updated_by = $7
+      WHERE tournament_id = $8
     ", params = list(as.integer(store_id), event_date, event_type, format,
-                     player_count, rounds, tournament_id))
+                     player_count, rounds, current_admin_username(rv), tournament_id))
 
     notify("Tournament updated", type = "message")
 
@@ -881,8 +881,8 @@ observeEvent(input$edit_grid_save, {
           player_id <- original$player_id[1]
           # Update the player's display_name if it changed
           dbExecute(db_pool, "
-            UPDATE players SET display_name = $1 WHERE player_id = $2
-          ", params = list(name, player_id))
+            UPDATE players SET display_name = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2 WHERE player_id = $3
+          ", params = list(name, current_admin_username(rv), player_id))
         }
       }
 
@@ -907,9 +907,9 @@ observeEvent(input$edit_grid_save, {
       # Update member_number if provided and player doesn't have one yet
       if (nchar(member_num) > 0) {
         dbExecute(db_pool, "
-          UPDATE players SET member_number = $1, updated_at = CURRENT_TIMESTAMP
-          WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
-        ", params = list(member_num, player_id))
+          UPDATE players SET member_number = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
+          WHERE player_id = $3 AND (member_number IS NULL OR member_number = '')
+        ", params = list(member_num, current_admin_username(rv), player_id))
       }
 
       # Convert record
@@ -965,9 +965,9 @@ observeEvent(input$edit_grid_save, {
 
     # Update player count on tournament
     safe_execute(db_pool, "
-      UPDATE tournaments SET player_count = $1, updated_at = CURRENT_TIMESTAMP
-      WHERE tournament_id = $2
-    ", params = list(nrow(filled_rows), tournament_id))
+      UPDATE tournaments SET player_count = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
+      WHERE tournament_id = $3
+    ", params = list(nrow(filled_rows), current_admin_username(rv), tournament_id))
 
     # Recalculate ratings
     ratings_ok <- recalculate_ratings_cache(db_pool)

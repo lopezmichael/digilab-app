@@ -873,9 +873,9 @@ observeEvent(input$admin_submit_results, {
       # Update member_number if provided and player doesn't have one yet
       if (nchar(member_num) > 0) {
         dbExecute(db_pool, "
-          UPDATE players SET member_number = $1, updated_at = CURRENT_TIMESTAMP
-          WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
-        ", params = list(member_num, player_id))
+          UPDATE players SET member_number = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
+          WHERE player_id = $3 AND (member_number IS NULL OR member_number = '')
+        ", params = list(member_num, current_admin_username(rv), player_id))
       }
 
       # 2. Convert record
