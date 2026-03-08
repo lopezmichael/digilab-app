@@ -2,6 +2,7 @@
 # Admin - Manage tournaments UI
 
 admin_tournaments_ui <- tagList(
+  uiOutput("pending_data_errors"),
   h2("Edit Tournaments"),
   div(class = "page-help-text",
     div(class = "info-hint-box",

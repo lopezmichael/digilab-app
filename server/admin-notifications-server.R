@@ -278,6 +278,52 @@ output$pending_scene_requests <- renderUI({
   )
 })
 
+output$pending_data_errors <- renderUI({
+  req(rv$is_admin)
+  rv$requests_refresh
+
+  scene_id <- if (!rv$is_superadmin && !is.null(rv$admin_user)) {
+    rv$admin_user$scene_id
+  } else {
+    NULL
+  }
+
+  reqs <- get_pending_requests(db_pool, "data_error", scene_id, rv$is_superadmin)
+  if (nrow(reqs) == 0) return(NULL)
+
+  div(class = "pending-requests-panel",
+    h4(class = "pending-requests-title",
+      bsicons::bs_icon("inbox-fill", class = "me-2"),
+      paste0("Pending Data Errors (", nrow(reqs), ")")
+    ),
+    div(class = "pending-requests-hint",
+      "Community-reported data errors. Review each issue, fix it in the data, then mark as done."
+    ),
+    lapply(seq_len(nrow(reqs)), function(i) render_request_card(reqs[i, ])),
+    tags$hr()
+  )
+})
+
+output$pending_bug_reports <- renderUI({
+  req(rv$is_superadmin)
+  rv$requests_refresh
+
+  reqs <- get_pending_requests(db_pool, "bug_report")
+  if (nrow(reqs) == 0) return(NULL)
+
+  div(class = "pending-requests-panel",
+    h4(class = "pending-requests-title",
+      bsicons::bs_icon("inbox-fill", class = "me-2"),
+      paste0("Pending Bug Reports (", nrow(reqs), ")")
+    ),
+    div(class = "pending-requests-hint",
+      "Community-reported bugs. Investigate the issue, then mark as done or reject if not reproducible."
+    ),
+    lapply(seq_len(nrow(reqs)), function(i) render_request_card(reqs[i, ])),
+    tags$hr()
+  )
+})
+
 # ---------------------------------------------------------------------------
 # Resolution handler: approve/reject requests
 # ---------------------------------------------------------------------------

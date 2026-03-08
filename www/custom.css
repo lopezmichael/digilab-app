@@ -1974,6 +1974,29 @@ body.bslib-gap-spacing {
   font-size: 0.8rem;
 }
 
+/* --- Welcome DM Copy Area --- */
+.welcome-dm-area {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: rgba(0, 200, 255, 0.06);
+  border: 1px solid rgba(0, 200, 255, 0.2);
+  border-radius: 8px;
+}
+[data-bs-theme="dark"] .welcome-dm-area {
+  background: rgba(0, 200, 255, 0.08);
+  border-color: rgba(0, 200, 255, 0.25);
+}
+.welcome-dm-text {
+  font-size: 0.78rem;
+  max-height: 280px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  background: rgba(var(--bs-body-bg-rgb), 0.6);
+  border: 1px solid rgba(var(--bs-body-color-rgb), 0.1);
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
 /* =============================================================================
    ADMIN PANELS
    ============================================================================= */

@@ -83,5 +83,6 @@ admin_users_ui <- tagList(
         )
       )
     )
-  )
+  ),
+  uiOutput("welcome_dm_area")
 )

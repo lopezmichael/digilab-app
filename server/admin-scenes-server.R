@@ -471,6 +471,177 @@ observeEvent(input$delete_scene_btn, {
 })
 
 # =============================================================================
+# Scene Welcome Message & Discord Thread Creation
+# =============================================================================
+
+# --- "Post Welcome to Discord" button (shown when editing a scene without a thread) ---
+output$scene_discord_post_area <- renderUI({
+  sid <- editing_scene_id()
+  if (is.null(sid)) return(NULL)
+  req(rv$is_superadmin)
+
+  df <- scenes_data()
+  row <- df[df$scene_id == sid, ]
+  if (nrow(row) == 0) return(NULL)
+
+  thread_id <- row$discord_thread_id[1]
+  has_thread <- !is.null(thread_id) && !is.na(thread_id) && nchar(thread_id) > 0
+
+  if (has_thread) {
+    # Thread already exists — show green confirmation
+    div(class = "scene-discord-status mt-3",
+      bsicons::bs_icon("check-circle-fill", class = "text-success me-1"),
+      tags$span(class = "text-success small fw-bold", "Discord thread linked"),
+      tags$span(class = "text-muted small ms-2", paste0("ID: ", thread_id))
+    )
+  } else {
+    # No thread — show button to create one
+    div(class = "mt-3",
+      actionButton("post_scene_welcome_btn",
+        tagList(bsicons::bs_icon("discord"), " Post Welcome to Discord"),
+        class = "btn-outline-primary btn-sm w-100"
+      )
+    )
+  }
+})
+
+# --- Open preview modal ---
+observeEvent(input$post_scene_welcome_btn, {
+  req(rv$is_superadmin, !is.null(editing_scene_id()))
+  sid <- editing_scene_id()
+
+  # Get scene info
+  scene_info <- safe_query(db_pool,
+    "SELECT display_name FROM scenes WHERE scene_id = $1",
+    params = list(sid),
+    default = data.frame())
+  if (nrow(scene_info) == 0) return()
+  scene_name <- scene_info$display_name[1]
+
+  # Get scene admins
+  admins <- safe_query(db_pool,
+    "SELECT display_name, username FROM admin_users
+     WHERE scene_id = $1 AND is_active = TRUE AND role = 'scene_admin'
+     ORDER BY display_name",
+    params = list(sid),
+    default = data.frame())
+
+  admin_mentions <- if (nrow(admins) > 0) {
+    paste(paste0("@", admins$username), collapse = ", ")
+  } else {
+    "(no scene admin assigned yet)"
+  }
+
+  # Get stores in scene
+  stores <- safe_query(db_pool,
+    "SELECT name FROM stores WHERE scene_id = $1 AND is_active = TRUE ORDER BY name",
+    params = list(sid),
+    default = data.frame())
+
+  stores_list <- if (nrow(stores) > 0) {
+    paste(paste0("- ", stores$name), collapse = "\n")
+  } else {
+    "None yet \u2014 add stores via Admin -> Stores"
+  }
+
+  # Build welcome message
+  welcome_msg <- paste0(
+    "Scene Admin(s): ", admin_mentions, "\n\n",
+    "Welcome to DigiLab! Your scene ", scene_name, " is now live and your admin account has been set up.\n\n",
+    "**Getting Started:**\n",
+    "- Log in at https://app.digilab.cards/ using the credentials sent to you\n",
+    "- Head to Admin -> Enter Results to start adding tournament data\n",
+    "- First you'll need to verify your local store(s) are set up via Admin -> Stores\n\n",
+    "**Stores added:**\n",
+    stores_list, "\n\n",
+    "**Tips:**\n",
+    "- You can paste results directly from a spreadsheet (Player Name, Points columns)\n",
+    "- Players are matched by Bandai ID first, then by name within your scene\n",
+    "- If you have historical results to backfill, go for it! Just enter the correct tournament date\n\n",
+    "**Need help?**\n",
+    "- Check the For Organizers page in the app for guides (https://digilab.cards/organizers)\n",
+    "- Drop questions here in this thread anytime\n",
+    "- Report data errors or bugs using the buttons in the app -- they'll route here or to bug-reports\n\n",
+    "Excited to have ", scene_name, " on the map!"
+  )
+
+  showModal(modalDialog(
+    title = tagList(bsicons::bs_icon("discord", class = "me-2"), "Post Welcome to #scene-coordination"),
+    textInput("scene_thread_name", "Thread name", value = scene_name),
+    textAreaInput("scene_welcome_message", "Message", value = welcome_msg, rows = 14),
+    tags$p(class = "text-muted small",
+      "This will create a new forum thread in #scene-coordination. You can edit the message before posting."
+    ),
+    checkboxInput("also_post_scene_update", "Also post announcement to #scene-updates", value = TRUE),
+    footer = tagList(
+      modalButton("Cancel"),
+      actionButton("copy_scene_welcome", tagList(bsicons::bs_icon("clipboard"), " Copy"),
+                   class = "btn-outline-secondary"),
+      actionButton("confirm_post_scene_welcome", tagList(bsicons::bs_icon("send"), " Post"),
+                   class = "btn-primary")
+    ),
+    size = "l",
+    easyClose = TRUE
+  ))
+})
+
+# --- Copy welcome message to clipboard ---
+observeEvent(input$copy_scene_welcome, {
+  msg <- input$scene_welcome_message
+  req(msg)
+  shinyjs::runjs(sprintf(
+    "navigator.clipboard.writeText(%s).then(function() { Shiny.setInputValue('scene_welcome_copied', Date.now(), {priority: 'event'}); });",
+    jsonlite::toJSON(msg, auto_unbox = TRUE)
+  ))
+})
+
+observeEvent(input$scene_welcome_copied, {
+  notify("Welcome message copied to clipboard!", type = "message", duration = 3)
+})
+
+# --- Post to Discord ---
+observeEvent(input$confirm_post_scene_welcome, {
+  req(rv$is_superadmin, !is.null(editing_scene_id()))
+  sid <- editing_scene_id()
+
+  thread_name <- trimws(input$scene_thread_name)
+  message_content <- input$scene_welcome_message
+
+  if (nchar(thread_name) == 0 || nchar(message_content) == 0) {
+    notify("Thread name and message are required", type = "warning")
+    return()
+  }
+
+  removeModal()
+  notify("Posting to Discord...", type = "message", duration = 2)
+
+  # Create the forum thread
+  thread_id <- discord_create_scene_thread(thread_name, message_content)
+
+  if (!is.null(thread_id) && nchar(thread_id) > 0) {
+    # Save thread ID to scene record
+    safe_execute(db_pool,
+      "UPDATE scenes SET discord_thread_id = $1 WHERE scene_id = $2",
+      params = list(thread_id, sid))
+
+    # Update the form field so admin sees it immediately
+    updateTextInput(session, "scene_discord_thread_id", value = thread_id)
+
+    notify(paste0("Discord thread created and linked! Thread ID: ", thread_id), type = "message", duration = 5)
+    rv$data_refresh <- rv$data_refresh + 1
+  } else {
+    notify("Thread may have been created but ID couldn't be saved. Check Discord and add the Thread ID manually.",
+           type = "warning", duration = 8)
+  }
+
+  # Optionally post to #scene-updates
+  if (isTRUE(input$also_post_scene_update)) {
+    scene_name <- trimws(input$scene_thread_name)
+    discord_post_scene_update(scene_name)
+  }
+})
+
+# =============================================================================
 # Announcements Admin (super admin only)
 # =============================================================================
 

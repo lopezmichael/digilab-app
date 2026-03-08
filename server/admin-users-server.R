@@ -293,8 +293,57 @@ observeEvent(input$save_admin_btn, {
       default = data.frame())
 
     if (nrow(insert_result) > 0) {
+      # Look up scene display name for the DM template
+      scene_name <- ""
+      discord_thread_info <- ""
+      if (!is.na(scene_id)) {
+        scene_info <- safe_query(db_pool,
+          "SELECT display_name, discord_thread_id FROM scenes WHERE scene_id = $1",
+          params = list(scene_id),
+          default = data.frame())
+        if (nrow(scene_info) > 0) {
+          scene_name <- scene_info$display_name[1]
+          tid <- scene_info$discord_thread_id[1]
+          if (!is.null(tid) && !is.na(tid) && nchar(tid) > 0) {
+            discord_thread_info <- paste0("(Thread ID: ", tid, ")")
+          }
+        }
+      }
+
+      # Build welcome DM template
+      thread_line <- if (nchar(discord_thread_info) > 0) {
+        paste0("- Your scene coordination thread: ", discord_thread_info)
+      } else {
+        "- Your scene coordination thread: (will be set up soon)"
+      }
+
+      welcome_dm <- paste0(
+        "Hey ", display_name, "! You've been added as a Scene Admin for ", scene_name,
+        " on DigiLab. Here's everything you need to get started:\n\n",
+        "**Your Login:**\n",
+        "- App: https://app.digilab.cards/\n",
+        "- Username: ", username, "\n",
+        "- Password: ", password, "\n",
+        "- Please change your password after your first login\n\n",
+        "**First Steps:**\n",
+        "1. Log in and click the Admin button (top-right corner)\n",
+        "2. Check Admin -> Stores to verify your local store(s) are set up\n",
+        "3. Head to Admin -> Enter Results to start adding tournament data\n",
+        "4. You can paste results directly from a spreadsheet!\n\n",
+        "**Resources:**\n",
+        "- For Organizers guide: https://digilab.cards/organizers\n",
+        thread_line, "\n",
+        "- Report bugs or data errors using the buttons in the app\n\n",
+        "Looking forward to seeing ", scene_name, " grow!"
+      )
+
+      # Store in reactive for the UI to display
+      rv$welcome_dm_text <- welcome_dm
+      rv$show_welcome_dm <- TRUE
+
       notify(paste0("Admin '", username, "' created"), type = "message")
       rv$data_refresh <- rv$data_refresh + 1
+
       # Clear form
       editing_admin_id(NULL)
       updateTextInput(session, "admin_username", value = "")
@@ -302,6 +351,7 @@ observeEvent(input$save_admin_btn, {
       updateTextInput(session, "admin_password", value = "")
       updateSelectInput(session, "admin_role", selected = "scene_admin")
       updateSelectInput(session, "admin_scene", selected = "")
+      shinyjs::html("admin_form_title", "Add Admin")
     } else {
       notify("Failed to create admin", type = "error")
     }
@@ -389,4 +439,43 @@ observeEvent(input$toggle_admin_active_btn, {
   # Clear selection
   editing_admin_id(NULL)
   shinyjs::html("admin_form_title", "Add Admin")
+})
+
+# --- Welcome DM Copy Area (shown after creating a scene admin) ---
+output$welcome_dm_area <- renderUI({
+  req(isTRUE(rv$show_welcome_dm), rv$welcome_dm_text)
+
+  div(class = "welcome-dm-area",
+    div(class = "d-flex justify-content-between align-items-center mb-2",
+      h5(class = "mb-0",
+        bsicons::bs_icon("chat-dots-fill", class = "me-2"),
+        "Welcome DM Ready"
+      ),
+      actionButton("dismiss_welcome_dm", bsicons::bs_icon("x-lg"),
+                   class = "btn btn-sm btn-outline-secondary py-0")
+    ),
+    tags$p(class = "text-muted small mb-2",
+      "Copy and send this via Discord DM to the new admin:"
+    ),
+    tags$pre(class = "welcome-dm-text", rv$welcome_dm_text),
+    actionButton("copy_welcome_dm",
+                 tagList(bsicons::bs_icon("clipboard"), " Copy to Clipboard"),
+                 class = "btn-primary btn-sm")
+  )
+})
+
+observeEvent(input$copy_welcome_dm, {
+  shinyjs::runjs(sprintf(
+    "var text = %s; navigator.clipboard.writeText(text).then(function() { Shiny.setInputValue('dm_copied', Date.now(), {priority: 'event'}); });",
+    jsonlite::toJSON(rv$welcome_dm_text, auto_unbox = TRUE)
+  ))
+})
+
+observeEvent(input$dm_copied, {
+  notify("Welcome DM copied to clipboard!", type = "message", duration = 3)
+})
+
+observeEvent(input$dismiss_welcome_dm, {
+  rv$show_welcome_dm <- FALSE
+  rv$welcome_dm_text <- NULL
 })

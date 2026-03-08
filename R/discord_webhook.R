@@ -193,3 +193,63 @@ discord_post_bug_report <- function(title, description, context = "",
 
   discord_send(webhook_url, body)
 }
+
+# Post a welcome message to #scene-coordination Forum, creating a new thread
+# Returns the channel_id (thread ID) from Discord's response, or NULL on failure
+discord_create_scene_thread <- function(scene_name, message_content) {
+  webhook_url <- Sys.getenv("DISCORD_WEBHOOK_SCENE_COORDINATION")
+
+  if (is.null(webhook_url) || nchar(webhook_url) == 0) {
+    warning("DISCORD_WEBHOOK_SCENE_COORDINATION not configured")
+    return(NULL)
+  }
+
+  # Append ?wait=true to get the message object back (includes channel_id = thread ID)
+  url <- paste0(webhook_url, "?wait=true")
+
+  tryCatch({
+    resp <- httr2::request(url) |>
+      httr2::req_body_json(list(
+        thread_name = scene_name,
+        content = message_content
+      )) |>
+      httr2::req_timeout(15) |>
+      httr2::req_error(is_error = function(resp) FALSE) |>
+      httr2::req_perform()
+
+    status <- httr2::resp_status(resp)
+    if (status >= 200 && status < 300) {
+      parsed <- httr2::resp_body_json(resp)
+      # Discord returns the message object; channel_id is the thread ID
+      return(parsed$channel_id)
+    } else {
+      warning(paste("Discord webhook returned status:", status))
+      return(NULL)
+    }
+  }, error = function(e) {
+    warning(paste("Discord scene thread creation error:", e$message))
+    if (exists("sentry_capture_exception", mode = "function")) {
+      try(sentry_capture_exception(e, tags = list(
+        component = "discord_webhook",
+        webhook_type = "scene_thread_create"
+      )), silent = TRUE)
+    }
+    return(NULL)
+  })
+}
+
+# Post a short announcement to #scene-updates
+discord_post_scene_update <- function(scene_name) {
+  webhook_url <- Sys.getenv("DISCORD_WEBHOOK_SCENE_REQUESTS")
+
+  if (is.null(webhook_url) || nchar(webhook_url) == 0) return(invisible(FALSE))
+
+  body <- list(
+    content = paste0(
+      "**New Scene:** ", scene_name, " is now live on DigiLab! ",
+      "Check out the local leaderboard and tournament history at https://app.digilab.cards"
+    )
+  )
+
+  discord_send(webhook_url, body)
+}

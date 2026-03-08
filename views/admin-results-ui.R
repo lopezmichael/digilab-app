@@ -2,6 +2,7 @@
 # Admin - Enter tournament results with wizard flow
 
 admin_results_ui <- tagList(
+  uiOutput("pending_bug_reports"),
   h2("Enter Tournament Results"),
   div(class = "page-help-text",
     div(class = "info-hint-box",
