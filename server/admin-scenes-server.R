@@ -615,8 +615,15 @@ observeEvent(input$confirm_post_scene_welcome, {
   removeModal()
   notify("Posting to Discord...", type = "message", duration = 2)
 
-  # Create the forum thread
-  thread_id <- discord_create_scene_thread(thread_name, message_content)
+  # Look up scene country for continent tag
+  scene_country <- tryCatch({
+    row <- safe_query(db_pool, "SELECT country FROM scenes WHERE scene_id = $1",
+                      params = list(sid), default = data.frame())
+    if (nrow(row) > 0) row$country[1] else NULL
+  }, error = function(e) NULL)
+
+  # Create the forum thread (with continent tag)
+  thread_id <- discord_create_scene_thread(thread_name, message_content, country = scene_country)
 
   if (!is.null(thread_id) && nchar(thread_id) > 0) {
     # Save thread ID to scene record
