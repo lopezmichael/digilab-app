@@ -4,107 +4,70 @@ lastUpdated: "2026-03-08"
 
 inProgress: []
 
-completed:
-  # v1.4.0 — Admin Improvements & Request Queue (2026-03-08)
-  - id: admin-request-queue
-    title: "Admin Request Queue & Notification Widget"
-    tags: [admin, ux]
-    completedVersion: "v1.4.0"
-
-  - id: webhook-modal-improvements
-    title: "Webhook Modal Improvements & Fuzzy Duplicate Detection"
-    tags: [admin, ux]
-    completedVersion: "v1.4.0"
-
-  - id: scene-onboarding-automation
-    title: "Scene Onboarding Automation"
-    tags: [admin, integration]
-    completedVersion: "v1.4.0"
-
-  - id: admin-tab-improvements
-    title: "Admin Tab Improvements"
-    tags: [admin, ux]
-    completedVersion: "v1.4.0"
-
-  - id: iframe-storage-fix
-    title: "iframe localStorage Fix & Announcement System"
-    tags: [ux, fix]
-    completedVersion: "v1.4.0"
-
-  - id: audit-columns
-    title: "Audit Columns (updated_at/updated_by)"
-    tags: [admin, data]
-    completedVersion: "v1.4.0"
-
-  - id: pending-requests-on-tabs
-    title: "Data Error Cards on Tournaments Tab"
-    tags: [admin, ux]
-    completedVersion: "v1.4.0"
-
 planned:
 
-  # v1.5.0 — Results Redesign & Data Entry
-  - id: results-upload-redesign
-    title: "Results & Upload Tab Redesign"
-    description: "Paired redesign of Enter Results and Upload Results tabs. Touch-friendly grids, camera upload flow, mobile optimization, tournament data quality checks."
-    tags: [admin, ux, mobile]
-    targetVersion: "v1.5.0"
-
-  - id: mobile-admin-tabs
-    title: "Mobile Admin Tabs"
-    description: "Mobile layouts for scene admin tabs (Edit Stores, Edit Tournaments, Edit Players) and super admin tabs (Edit Scenes, Edit Admins, Edit Decks)."
-    tags: [mobile, admin]
-    targetVersion: "v1.5.0"
-
-  # v1.6.0 — Tournament Data & Ingestion
-  - id: decklist-entry
-    title: "Decklist Entry & Backfill"
-    description: "Add decklists during tournament result entry or backfill them later from the Edit Tournaments tab."
-    tags: [feature, data]
-    targetVersion: "v1.6.0"
-
-  - id: ocr-improvements
-    title: "OCR Upload Improvements"
-    description: "Bug fixes and process improvements for screenshot-based OCR uploads including better error handling and accuracy."
-    tags: [feature, data]
-    targetVersion: "v1.6.0"
-
-  - id: round-by-round
-    title: "Round-by-Round Enhancements"
-    description: "Improved UX for match history uploads, better database handling, and player-facing visibility for round-by-round data."
-    tags: [feature, data]
-    targetVersion: "v1.6.0"
-
-  # v1.7.0 — UX Polish & Store Improvements
-  - id: modal-improvements
-    title: "Modal Improvements"
-    description: "Enhanced player, store, and deck modals with rating sparklines, global vs local rank, deck history, and other data-rich additions."
-    tags: [ux, feature]
-    targetVersion: "v1.7.0"
-
-  - id: scene-selector-redesign
-    title: "Scene Selector Redesign"
-    description: "Rethink the scene selection UX to handle growth beyond a single dropdown — grouped, searchable, or hierarchical selection."
-    tags: [ux, scaling]
-    targetVersion: "v1.7.0"
-
-  # v1.8.0 — Performance & Caching
+  # v1.5.0 — Performance & Caching
   - id: query-optimization
     title: "Query Optimization"
     description: "Audit slow queries with EXPLAIN ANALYZE, add missing indexes, and implement materialized views for dashboard aggregations."
     tags: [scaling]
-    targetVersion: "v1.8.0"
+    targetVersion: "v1.5.0"
 
   - id: caching-expansion
     title: "Caching Expansion"
     description: "Expand bindCache() coverage across all outputs, batch startup queries, and tune Neon connection pool settings."
     tags: [scaling]
-    targetVersion: "v1.8.0"
+    targetVersion: "v1.5.0"
 
   - id: lazy-tab-loading
     title: "Lazy Tab Loading"
     description: "Defer data fetching until a tab is actually visited instead of loading all tabs on startup."
     tags: [scaling]
+    targetVersion: "v1.5.0"
+
+  # v1.6.0 — Results Redesign & Data Entry
+  - id: results-upload-redesign
+    title: "Results & Upload Tab Redesign"
+    description: "Paired redesign of Enter Results and Upload Results tabs. Touch-friendly grids, camera upload flow, mobile optimization, tournament data quality checks."
+    tags: [admin, ux, mobile]
+    targetVersion: "v1.6.0"
+
+  - id: mobile-admin-tabs
+    title: "Mobile Admin Tabs"
+    description: "Mobile layouts for scene admin tabs (Edit Stores, Edit Tournaments, Edit Players) and super admin tabs (Edit Scenes, Edit Admins, Edit Decks)."
+    tags: [mobile, admin]
+    targetVersion: "v1.6.0"
+
+  # v1.7.0 — Tournament Data & Ingestion
+  - id: decklist-entry
+    title: "Decklist Entry & Backfill"
+    description: "Add decklists during tournament result entry or backfill them later from the Edit Tournaments tab."
+    tags: [feature, data]
+    targetVersion: "v1.7.0"
+
+  - id: ocr-improvements
+    title: "OCR Upload Improvements"
+    description: "Bug fixes and process improvements for screenshot-based OCR uploads including better error handling and accuracy."
+    tags: [feature, data]
+    targetVersion: "v1.7.0"
+
+  - id: round-by-round
+    title: "Round-by-Round Enhancements"
+    description: "Improved UX for match history uploads, better database handling, and player-facing visibility for round-by-round data."
+    tags: [feature, data]
+    targetVersion: "v1.7.0"
+
+  # v1.8.0 — UX Polish & Store Improvements
+  - id: modal-improvements
+    title: "Modal Improvements"
+    description: "Enhanced player, store, and deck modals with rating sparklines, global vs local rank, deck history, and other data-rich additions."
+    tags: [ux, feature]
+    targetVersion: "v1.8.0"
+
+  - id: scene-selector-redesign
+    title: "Scene Selector Redesign"
+    description: "Rethink the scene selection UX to handle growth beyond a single dropdown — grouped, searchable, or hierarchical selection."
+    tags: [ux, scaling]
     targetVersion: "v1.8.0"
 
   # v1.9.0 — Achievement Badges & Gamification
@@ -185,6 +148,56 @@ planned:
     targetVersion: "Future"
 
 completed:
+  # v1.4.0 — Admin Improvements & Request Queue
+  - id: admin-request-queue
+    title: "Admin Request Queue & Notification Widget"
+    description: "Unified admin_requests table with notification widget, approve/reject workflow, Discord integration."
+    tags: [admin, ux]
+    date: "2026-03"
+    version: "v1.4.0"
+
+  - id: webhook-modal-improvements
+    title: "Webhook Modal Improvements & Fuzzy Duplicate Detection"
+    description: "Required Discord username, fuzzy store matching, DB persistence, request type dropdowns."
+    tags: [admin, ux]
+    date: "2026-03"
+    version: "v1.4.0"
+
+  - id: scene-onboarding-automation
+    title: "Scene Onboarding Automation"
+    description: "Auto-create Discord forum threads, preview modal, thread ID auto-save, scene announcements."
+    tags: [admin, integration]
+    date: "2026-03"
+    version: "v1.4.0"
+
+  - id: admin-tab-improvements
+    title: "Admin Tab Improvements"
+    description: "Search bars, filters, Users tab grouped by scene, required store fields, schedule qualifiers, auto-message templates."
+    tags: [admin, ux]
+    date: "2026-03"
+    version: "v1.4.0"
+
+  - id: iframe-storage-fix
+    title: "iframe localStorage Fix & Announcement System"
+    description: "postMessage bridge for mobile localStorage, announcement system, version changelog modal."
+    tags: [ux, fix]
+    date: "2026-03"
+    version: "v1.4.0"
+
+  - id: audit-columns
+    title: "Audit Columns (updated_at/updated_by)"
+    description: "Audit columns on tournaments, stores, players, deck_archetypes, and scenes tables."
+    tags: [admin, data]
+    date: "2026-03"
+    version: "v1.4.0"
+
+  - id: pending-requests-on-tabs
+    title: "Data Error Cards on Tournaments Tab"
+    description: "Pending request cards surfaced directly on admin tabs for quick resolution."
+    tags: [admin, ux]
+    date: "2026-03"
+    version: "v1.4.0"
+
   # v1.3.2
   - id: rating-recalc-warning
     title: "Rating Recalculation Failure Warning"
@@ -442,8 +455,8 @@ completed:
 
 # DigiLab Roadmap
 
-**Current Version:** v1.3.2
-**Last Updated:** 2026-03-06
+**Current Version:** v1.4.0
+**Last Updated:** 2026-03-08
 
 > This file is the source of truth for the [public roadmap](https://digilab.cards/roadmap).
 > A GitHub Action syncs the YAML frontmatter to the website on every push to main.
@@ -458,43 +471,31 @@ completed:
 
 ## Planned
 
-### v1.4.0 — Admin Improvements & Request Queue
+### v1.5.0 — Performance & Caching
 | Feature | Description |
 |---------|-------------|
-| **Admin Request Queue** | Unified admin_requests table with notification widget, approve/reject workflow, Discord integration |
-| **Webhook Modal Improvements** | Required Discord username, fuzzy store matching, DB persistence, request type dropdowns |
-| **Scene Onboarding Automation** | Auto-create #scene-coordination forum threads, preview modal, thread ID auto-save, #scene-updates announcements |
-| **Admin Tab Improvements** | Search bars, filters, Users tab grouped by scene, required store fields, schedule qualifiers, auto-message templates |
-| **iframe Storage Fix** | postMessage bridge for mobile localStorage, announcement system, version changelog modal |
-| **Audit Columns** | updated_at/updated_by on main tables |
+| **Query Optimization** | EXPLAIN ANALYZE audit, missing indexes, materialized views |
+| **Caching Expansion** | Broader bindCache() coverage, batched startup queries, pool tuning |
+| **Lazy Tab Loading** | Defer data fetch until tab is visited |
 
-Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
-
-### v1.5.0 — Results Redesign & Data Entry
+### v1.6.0 — Results Redesign & Data Entry
 | Feature | Description |
 |---------|-------------|
 | **Results & Upload Tab Redesign** | Paired redesign of Enter Results and Upload Results with mobile optimization and data quality checks |
 | **Mobile Admin Tabs** | Mobile layouts for all scene admin and super admin tabs |
 
-### v1.6.0 — Tournament Data & Ingestion
+### v1.7.0 — Tournament Data & Ingestion
 | Feature | Description |
 |---------|-------------|
 | **Decklist Entry & Backfill** | Add decklists during result entry or backfill from Edit Tournaments |
 | **OCR Improvements** | Bug fixes and accuracy improvements for screenshot uploads |
 | **Round-by-Round Enhancements** | Better UX, database handling, and player visibility |
 
-### v1.7.0 — UX Polish & Store Improvements
+### v1.8.0 — UX Polish & Store Improvements
 | Feature | Description |
 |---------|-------------|
 | **Modal Improvements** | Rating sparklines, global vs local rank, deck history in player/store/deck modals |
 | **Scene Selector Redesign** | Scalable scene selection beyond a single dropdown |
-
-### v1.8.0 — Performance & Caching
-| Feature | Description |
-|---------|-------------|
-| **Query Optimization** | EXPLAIN ANALYZE audit, missing indexes, materialized views |
-| **Caching Expansion** | Broader bindCache() coverage, batched startup queries, pool tuning |
-| **Lazy Tab Loading** | Defer data fetch until tab is visited |
 
 ### v1.9.0 — Achievement Badges & Gamification
 | Feature | Description |
@@ -524,6 +525,7 @@ Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
 
 | Version | Feature | Shipped |
 |---------|---------|---------|
+| v1.4.0 | Admin Infrastructure & Request Queue | 2026-03 |
 | v1.3.2 | Sentry Error Fixes | 2026-03 |
 | v1.3.1 | Fixes & Upload Improvements | 2026-03 |
 | v1.3.0 | Mobile Views & PWA Fixes | 2026-03 |
@@ -656,7 +658,20 @@ Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
 
 ---
 
-## v1.5.0 — Results Redesign & Data Entry
+## v1.5.0 — Performance & Caching
+
+| ID | Type | Description |
+|----|------|-------------|
+| PERF1 | PERFORMANCE | Query audit — identify slowest queries with `EXPLAIN ANALYZE`, add missing indexes |
+| PERF2 | PERFORMANCE | Materialized views for dashboard aggregations (pre-computed stats refreshed periodically) |
+| PERF3 | PERFORMANCE | Expand `bindCache()` coverage — audit which outputs aren't cached yet |
+| PERF4 | PERFORMANCE | Lazy tab loading — defer data fetch until tab is actually visited |
+| PERF5 | PERFORMANCE | Neon connection pool tuning — review pool size limits and timeouts |
+| PERF6 | PERFORMANCE | Batch initial queries — combine startup queries into fewer DB round trips |
+
+---
+
+## v1.6.0 — Results Redesign & Data Entry
 
 ### Results & Upload Tab Redesign
 | ID | Type | Description |
@@ -673,7 +688,7 @@ Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
 
 ---
 
-## v1.6.0 — Tournament Data & Ingestion
+## v1.7.0 — Tournament Data & Ingestion
 
 ### Decklist Entry & Backfill
 | ID | Type | Description |
@@ -696,7 +711,7 @@ Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
 
 ---
 
-## v1.7.0 — UX Polish & Store Improvements
+## v1.8.0 — UX Polish & Store Improvements
 
 ### Modal Improvements
 | ID | Type | Description |
@@ -711,19 +726,6 @@ Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
 |----|------|-------------|
 | SS1 | UX | Replace flat dropdown with grouped/searchable/hierarchical selector |
 | SS2 | UX | Support for growing scene count without UX degradation |
-
----
-
-## v1.8.0 — Performance & Caching
-
-| ID | Type | Description |
-|----|------|-------------|
-| PERF1 | PERFORMANCE | Query audit — identify slowest queries with `EXPLAIN ANALYZE`, add missing indexes |
-| PERF2 | PERFORMANCE | Materialized views for dashboard aggregations (pre-computed stats refreshed periodically) |
-| PERF3 | PERFORMANCE | Expand `bindCache()` coverage — audit which outputs aren't cached yet |
-| PERF4 | PERFORMANCE | Lazy tab loading — defer data fetch until tab is actually visited |
-| PERF5 | PERFORMANCE | Neon connection pool tuning — review pool size limits and timeouts |
-| PERF6 | PERFORMANCE | Batch initial queries — combine startup queries into fewer DB round trips |
 
 ---
 
