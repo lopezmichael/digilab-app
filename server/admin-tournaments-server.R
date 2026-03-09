@@ -430,10 +430,14 @@ observeEvent(input$view_edit_results, {
   # Load existing results into grid
   grid <- load_grid_from_results(tournament_id, db_pool)
 
-  # Infer record format: if any row has ties > 0 or wins don't cleanly convert to points, use WLT
-  has_ties <- any(grid$ties > 0)
-  has_irregular <- any((grid$wins * 3L + grid$ties) != grid$points & nchar(trimws(grid$player_name)) > 0)
-  rv$edit_record_format <- if (has_ties || has_irregular) "wlt" else "points"
+  # Read stored record_format from tournament (no more inference)
+  fmt_row <- safe_query(db_pool, "SELECT record_format FROM tournaments WHERE tournament_id = $1",
+                        params = list(tournament_id), default = data.frame())
+  rv$edit_record_format <- if (nrow(fmt_row) > 0 && !is.null(fmt_row$record_format)) {
+    fmt_row$record_format
+  } else {
+    "points"  # fallback for pre-migration tournaments
+  }
 
   # Add blank rows to allow adding more results
   # Use the tournament's player_count as minimum, plus a few extra for additions
@@ -913,7 +917,7 @@ observeEvent(input$edit_grid_save, {
         ", params = list(member_num, current_admin_username(rv), player_id))
       }
 
-      # Convert record
+      # Convert record and store points
       if (record_format == "points") {
         pts <- row$points
         wins <- pts %/% 3L
@@ -923,6 +927,7 @@ observeEvent(input$edit_grid_save, {
         wins <- row$wins
         losses <- row$losses
         ties <- row$ties
+        pts <- as.integer((wins * 3L) + ties)
       }
 
       # Resolve deck
@@ -946,20 +951,20 @@ observeEvent(input$edit_grid_save, {
         safe_execute(db_pool, "
           UPDATE results
           SET player_id = $1, archetype_id = $2, pending_deck_request_id = $3,
-              placement = $4, wins = $5, losses = $6, ties = $7,
+              placement = $4, wins = $5, losses = $6, ties = $7, points = $8,
               updated_at = CURRENT_TIMESTAMP
-          WHERE result_id = $8
+          WHERE result_id = $9
         ", params = list(player_id, archetype_id, pending_deck_request_id,
-                         row$placement, wins, losses, ties, row$result_id))
+                         row$placement, wins, losses, ties, pts, row$result_id))
         update_count <- update_count + 1L
       } else {
         # INSERT new result
         safe_execute(db_pool, "
           INSERT INTO results (tournament_id, player_id, archetype_id,
-                               pending_deck_request_id, placement, wins, losses, ties)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                               pending_deck_request_id, placement, wins, losses, ties, points)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ", params = list(tournament_id, player_id, archetype_id,
-                         pending_deck_request_id, row$placement, wins, losses, ties))
+                         pending_deck_request_id, row$placement, wins, losses, ties, pts))
         insert_count <- insert_count + 1L
       }
     }

@@ -153,11 +153,12 @@ observeEvent(input$create_tournament, {
   }
 
   tryCatch({
+    record_fmt <- input$admin_record_format %||% "points"
     result <- dbGetQuery(db_pool, "
-      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds, record_format)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING tournament_id
-    ", params = list(store_id, event_date, event_type, format, player_count, rounds))
+    ", params = list(store_id, event_date, event_type, format, player_count, rounds, record_fmt))
     new_id <- result$tournament_id[1]
 
     rv$active_tournament_id <- new_id
@@ -165,7 +166,7 @@ observeEvent(input$create_tournament, {
 
     notify("Tournament created!", type = "message")
     rv$wizard_step <- 2
-    rv$admin_record_format <- input$admin_record_format %||% "points"
+    rv$admin_record_format <- record_fmt
     rv$admin_grid_data <- init_grid_data(player_count)
     rv$admin_player_matches <- list()
 
@@ -346,11 +347,12 @@ observeEvent(input$create_anyway, {
   rounds <- input$tournament_rounds
 
   tryCatch({
+    record_fmt <- input$admin_record_format %||% "points"
     result <- dbGetQuery(db_pool, "
-      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds, record_format)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING tournament_id
-    ", params = list(store_id, event_date, event_type, format, player_count, rounds))
+    ", params = list(store_id, event_date, event_type, format, player_count, rounds, record_fmt))
     new_id <- result$tournament_id[1]
 
     rv$active_tournament_id <- new_id
@@ -359,7 +361,7 @@ observeEvent(input$create_anyway, {
 
     notify("Tournament created!", type = "message")
     rv$wizard_step <- 2
-    rv$admin_record_format <- input$admin_record_format %||% "points"
+    rv$admin_record_format <- record_fmt
     rv$admin_grid_data <- init_grid_data(player_count)
     rv$admin_player_matches <- list()
 
@@ -879,7 +881,7 @@ observeEvent(input$admin_submit_results, {
         ", params = list(member_num, current_admin_username(rv), player_id))
       }
 
-      # 2. Convert record
+      # 2. Convert record and store points
       if (record_format == "points") {
         pts <- row$points
         wins <- pts %/% 3L
@@ -889,6 +891,7 @@ observeEvent(input$admin_submit_results, {
         wins <- row$wins
         losses <- row$losses
         ties <- row$ties
+        pts <- as.integer((wins * 3L) + ties)
       }
 
       # 3. Resolve deck
@@ -911,10 +914,10 @@ observeEvent(input$admin_submit_results, {
       # 4. Insert result
       dbExecute(db_pool, "
         INSERT INTO results (tournament_id, player_id, archetype_id, pending_deck_request_id,
-                             placement, wins, losses, ties)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                             placement, wins, losses, ties, points)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       ", params = list(rv$active_tournament_id, player_id, archetype_id,
-                       pending_deck_request_id, row$placement, wins, losses, ties))
+                       pending_deck_request_id, row$placement, wins, losses, ties, pts))
 
       result_count <- result_count + 1L
     }

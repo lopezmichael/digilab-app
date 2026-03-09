@@ -240,6 +240,7 @@ CREATE TABLE IF NOT EXISTS tournaments (
     player_count INTEGER,
     rounds INTEGER,
     limitless_id VARCHAR,
+    record_format TEXT DEFAULT 'points',  -- 'points' or 'wlt' — how results were entered
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -265,6 +266,7 @@ CREATE TABLE IF NOT EXISTS results (
     wins INTEGER DEFAULT 0,
     losses INTEGER DEFAULT 0,
     ties INTEGER DEFAULT 0,
+    points INTEGER,        -- Original points value as entered (NULL for WLT-entered results)
     decklist_url VARCHAR,  -- Link to external decklist (DeckLog, digimonmeta, etc.)
     decklist_json TEXT,  -- JSON stored as text (for future full decklist storage)
     notes TEXT,

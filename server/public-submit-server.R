@@ -1280,8 +1280,8 @@ observeEvent(input$submit_tournament, {
 
     # Create tournament (PostgreSQL auto-generates tournament_id)
     tourney_result <- DBI::dbGetQuery(conn, "
-      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds, record_format)
+      VALUES ($1, $2, $3, $4, $5, $6, 'points')
       RETURNING tournament_id
     ", params = list(
       as.integer(input$submit_store),
@@ -1306,9 +1306,9 @@ observeEvent(input$submit_tournament, {
         NA_character_
       }
 
-      points <- if (!is.na(row$points)) as.integer(row$points) else 0L
-      wins <- points %/% 3
-      ties <- points %% 3
+      pts <- if (!is.na(row$points)) as.integer(row$points) else 0L
+      wins <- pts %/% 3
+      ties <- pts %% 3
       losses <- max(0, total_rounds - wins - ties)
 
       deck_input <- input[[paste0("submit_deck_", i)]]
@@ -1372,11 +1372,11 @@ observeEvent(input$submit_tournament, {
 
       # Insert result (PostgreSQL auto-generates result_id)
       DBI::dbExecute(conn, "
-        INSERT INTO results (tournament_id, player_id, archetype_id, pending_deck_request_id, placement, wins, losses, ties)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO results (tournament_id, player_id, archetype_id, pending_deck_request_id, placement, wins, losses, ties, points)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       ", params = list(
         tournament_id, player_id, deck_id, pending_deck_request_id,
-        row$placement, wins, losses, ties
+        row$placement, wins, losses, ties, pts
       ))
     }
 

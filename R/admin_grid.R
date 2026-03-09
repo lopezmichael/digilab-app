@@ -54,7 +54,7 @@ init_grid_data <- function(player_count) {
 load_grid_from_results <- function(tournament_id, con) {
   rows <- DBI::dbGetQuery(con, "
     SELECT r.result_id, r.placement, r.player_id, p.display_name,
-           r.wins, r.losses, r.ties, r.archetype_id,
+           r.wins, r.losses, r.ties, r.points, r.archetype_id,
            p.member_number
     FROM results r
     JOIN players p ON r.player_id = p.player_id
@@ -69,7 +69,7 @@ load_grid_from_results <- function(tournament_id, con) {
     placement = rows$placement,
     player_name = rows$display_name,
     member_number = ifelse(is.na(rows$member_number), "", rows$member_number),
-    points = as.integer((rows$wins * 3L) + rows$ties),
+    points = ifelse(!is.na(rows$points), as.integer(rows$points), as.integer((rows$wins * 3L) + rows$ties)),
     wins = as.integer(rows$wins),
     losses = as.integer(rows$losses),
     ties = as.integer(rows$ties),
