@@ -458,79 +458,12 @@ CREATE TABLE IF NOT EXISTS announcements (
 );
 
 -- =============================================================================
--- VIEWS FOR COMMON QUERIES
+-- MATERIALIZED VIEWS (pre-computed aggregations for performance)
+-- See db/migrations/005_materialized_views.sql for full definitions.
+-- Refresh via: refresh_materialized_views() in shared-server.R
 -- =============================================================================
-
--- Player standings with win rate and favorite deck
-CREATE OR REPLACE VIEW player_standings AS
-WITH player_deck_counts AS (
-    SELECT
-        r.player_id,
-        r.archetype_id,
-        COUNT(*) AS times_played,
-        ROW_NUMBER() OVER (PARTITION BY r.player_id ORDER BY COUNT(*) DESC) AS rn
-    FROM results r
-    WHERE r.archetype_id IS NOT NULL
-    GROUP BY r.player_id, r.archetype_id
-)
-SELECT
-    p.player_id,
-    p.display_name,
-    COUNT(DISTINCT r.tournament_id) AS tournaments_played,
-    SUM(r.wins) AS total_wins,
-    SUM(r.losses) AS total_losses,
-    SUM(r.ties) AS total_ties,
-    ROUND(SUM(r.wins) * 100.0 / NULLIF(SUM(r.wins) + SUM(r.losses), 0), 1) AS win_rate,
-    ROUND(AVG(r.placement), 2) AS avg_placement,
-    COUNT(CASE WHEN r.placement = 1 THEN 1 END) AS first_place_finishes,
-    COUNT(CASE WHEN r.placement <= 4 THEN 1 END) AS top4_finishes,
-    pdc.archetype_id AS favorite_deck_id,
-    da.archetype_name AS favorite_deck
-FROM players p
-LEFT JOIN results r ON p.player_id = r.player_id
-LEFT JOIN player_deck_counts pdc ON p.player_id = pdc.player_id AND pdc.rn = 1
-LEFT JOIN deck_archetypes da ON pdc.archetype_id = da.archetype_id
-GROUP BY p.player_id, p.display_name, pdc.archetype_id, da.archetype_name;
-
--- Archetype meta breakdown with secondary color and top4 rate
-CREATE OR REPLACE VIEW archetype_meta AS
-SELECT
-    da.archetype_id,
-    da.archetype_name,
-    da.primary_color,
-    da.secondary_color,
-    da.display_card_id,
-    COUNT(r.result_id) AS times_played,
-    ROUND(AVG(r.placement), 2) AS avg_placement,
-    COUNT(CASE WHEN r.placement = 1 THEN 1 END) AS tournament_wins,
-    COUNT(CASE WHEN r.placement <= 4 THEN 1 END) AS top4_finishes,
-    ROUND(COUNT(CASE WHEN r.placement = 1 THEN 1 END) * 100.0 / NULLIF(COUNT(r.result_id), 0), 1) AS conversion_rate,
-    ROUND(COUNT(CASE WHEN r.placement <= 4 THEN 1 END) * 100.0 / NULLIF(COUNT(r.result_id), 0), 1) AS top4_rate,
-    SUM(r.wins) AS total_match_wins,
-    SUM(r.losses) AS total_match_losses,
-    ROUND(SUM(r.wins) * 100.0 / NULLIF(SUM(r.wins) + SUM(r.losses), 0), 1) AS win_rate
-FROM deck_archetypes da
-LEFT JOIN results r ON da.archetype_id = r.archetype_id
-GROUP BY da.archetype_id, da.archetype_name, da.primary_color, da.secondary_color, da.display_card_id;
-
--- Store activity summary with location and unique players
-CREATE OR REPLACE VIEW store_activity AS
-SELECT
-    s.store_id,
-    s.name AS store_name,
-    s.city,
-    s.latitude,
-    s.longitude,
-    s.address,
-    s.is_online,
-    COUNT(DISTINCT t.tournament_id) AS total_tournaments,
-    COUNT(DISTINCT r.player_id) AS unique_players,
-    SUM(t.player_count) AS total_attendance,
-    ROUND(AVG(t.player_count), 1) AS avg_attendance,
-    MAX(t.event_date) AS last_event_date,
-    MIN(t.event_date) AS first_event_date
-FROM stores s
-LEFT JOIN tournaments t ON s.store_id = t.store_id
-LEFT JOIN results r ON t.tournament_id = r.tournament_id
-WHERE s.is_active = TRUE
-GROUP BY s.store_id, s.name, s.city, s.latitude, s.longitude, s.address, s.is_online;
+-- mv_player_store_stats   — grain: (player_id, store_id, format, archetype_id)
+-- mv_archetype_store_stats — grain: (archetype_id, store_id, format, event_type, week_start)
+-- mv_tournament_list      — grain: (tournament_id)
+-- mv_store_summary        — grain: (store_id)
+-- mv_dashboard_counts     — grain: (scene_id, format, event_type, is_online)

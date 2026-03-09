@@ -924,46 +924,39 @@ stores_data <- reactive({
   req("stores" %in% visited_tabs())  # Lazy load: skip until tab visited
   rv$data_refresh  # Trigger refresh on admin changes
 
-  # Build scene filter for stores table
   scene <- rv$current_scene
-  scene_sql <- ""
-  scene_params <- list()
-  if (!is.null(scene) && scene != "" && scene != "all") {
-    if (scene == "online") {
-      scene_sql <- "AND s.is_online = TRUE"
-    } else {
-      scene_sql <- "AND s.scene_id = (SELECT scene_id FROM scenes WHERE slug = $1)"
-      scene_params <- list(scene)
-    }
-  }
 
   # For non-online scenes, exclude online stores by default
   base_online_filter <- if (is.null(scene) || scene == "" || scene == "all") {
-    "AND (s.is_online = FALSE OR s.is_online IS NULL)"
+    "AND (is_online = FALSE OR is_online IS NULL)"
   } else if (scene == "online") {
     ""  # Scene filter already handles is_online = TRUE
   } else {
-    "AND (s.is_online = FALSE OR s.is_online IS NULL)"
+    "AND (is_online = FALSE OR is_online IS NULL)"
   }
 
-  query <- sprintf("
-    SELECT s.store_id, s.name, s.address, s.city, s.state, s.zip_code,
-           s.latitude, s.longitude, s.website, s.schedule_info, s.slug,
-           s.country, s.is_online,
-           COUNT(t.tournament_id) as tournament_count,
-           COALESCE(ROUND(AVG(t.player_count), 1), 0) as avg_players,
-           MAX(t.event_date) as last_event
-    FROM stores s
-    LEFT JOIN tournaments t ON s.store_id = t.store_id
-    WHERE s.is_active = TRUE
-      %s
-      %s
-    GROUP BY s.store_id, s.name, s.address, s.city, s.state, s.zip_code,
-             s.latitude, s.longitude, s.website, s.schedule_info, s.slug,
-             s.country, s.is_online
-  ", base_online_filter, scene_sql)
+  # Build scene/online filters via materialized view helper
+  mv <- build_mv_filters(scene = scene)
 
-  safe_query(db_pool, query, params = scene_params)
+  query <- sprintf("
+    SELECT store_id, name, slug, address, city, state, zip_code,
+           latitude, longitude, website, country, is_online,
+           tournament_count, unique_players, avg_players, last_event
+    FROM mv_store_summary
+    WHERE 1=1
+      %s
+      %s
+    ORDER BY tournament_count DESC, name
+  ", base_online_filter, mv$sql)
+
+  result <- safe_query(db_pool, query, params = mv$params)
+
+  # MV does not include schedule_info; add NA column for downstream compatibility
+  if (nrow(result) > 0) {
+    result$schedule_info <- NA_character_
+  }
+
+  result
 })
 
 # Reset dashboard filters (reset to defaults: all formats + locals)

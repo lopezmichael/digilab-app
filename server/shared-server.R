@@ -1602,3 +1602,103 @@ build_filters_param <- function(table_alias = "t",
     next_idx = idx
   )
 }
+
+# ---------------------------------------------------------------------------
+# Materialized View Helpers
+# ---------------------------------------------------------------------------
+
+# Build WHERE clause filters for materialized view queries.
+# MV columns use flat names (no table aliases needed for JOINs).
+# Set alias if using a table alias in the query (e.g., "mv").
+build_mv_filters <- function(format = NULL,
+                             event_type = NULL,
+                             scene = NULL,
+                             community_store = NULL,
+                             search = NULL,
+                             search_column = NULL,
+                             start_idx = 1,
+                             alias = NULL) {
+  prefix <- if (!is.null(alias)) paste0(alias, ".") else ""
+  sql_parts <- character(0)
+  params <- list()
+  idx <- start_idx
+
+  # Format filter
+  if (!is.null(format) && format != "") {
+    sql_parts <- c(sql_parts, sprintf("AND %sformat = $%d", prefix, idx))
+    params <- c(params, list(format))
+    idx <- idx + 1
+  }
+
+  # Event type filter
+  if (!is.null(event_type) && event_type != "") {
+    sql_parts <- c(sql_parts, sprintf("AND %sevent_type = $%d", prefix, idx))
+    params <- c(params, list(event_type))
+    idx <- idx + 1
+  }
+
+  # Search filter (LIKE match, case-insensitive)
+  if (!is.null(search) && trimws(search) != "" && !is.null(search_column)) {
+    col_ref <- if (!is.null(alias)) sprintf("%s.%s", alias, search_column) else search_column
+    sql_parts <- c(sql_parts, sprintf("AND LOWER(%s) LIKE LOWER($%d)", col_ref, idx))
+    params <- c(params, list(paste0("%", trimws(search), "%")))
+    idx <- idx + 1
+  }
+
+  # Community store filter (takes precedence over scene)
+  if (!is.null(community_store) && community_store != "") {
+    sql_parts <- c(sql_parts, sprintf("AND %sslug = $%d", prefix, idx))
+    params <- c(params, list(community_store))
+    idx <- idx + 1
+  } else if (!is.null(scene) && scene != "" && scene != "all") {
+    if (scene == "online") {
+      sql_parts <- c(sql_parts, sprintf("AND %sis_online = TRUE", prefix))
+    } else {
+      sql_parts <- c(sql_parts, sprintf(
+        "AND %sscene_id = (SELECT scene_id FROM scenes WHERE slug = $%d)", prefix, idx
+      ))
+      params <- c(params, list(scene))
+      idx <- idx + 1
+    }
+  }
+
+  list(
+    sql = paste(sql_parts, collapse = " "),
+    params = params,
+    next_idx = idx
+  )
+}
+
+# Refresh all materialized views concurrently.
+# Called after data mutations (result submission, tournament edit, sync).
+refresh_materialized_views <- function(pool) {
+  views <- c("mv_player_store_stats", "mv_archetype_store_stats",
+             "mv_tournament_list", "mv_store_summary", "mv_dashboard_counts")
+  con <- pool::localCheckout(pool)
+  for (v in views) {
+    tryCatch(
+      DBI::dbExecute(con, sprintf("REFRESH MATERIALIZED VIEW CONCURRENTLY %s", v)),
+      error = function(e) message(sprintf("[MV REFRESH ERROR] %s: %s", v, e$message))
+    )
+  }
+}
+
+# Check if materialized views exist (used for graceful fallback)
+mv_views_exist <- function(pool) {
+  result <- tryCatch(
+    dbGetQuery(pool, "
+      SELECT COUNT(*) as n FROM pg_matviews
+      WHERE matviewname IN ('mv_player_store_stats', 'mv_archetype_store_stats',
+                            'mv_tournament_list', 'mv_store_summary', 'mv_dashboard_counts')
+    "),
+    error = function(e) data.frame(n = 0)
+  )
+  result$n[1] == 5
+}
+
+# Auto-refresh materialized views when data changes
+observe({
+  rv$data_refresh
+  req(rv$data_refresh > 0)  # Skip initial value
+  refresh_materialized_views(db_pool)
+})

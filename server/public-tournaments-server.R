@@ -33,53 +33,26 @@ tournaments_data <- reactive({
   req("tournaments" %in% visited_tabs())  # Lazy load: skip until tab visited
   rv$data_refresh  # Trigger refresh on admin changes
 
-  # Build parameterized filters to prevent SQL injection
-  search_filters <- build_filters_param(
-    table_alias = "s",
+  filters <- build_mv_filters(
+    format = input$tournaments_format,
+    event_type = input$tournaments_event_type,
+    scene = rv$current_scene,
+    community_store = rv$community_filter,
     search = tournaments_search_debounced(),
-    search_column = "name",
+    search_column = "store_name",
     start_idx = 1
   )
 
-  format_filters <- build_filters_param(
-    table_alias = "t",
-    format = input$tournaments_format,
-    scene = rv$current_scene,
-    store_alias = "s",
-    community_store = rv$community_filter,
-    start_idx = search_filters$next_idx
-  )
-
-  event_type_filters <- build_filters_param(
-    table_alias = "t",
-    event_type = input$tournaments_event_type,
-    start_idx = format_filters$next_idx
-  )
-
-  # Combine filter SQL and params
-  filter_sql <- paste(search_filters$sql, format_filters$sql, event_type_filters$sql)
-  filter_params <- c(search_filters$params, format_filters$params, event_type_filters$params)
-
   query <- paste0("
-    SELECT t.tournament_id, t.event_date as \"Date\", s.name as \"Store\", t.event_type as \"Type\",
-           t.format as \"Format\", t.player_count as \"Players\", t.rounds as \"Rounds\",
-           p.display_name as \"Winner\", da.archetype_name as \"Winning Deck\"
-    FROM tournaments t
-    JOIN stores s ON t.store_id = s.store_id
-    LEFT JOIN LATERAL (
-      SELECT r2.player_id, r2.archetype_id
-      FROM results r2
-      WHERE r2.tournament_id = t.tournament_id AND r2.placement = 1
-      ORDER BY r2.result_id
-      LIMIT 1
-    ) r ON true
-    LEFT JOIN players p ON r.player_id = p.player_id
-    LEFT JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
-    WHERE 1=1 ", filter_sql, "
-    ORDER BY t.event_date DESC
+    SELECT tournament_id, event_date as \"Date\", store_name as \"Store\",
+           event_type as \"Type\", format as \"Format\", player_count as \"Players\",
+           rounds as \"Rounds\", winner_name as \"Winner\", winning_deck as \"Winning Deck\"
+    FROM mv_tournament_list
+    WHERE 1=1 ", filters$sql, "
+    ORDER BY event_date DESC
   ")
 
-  safe_query(db_pool, query, params = filter_params, default = data.frame())
+  safe_query(db_pool, query, params = filters$params, default = data.frame())
 }) |> bindCache(
   input$tournaments_format,
   input$tournaments_event_type,

@@ -34,49 +34,34 @@ meta_archetype_data <- reactive({
   req("meta" %in% visited_tabs())  # Lazy load: skip until tab visited
   rv$data_refresh  # Trigger refresh on admin changes
 
-  # Build parameterized filters to prevent SQL injection
-  search_filters <- build_filters_param(
-    table_alias = "da",
+  filters <- build_mv_filters(
+    format = input$meta_format,
+    scene = rv$current_scene,
+    community_store = rv$community_filter,
     search = meta_search_debounced(),
     search_column = "archetype_name",
     start_idx = 1
   )
 
-  format_filters <- build_filters_param(
-    table_alias = "t",
-    format = input$meta_format,
-    scene = rv$current_scene,
-    store_alias = "s",
-    community_store = rv$community_filter,
-    start_idx = search_filters$next_idx
-  )
-
   min_entries <- as.numeric(input$meta_min_entries %||% 0)
   if (length(min_entries) == 0 || is.na(min_entries)) min_entries <- 0
 
-  # HAVING clause parameter is numbered after all filter params
-  having_idx <- format_filters$next_idx
+  having_idx <- filters$next_idx
 
-  # Combine filter SQL and params
-  combined_sql <- paste(search_filters$sql, format_filters$sql)
-  combined_params <- c(search_filters$params, format_filters$params, list(as.integer(min_entries)))
-
-  # Exclude UNKNOWN archetype from analytics
   result <- safe_query(db_pool, sprintf("
-    SELECT da.archetype_id, da.archetype_name as \"Deck\", da.primary_color as \"Color\",
-           COUNT(r.result_id) as \"Entries\",
-           COUNT(CASE WHEN r.placement = 1 THEN 1 END) as \"1sts\",
-           COUNT(CASE WHEN r.placement <= 3 THEN 1 END) as \"Top 3s\",
-           ROUND(SUM(r.wins) * 100.0 / NULLIF(SUM(r.wins) + SUM(r.losses), 0), 1) as \"Win %%\"
-    FROM deck_archetypes da
-    JOIN results r ON da.archetype_id = r.archetype_id
-    JOIN tournaments t ON r.tournament_id = t.tournament_id
-    JOIN stores s ON t.store_id = s.store_id
-    WHERE 1=1 AND da.archetype_name != 'UNKNOWN' %s
-    GROUP BY da.archetype_id, da.archetype_name, da.primary_color
-    HAVING COUNT(r.result_id) >= $%d
-    ORDER BY COUNT(r.result_id) DESC, COUNT(CASE WHEN r.placement = 1 THEN 1 END) DESC
-  ", combined_sql, having_idx), params = combined_params, default = data.frame())
+    SELECT archetype_id, archetype_name as \"Deck\", primary_color as \"Color\",
+           SUM(entries)::int as \"Entries\",
+           SUM(firsts)::int as \"1sts\",
+           SUM(top3s)::int as \"Top 3s\",
+           ROUND(SUM(total_wins) * 100.0 / NULLIF(SUM(total_wins) + SUM(total_losses), 0), 1) as \"Win %%\"
+    FROM mv_archetype_store_stats
+    WHERE 1=1 %s
+    GROUP BY archetype_id, archetype_name, primary_color
+    HAVING SUM(entries) >= $%d
+    ORDER BY SUM(entries) DESC, SUM(firsts) DESC
+  ", filters$sql, having_idx),
+  params = c(filters$params, list(as.integer(min_entries))),
+  default = data.frame())
 
   if (nrow(result) == 0) return(result)
 
