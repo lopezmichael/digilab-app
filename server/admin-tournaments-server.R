@@ -373,19 +373,16 @@ observeEvent(input$confirm_delete_tournament, {
 
   tournament_id <- as.integer(input$editing_tournament_id)
 
-  # Transaction block: raw DBI calls intentional (retry would break atomicity)
-  conn <- pool::localCheckout(db_pool)
-  DBI::dbExecute(conn, "BEGIN")
-  rows <- tryCatch({
-    DBI::dbExecute(conn, "DELETE FROM results WHERE tournament_id = $1", params = list(tournament_id))
-    deleted <- DBI::dbExecute(conn, "DELETE FROM tournaments WHERE tournament_id = $1", params = list(tournament_id))
-    DBI::dbExecute(conn, "COMMIT")
-    deleted
-  }, error = function(e) {
-    tryCatch(DBI::dbExecute(conn, "ROLLBACK"), error = function(re) NULL)
-    notify(paste("Failed to delete tournament:", e$message), type = "error")
-    0L
-  })
+  rows <- tryCatch(
+    with_transaction(db_pool, function(conn) {
+      DBI::dbExecute(conn, "DELETE FROM results WHERE tournament_id = $1", params = list(tournament_id))
+      DBI::dbExecute(conn, "DELETE FROM tournaments WHERE tournament_id = $1", params = list(tournament_id))
+    }),
+    error = function(e) {
+      notify(paste("Failed to delete tournament:", e$message), type = "error")
+      0L
+    }
+  )
 
   if (rows == 0) {
     notify("Failed to delete tournament. Try again.", type = "error")
@@ -408,14 +405,7 @@ observeEvent(input$confirm_delete_tournament, {
   rv$tournament_refresh <- (rv$tournament_refresh %||% 0) + 1
   rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
-  # Recalculate ratings in background (deferred so UI updates first)
-  later::later(function() {
-    ratings_ok <- recalculate_ratings_cache(db_pool)
-    if (!isTRUE(ratings_ok)) {
-      notify("Ratings failed to update. They will refresh on next app restart.",
-             type = "warning", duration = 8)
-    }
-  }, delay = 0.5)
+  defer_ratings_recalc(db_pool, notify)
 })
 
 # Show View/Edit Results button when tournament is selected
@@ -1002,14 +992,7 @@ observeEvent(input$edit_grid_save, {
 
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
-    # Recalculate ratings in background (deferred so UI updates first)
-    later::later(function() {
-      ratings_ok <- recalculate_ratings_cache(db_pool)
-      if (!isTRUE(ratings_ok)) {
-        notify("Results saved but ratings failed to update. They will refresh on next app restart.",
-               type = "warning", duration = 8)
-      }
-    }, delay = 0.5)
+    defer_ratings_recalc(db_pool, notify)
 
     # Build summary message
     parts <- c()
@@ -1021,17 +1004,7 @@ observeEvent(input$edit_grid_save, {
     notify(msg, type = "message", duration = 5)
 
     # Transition to decklist section
-    rv$edit_decklist_results <- safe_query(db_pool, "
-      SELECT r.result_id, r.placement, p.display_name as player_name,
-             COALESCE(da.archetype_name, 'UNKNOWN') as deck_name,
-             CONCAT(r.wins, '-', r.losses, '-', r.ties) as record,
-             r.decklist_url
-      FROM results r
-      JOIN players p ON r.player_id = p.player_id
-      LEFT JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
-      WHERE r.tournament_id = $1
-      ORDER BY r.placement ASC
-    ", params = list(tournament_id), default = data.frame())
+    rv$edit_decklist_results <- load_decklist_results(tournament_id, db_pool)
     rv$edit_decklist_tournament_id <- tournament_id
 
     shinyjs::hide("edit_results_grid_section")

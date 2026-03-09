@@ -143,3 +143,25 @@ safe_execute_impl <- function(pool, query, params = NULL, sentry_tags = list()) 
 
   result
 }
+
+#' Execute a function within a database transaction
+#'
+#' Checks out a connection from the pool, runs BEGIN, executes the function,
+#' and COMMITs on success or ROLLBACKs on error. Uses raw DBI calls intentionally
+#' — retry logic would break atomicity by grabbing a different connection.
+#'
+#' @param pool Database connection pool
+#' @param fn Function that takes a single `conn` argument and returns a value
+#' @return The return value of fn, or NULL on error (after rollback)
+with_transaction <- function(pool, fn) {
+  conn <- pool::localCheckout(pool)
+  DBI::dbExecute(conn, "BEGIN")
+  tryCatch({
+    result <- fn(conn)
+    DBI::dbExecute(conn, "COMMIT")
+    result
+  }, error = function(e) {
+    tryCatch(DBI::dbExecute(conn, "ROLLBACK"), error = function(re) NULL)
+    stop(e)
+  })
+}

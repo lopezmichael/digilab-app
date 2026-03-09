@@ -1387,27 +1387,10 @@ observeEvent(input$submit_tournament, {
       type = "message"
     )
 
-    # Recalculate ratings in background (deferred so UI transitions to Step 3 first)
-    later::later(function() {
-      ratings_ok <- recalculate_ratings_cache(db_pool)
-      if (!isTRUE(ratings_ok)) {
-        notify("Ratings failed to update. They will refresh on next app restart.",
-               type = "warning", duration = 8)
-      }
-    }, delay = 0.5)
+    defer_ratings_recalc(db_pool, notify)
 
     # Load submitted results for decklist entry (Step 3)
-    rv$submit_decklist_results <- safe_query(db_pool, "
-      SELECT r.result_id, r.placement, p.display_name as player_name,
-             COALESCE(da.archetype_name, 'UNKNOWN') as deck_name,
-             CONCAT(r.wins, '-', r.losses, '-', r.ties) as record,
-             r.decklist_url
-      FROM results r
-      JOIN players p ON r.player_id = p.player_id
-      LEFT JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
-      WHERE r.tournament_id = $1
-      ORDER BY r.placement ASC
-    ", params = list(tournament_id), default = data.frame())
+    rv$submit_decklist_results <- load_decklist_results(tournament_id, db_pool)
     rv$submit_decklist_tournament_id <- tournament_id
 
     # Switch to Step 3 (decklists)

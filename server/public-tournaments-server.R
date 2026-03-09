@@ -353,19 +353,7 @@ output$tournament_detail_modal <- renderUI({
                   span(class = paste("deck-badge", paste0("deck-badge-", tolower(row$color))), row$Deck)
                 ),
                 tags$td(sprintf("%d-%d%s", row$W, row$L, if (row$T > 0) sprintf("-%d", row$T) else "")),
-                tags$td({
-                  dl_url <- validate_decklist_url(row$decklist_url)
-                  if (!is.null(dl_url)) {
-                    tags$a(
-                      href = dl_url,
-                      target = "_blank",
-                      rel = "noopener noreferrer",
-                      title = "View decklist",
-                      class = "text-primary",
-                      bsicons::bs_icon("list-ul")
-                    )
-                  }
-                })
+                tags$td(decklist_link_icon(row$decklist_url))
               )
             })
           )

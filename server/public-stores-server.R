@@ -768,19 +768,7 @@ output$store_detail_modal <- renderUI({
                 tags$td(row$Players),
                 tags$td(if (!is.na(row$Winner)) row$Winner else "-"),
                 tags$td(if (!is.na(row$Deck)) row$Deck else "-"),
-                tags$td({
-                  dl_url <- validate_decklist_url(row$decklist_url)
-                  if (!is.null(dl_url)) {
-                    tags$a(
-                      href = dl_url,
-                      target = "_blank",
-                      rel = "noopener noreferrer",
-                      title = "View decklist",
-                      class = "text-primary",
-                      bsicons::bs_icon("list-ul")
-                    )
-                  }
-                })
+                tags$td(decklist_link_icon(row$decklist_url))
               )
             })
           )

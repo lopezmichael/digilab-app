@@ -257,13 +257,7 @@ observeEvent(input$clear_results_only, {
     removeModal()
     notify("Results cleared. Tournament kept for re-entry.", type = "message")
 
-    # Recalculate ratings in background (deferred so UI updates first)
-    later::later(function() {
-      ratings_ok <- recalculate_ratings_cache(db_pool)
-      if (!isTRUE(ratings_ok)) {
-        notify("Ratings failed to update. They will refresh on next app restart.", type = "warning", duration = 8)
-      }
-    }, delay = 0.5)
+    defer_ratings_recalc(db_pool, notify)
 
   }, error = function(e) {
     notify(paste("Error:", e$message), type = "error")
@@ -298,13 +292,7 @@ observeEvent(input$delete_tournament_confirm, {
     # Trigger refresh of public tables
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
-    # Recalculate ratings in background (deferred so UI updates first)
-    later::later(function() {
-      ratings_ok <- recalculate_ratings_cache(db_pool)
-      if (!isTRUE(ratings_ok)) {
-        notify("Ratings failed to update. They will refresh on next app restart.", type = "warning", duration = 8)
-      }
-    }, delay = 0.5)
+    defer_ratings_recalc(db_pool, notify)
 
   }, error = function(e) {
     notify(paste("Error:", e$message), type = "error")
@@ -951,27 +939,10 @@ observeEvent(input$admin_submit_results, {
     notify(sprintf("Tournament submitted! %d results recorded.", as.integer(result_count)),
                      type = "message", duration = 5)
 
-    # Recalculate ratings in background (deferred so UI transitions to Step 3 first)
-    later::later(function() {
-      ratings_ok <- recalculate_ratings_cache(db_pool)
-      if (!isTRUE(ratings_ok)) {
-        notify("Tournament saved but ratings failed to update. They will refresh on next app restart.",
-               type = "warning", duration = 8)
-      }
-    }, delay = 0.5)
+    defer_ratings_recalc(db_pool, notify)
 
     # Load submitted results for decklist entry (Step 3)
-    rv$admin_decklist_results <- safe_query(db_pool, "
-      SELECT r.result_id, r.placement, p.display_name as player_name,
-             COALESCE(da.archetype_name, 'UNKNOWN') as deck_name,
-             CONCAT(r.wins, '-', r.losses, '-', r.ties) as record,
-             r.decklist_url
-      FROM results r
-      JOIN players p ON r.player_id = p.player_id
-      LEFT JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
-      WHERE r.tournament_id = $1
-      ORDER BY r.placement ASC
-    ", params = list(rv$active_tournament_id), default = data.frame())
+    rv$admin_decklist_results <- load_decklist_results(rv$active_tournament_id, db_pool)
     rv$admin_decklist_tournament_id <- rv$active_tournament_id
 
     # Move to Step 3 (decklists)

@@ -283,6 +283,58 @@ render_grid_ui <- function(grid_data, record_format, is_release, deck_choices,
 }
 
 # -----------------------------------------------------------------------------
+# defer_ratings_recalc: Recalculate ratings in the background
+# Defers via later::later() so UI transitions aren't blocked.
+# notify must be available in caller scope (Shiny server context).
+# -----------------------------------------------------------------------------
+defer_ratings_recalc <- function(db_pool, notify_fn = NULL) {
+  later::later(function() {
+    ratings_ok <- recalculate_ratings_cache(db_pool)
+    if (!isTRUE(ratings_ok) && is.function(notify_fn)) {
+      notify_fn("Ratings failed to update. They will refresh on next app restart.",
+                type = "warning", duration = 8)
+    }
+  }, delay = 0.5)
+}
+
+# -----------------------------------------------------------------------------
+# load_decklist_results: Query submitted results for decklist entry (Step 3)
+# Returns data frame with result_id, placement, player_name, deck_name,
+# record, decklist_url — sorted by placement.
+# -----------------------------------------------------------------------------
+load_decklist_results <- function(tournament_id, db_pool) {
+  safe_query_impl(db_pool, "
+    SELECT r.result_id, r.placement, p.display_name as player_name,
+           COALESCE(da.archetype_name, 'UNKNOWN') as deck_name,
+           CONCAT(r.wins, '-', r.losses, '-', r.ties) as record,
+           r.decklist_url
+    FROM results r
+    JOIN players p ON r.player_id = p.player_id
+    LEFT JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
+    WHERE r.tournament_id = $1
+    ORDER BY r.placement ASC
+  ", params = list(tournament_id), default = data.frame())
+}
+
+# -----------------------------------------------------------------------------
+# decklist_link_icon: Render a validated decklist URL as a clickable icon
+# Returns an <a> tag with a list icon, or NULL if URL is invalid/missing.
+# -----------------------------------------------------------------------------
+decklist_link_icon <- function(url) {
+  dl_url <- validate_decklist_url(url)
+  if (!is.null(dl_url)) {
+    tags$a(
+      href = dl_url,
+      target = "_blank",
+      rel = "noopener noreferrer",
+      title = "View decklist",
+      class = "text-primary",
+      bsicons::bs_icon("list-ul")
+    )
+  }
+}
+
+# -----------------------------------------------------------------------------
 # validate_decklist_url: Sanitize and validate decklist URLs
 # Only allows https:// URLs from approved deckbuilder domains.
 # Returns trimmed URL or NULL if invalid.
@@ -364,13 +416,17 @@ render_decklist_entry <- function(results_df, prefix) {
     div(
       div(
         "Paste decklist URLs from supported sites: ",
-        tags$strong("digimoncard.io"), ", ",
-        tags$strong("digimoncard.dev"), ", ",
-        tags$strong("digimoncard.app"), ", ",
-        tags$strong("digimonmeta.com"), ", ",
-        tags$strong("digitalgateopen.com"), ", ",
-        tags$strong("limitlesstcg.com"), ", or ",
-        tags$strong("tcgstacked.com"), "."
+        {
+          # Generate domain list from ALLOWED_DECKLIST_DOMAINS constant
+          # Deduplicate subdomains (play.limitlesstcg.com → limitlesstcg.com)
+          display_domains <- unique(sub("^[^.]+\\.", "", ALLOWED_DECKLIST_DOMAINS))
+          display_domains <- display_domains[display_domains %in% ALLOWED_DECKLIST_DOMAINS]
+          n <- length(display_domains)
+          do.call(tagList, c(
+            lapply(seq_len(n - 1), function(i) tagList(tags$strong(display_domains[i]), ", ")),
+            list(tagList("or ", tags$strong(display_domains[n]), "."))
+          ))
+        }
       ),
       tags$small(
         class = "text-muted",
