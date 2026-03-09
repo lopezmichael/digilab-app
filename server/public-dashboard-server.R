@@ -47,7 +47,7 @@ output$dashboard_context_text <- renderUI({
   }
 
   HTML(paste0(format_name, " <span style='opacity: 0.6;'>·</span> ", event_name))
-})
+}) |> bindCache(input$dashboard_format, input$dashboard_event_type)
 
 # Value box outputs (read from core_metrics batch reactive)
 output$total_tournaments_val <- renderText({
@@ -60,26 +60,34 @@ output$total_players_val <- renderText({
 
 output$total_stores_val <- renderText({
   rv$data_refresh
-  filters <- build_dashboard_filters("t", "s")
+  filters <- build_mv_filters(
+    format = input$dashboard_format,
+    event_type = input$dashboard_event_type,
+    scene = rv$current_scene,
+    community_store = rv$community_filter,
+    start_idx = 1
+  )
   result <- safe_query(db_pool, paste("
-    SELECT COUNT(DISTINCT s.store_id)::int as n
-    FROM stores s
-    JOIN tournaments t ON s.store_id = t.store_id
-    WHERE s.is_active = TRUE", filters$sql),
+    SELECT COUNT(DISTINCT store_id)::int as n
+    FROM mv_tournament_list
+    WHERE 1=1", filters$sql),
     params = filters$params, default = data.frame(n = 0))
   result$n
 }) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$community_filter, rv$data_refresh)
 
 output$total_decks_val <- renderText({
   rv$data_refresh
-  filters <- build_dashboard_filters("t", "s")
+  filters <- build_mv_filters(
+    format = input$dashboard_format,
+    event_type = input$dashboard_event_type,
+    scene = rv$current_scene,
+    community_store = rv$community_filter,
+    start_idx = 1
+  )
   result <- safe_query(db_pool, paste("
-    SELECT COUNT(DISTINCT r.archetype_id)::int as n
-    FROM results r
-    JOIN tournaments t ON r.tournament_id = t.tournament_id
-    JOIN stores s ON t.store_id = s.store_id
-    JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
-    WHERE da.is_active = TRUE AND da.archetype_name != 'UNKNOWN'", filters$sql),
+    SELECT COUNT(DISTINCT archetype_id)::int as n
+    FROM mv_archetype_store_stats
+    WHERE 1=1", filters$sql),
     params = filters$params, default = data.frame(n = 0))
   result$n
 }) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$community_filter, rv$data_refresh)
@@ -303,22 +311,25 @@ deck_analytics <- reactive({
 
   rv$data_refresh
 
-  filters <- build_dashboard_filters("t", "s")
+  filters <- build_mv_filters(
+    format = input$dashboard_format,
+    event_type = input$dashboard_event_type,
+    scene = rv$current_scene,
+    community_store = rv$community_filter,
+    start_idx = 1
+  )
 
   safe_query(db_pool, paste("
-    SELECT da.archetype_id, da.archetype_name, da.display_card_id,
-           da.primary_color, da.is_multi_color,
-           COUNT(r.result_id) as entries,
-           COUNT(CASE WHEN r.placement = 1 THEN 1 END) as first_places,
-           COUNT(CASE WHEN r.placement <= 3 THEN 1 END) as top3,
-           ROUND(COUNT(r.result_id) * 100.0 / NULLIF(SUM(COUNT(r.result_id)) OVER(), 0), 1) as meta_share
-    FROM deck_archetypes da
-    JOIN results r ON da.archetype_id = r.archetype_id
-    JOIN tournaments t ON r.tournament_id = t.tournament_id
-    JOIN stores s ON t.store_id = s.store_id
-    WHERE da.archetype_name != 'UNKNOWN'", filters$sql, "
-    GROUP BY da.archetype_id, da.archetype_name, da.display_card_id,
-             da.primary_color, da.is_multi_color
+    SELECT archetype_id, archetype_name, display_card_id,
+           primary_color, is_multi_color,
+           SUM(entries)::int as entries,
+           SUM(firsts)::int as first_places,
+           SUM(top3s)::int as top3,
+           ROUND(SUM(entries) * 100.0 / NULLIF(SUM(SUM(entries)) OVER(), 0), 1) as meta_share
+    FROM mv_archetype_store_stats
+    WHERE 1=1", filters$sql, "
+    GROUP BY archetype_id, archetype_name, display_card_id,
+             primary_color, is_multi_color
     ORDER BY entries DESC
   "), params = filters$params, default = data.frame())
 }) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$community_filter, rv$data_refresh)
@@ -330,16 +341,24 @@ core_metrics <- reactive({
 
   rv$data_refresh
 
-  filters <- build_dashboard_filters("t", "s")
+  filters <- build_mv_filters(
+    format = input$dashboard_format,
+    event_type = input$dashboard_event_type,
+    scene = rv$current_scene,
+    community_store = rv$community_filter,
+    start_idx = 1
+  )
 
+  # Use mv_tournament_list for correct distinct counts (can't SUM pre-aggregated distincts)
   result <- safe_query(db_pool, paste("
-    SELECT COUNT(DISTINCT t.tournament_id)::int as tournaments,
-           COUNT(DISTINCT r.player_id)::int as players
-    FROM tournaments t
-    JOIN stores s ON t.store_id = s.store_id
-    LEFT JOIN results r ON t.tournament_id = r.tournament_id
-    WHERE 1=1", filters$sql
-  ), params = filters$params, default = data.frame(tournaments = 0, players = 0))
+    WITH filtered AS (
+      SELECT tournament_id FROM mv_tournament_list WHERE 1=1", filters$sql, "
+    )
+    SELECT
+      (SELECT COUNT(*)::int FROM filtered) as tournaments,
+      (SELECT COUNT(DISTINCT r.player_id)::int
+       FROM results r WHERE r.tournament_id IN (SELECT tournament_id FROM filtered)) as players
+  "), params = filters$params, default = data.frame(tournaments = 0, players = 0))
 
   if (nrow(result) > 0) as.list(result[1, ]) else list(tournaments = 0, players = 0)
 }) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$community_filter, rv$data_refresh)
@@ -508,21 +527,22 @@ output$recent_tournaments <- renderReactable({
 output$meta_share_timeline <- renderHighchart({
 
   chart_mode <- if (!is.null(input$dark_mode) && input$dark_mode == "dark") "dark" else "light"
-  filters <- build_dashboard_filters("t", "s")
+  filters <- build_mv_filters(
+    format = input$dashboard_format,
+    event_type = input$dashboard_event_type,
+    scene = rv$current_scene,
+    community_store = rv$community_filter,
+    start_idx = 1
+  )
 
-  # Query results by week and archetype (parameterized)
-  # Exclude UNKNOWN archetype from analytics
   result <- safe_query(db_pool, paste("
-    SELECT date_trunc('week', t.event_date) as week_start,
-           da.archetype_name,
-           da.primary_color,
-           COUNT(r.result_id) as entries
-    FROM results r
-    JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
-    JOIN tournaments t ON r.tournament_id = t.tournament_id
-    JOIN stores s ON t.store_id = s.store_id
-    WHERE 1=1 AND da.archetype_name != 'UNKNOWN'", filters$sql, "
-    GROUP BY date_trunc('week', t.event_date), da.archetype_id, da.archetype_name, da.primary_color
+    SELECT week_start,
+           archetype_name,
+           primary_color,
+           SUM(entries)::int as entries
+    FROM mv_archetype_store_stats
+    WHERE 1=1", filters$sql, "
+    GROUP BY week_start, archetype_name, primary_color
     ORDER BY week_start, entries DESC
   "), params = filters$params, default = data.frame())
 
@@ -1234,15 +1254,15 @@ output$rising_stars_cards <- renderUI({
     return(div(class = "text-muted text-center py-3", "No recent top placements"))
   }
 
-  # Get competitive ratings
+  # Get competitive ratings and merge
   comp_ratings <- player_competitive_ratings()
-
-  # Merge ratings
-  result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+  if (nrow(comp_ratings) > 0) {
+    result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+  }
+  if (!"competitive_rating" %in% names(result)) result$competitive_rating <- NA
   result$competitive_rating[is.na(result$competitive_rating)] <- 1500
 
   # Re-sort after merge
-
   result <- result[order(-result$recent_wins, -result$recent_top3, -result$recent_events), ]
 
   # Build player cards
@@ -1330,9 +1350,12 @@ output$mobile_rising_stars <- renderUI({
     return(div(class = "text-muted text-center py-3", "No recent top placements"))
   }
 
-  # Get competitive ratings
+  # Get competitive ratings and merge
   comp_ratings <- player_competitive_ratings()
-  result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+  if (nrow(comp_ratings) > 0) {
+    result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+  }
+  if (!"competitive_rating" %in% names(result)) result$competitive_rating <- NA
   result$competitive_rating[is.na(result$competitive_rating)] <- 1500
   result <- result[order(-result$recent_wins, -result$recent_top3, -result$recent_events), ]
 

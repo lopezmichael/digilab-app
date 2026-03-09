@@ -38,11 +38,13 @@ get_scene_choices <- function(db_con) {
 get_scenes_for_map <- function(db_con) {
   if (is.null(db_con) || !dbIsValid(db_con)) return(NULL)
 
-  dbGetQuery(db_con,
+  safe_query(db_con,
     "SELECT scene_id, display_name, slug, latitude, longitude
      FROM scenes
      WHERE scene_type = 'metro' AND is_active = TRUE
-       AND latitude IS NOT NULL AND longitude IS NOT NULL"
+       AND latitude IS NOT NULL AND longitude IS NOT NULL",
+    default = data.frame(scene_id = integer(), display_name = character(),
+                         slug = character(), latitude = numeric(), longitude = numeric())
   )
 }
 
@@ -324,10 +326,14 @@ observeEvent(input$select_scene_all, {
 
 # Helper: select scene without closing modal
 select_scene <- function(scene_slug) {
+  old_scene <- rv$current_scene
   rv$current_scene <- scene_slug
   updateSelectInput(session, "scene_selector", selected = scene_slug)
   session$sendCustomMessage("saveScenePreference", list(scene = scene_slug))
-  rv$data_refresh <- Sys.time()
+  # Only trigger data refresh if scene actually changed
+  if (!identical(old_scene, scene_slug)) {
+    rv$data_refresh <- Sys.time()
+  }
 }
 
 # Helper: select scene AND close modal (for skip/finish/link handlers)
@@ -533,40 +539,24 @@ version_changelog_content <- function() {
   tagList(
     div(class = "version-changelog-items",
       div(class = "version-changelog-item",
-        bsicons::bs_icon("bell-fill", class = "text-warning"),
-        span("Admin notification bar shows pending requests at a glance")
+        bsicons::bs_icon("link-45deg", class = "text-info"),
+        span("Decklist URL entry with domain allowlist for popular deck builders")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("inbox-fill", class = "text-warning"),
-        span("Approve or reject store, scene, and data error requests in-app")
+        bsicons::bs_icon("speedometer2", class = "text-success"),
+        span("Faster page loads with optimized database queries and caching")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("megaphone-fill", class = "text-primary"),
-        span("Announcement system for community-wide updates")
+        bsicons::bs_icon("shield-check", class = "text-primary"),
+        span("Improved data reliability with automatic retry on transient errors")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("search", class = "text-info"),
-        span("Search bars and filters on all admin tables")
+        bsicons::bs_icon("arrow-repeat", class = "text-warning"),
+        span("Rating updates now run in the background for snappier navigation")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("people-fill", class = "text-info"),
-        span("Users tab grouped by scene for easier management")
-      ),
-      div(class = "version-changelog-item",
-        bsicons::bs_icon("shop", class = "text-success"),
-        span("Fuzzy duplicate detection when requesting stores or scenes")
-      ),
-      div(class = "version-changelog-item",
-        bsicons::bs_icon("discord", class = "text-primary"),
-        span("One-click Discord thread creation for new scenes")
-      ),
-      div(class = "version-changelog-item",
-        bsicons::bs_icon("calendar-check", class = "text-success"),
-        span("Monthly and biweekly schedule options for stores")
-      ),
-      div(class = "version-changelog-item",
-        bsicons::bs_icon("palette-fill", class = "text-danger"),
-        span("Deck color filter chips on the Decks tab")
+        bsicons::bs_icon("database-check", class = "text-success"),
+        span("Transaction safety ensures tournament data stays consistent")
       )
     )
   )

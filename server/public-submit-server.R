@@ -21,6 +21,7 @@ rv$submit_ocr_row_indices <- NULL
 
 # Populate store dropdown
 observe({
+  req("submit" %in% visited_tabs())  # Lazy load: skip until tab visited
 
   stores <- safe_query(db_pool, "
     SELECT store_id, name FROM stores
@@ -34,6 +35,7 @@ observe({
 
 # Populate format dropdown - sorted by release_date DESC (most recent first)
 observe({
+  req("submit" %in% visited_tabs())  # Lazy load: skip until tab visited
 
   formats <- safe_query(db_pool, "
     SELECT format_id, display_name FROM formats
@@ -930,54 +932,49 @@ observeEvent(input$submit_player_blur, {
 # Track which row triggered the deck request modal
 rv$deck_request_row <- NULL
 
-# Handle deck dropdown selections - detect "Request new deck" option
-observe({
-  req(rv$submit_grid_data)
-  grid <- rv$submit_grid_data
-
-  lapply(seq_len(nrow(grid)), function(i) {
-    observeEvent(input[[paste0("submit_deck_", i)]], {
-      if (isTRUE(input[[paste0("submit_deck_", i)]] == "__REQUEST_NEW__")) {
-        rv$deck_request_row <- i
-        showModal(modalDialog(
-          title = "Request New Deck",
-          div(
-            class = "deck-request-form",
-            textInput("deck_request_name", "Deck Name", placeholder = "e.g., Blue Flare"),
-            uiOutput("deck_request_suggestions"),
-            layout_columns(
-              col_widths = c(6, 6),
-              class = "deck-request-colors",
-              selectInput("deck_request_color", "Primary Color",
-                          choices = c("Select..." = "",
-                                      "Red" = "Red", "Blue" = "Blue",
-                                      "Yellow" = "Yellow", "Green" = "Green",
-                                      "Purple" = "Purple", "Black" = "Black",
-                                      "White" = "White"),
-                          selectize = FALSE),
-              selectInput("deck_request_color2", "Secondary Color (optional)",
-                          choices = c("None" = "",
-                                      "Red" = "Red", "Blue" = "Blue",
-                                      "Yellow" = "Yellow", "Green" = "Green",
-                                      "Purple" = "Purple", "Black" = "Black",
-                                      "White" = "White"),
-                          selectize = FALSE)
-            ),
-            textInput("deck_request_card_id", "Card ID (optional)",
-                      placeholder = "e.g., BT12-031")
+# Deck request handlers — created ONCE at init (not inside observe, which would accumulate handlers)
+lapply(1:128, function(i) {
+  observeEvent(input[[paste0("submit_deck_", i)]], {
+    if (isTRUE(input[[paste0("submit_deck_", i)]] == "__REQUEST_NEW__")) {
+      rv$deck_request_row <- i
+      showModal(modalDialog(
+        title = "Request New Deck",
+        div(
+          class = "deck-request-form",
+          textInput("deck_request_name", "Deck Name", placeholder = "e.g., Blue Flare"),
+          uiOutput("deck_request_suggestions"),
+          layout_columns(
+            col_widths = c(6, 6),
+            class = "deck-request-colors",
+            selectInput("deck_request_color", "Primary Color",
+                        choices = c("Select..." = "",
+                                    "Red" = "Red", "Blue" = "Blue",
+                                    "Yellow" = "Yellow", "Green" = "Green",
+                                    "Purple" = "Purple", "Black" = "Black",
+                                    "White" = "White"),
+                        selectize = FALSE),
+            selectInput("deck_request_color2", "Secondary Color (optional)",
+                        choices = c("None" = "",
+                                    "Red" = "Red", "Blue" = "Blue",
+                                    "Yellow" = "Yellow", "Green" = "Green",
+                                    "Purple" = "Purple", "Black" = "Black",
+                                    "White" = "White"),
+                        selectize = FALSE)
           ),
-          footer = tagList(
-            modalButton("Cancel"),
-            actionButton("deck_request_submit", "Submit Request", class = "btn-primary")
-          ),
-          size = "m",
-          easyClose = TRUE
-        ))
-        # Reset dropdown to Unknown while modal is open
-        updateSelectizeInput(session, paste0("submit_deck_", i), selected = "")
-      }
-    }, ignoreInit = TRUE)
-  })
+          textInput("deck_request_card_id", "Card ID (optional)",
+                    placeholder = "e.g., BT12-031")
+        ),
+        footer = tagList(
+          modalButton("Cancel"),
+          actionButton("deck_request_submit", "Submit Request", class = "btn-primary")
+        ),
+        size = "m",
+        easyClose = TRUE
+      ))
+      # Reset dropdown to Unknown while modal is open
+      updateSelectizeInput(session, paste0("submit_deck_", i), selected = "")
+    }
+  }, ignoreInit = TRUE)
 })
 
 # Debounced deck name input for suggestions (300ms delay)
@@ -1278,8 +1275,8 @@ observeEvent(input$submit_tournament, {
 
     # Create tournament (PostgreSQL auto-generates tournament_id)
     tourney_result <- DBI::dbGetQuery(conn, "
-      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds, record_format)
+      VALUES ($1, $2, $3, $4, $5, $6, 'points')
       RETURNING tournament_id
     ", params = list(
       as.integer(input$submit_store),
@@ -1304,9 +1301,9 @@ observeEvent(input$submit_tournament, {
         NA_character_
       }
 
-      points <- if (!is.na(row$points)) as.integer(row$points) else 0L
-      wins <- points %/% 3
-      ties <- points %% 3
+      pts <- if (!is.na(row$points)) as.integer(row$points) else 0L
+      wins <- pts %/% 3
+      ties <- pts %% 3
       losses <- max(0, total_rounds - wins - ties)
 
       deck_input <- input[[paste0("submit_deck_", i)]]
@@ -1370,11 +1367,11 @@ observeEvent(input$submit_tournament, {
 
       # Insert result (PostgreSQL auto-generates result_id)
       DBI::dbExecute(conn, "
-        INSERT INTO results (tournament_id, player_id, archetype_id, pending_deck_request_id, placement, wins, losses, ties)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        INSERT INTO results (tournament_id, player_id, archetype_id, pending_deck_request_id, placement, wins, losses, ties, points)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       ", params = list(
         tournament_id, player_id, deck_id, pending_deck_request_id,
-        row$placement, wins, losses, ties
+        row$placement, wins, losses, ties, pts
       ))
     }
 
@@ -1385,39 +1382,40 @@ observeEvent(input$submit_tournament, {
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
     rv$results_refresh <- (rv$results_refresh %||% 0) + 1
 
-    # Reset form
-    rv$submit_ocr_results <- NULL
-    rv$submit_uploaded_files <- NULL
-    rv$submit_parsed_count <- 0
-    rv$submit_total_players <- 0
-    rv$submit_grid_data <- NULL
-    rv$submit_player_matches <- list()
-    rv$submit_ocr_row_indices <- NULL
-
-    # Switch back to step 1
-    shinyjs::hide("submit_wizard_step2")
-    shinyjs::show("submit_wizard_step1")
-    shinyjs::removeClass("submit_step2_indicator", "active")
-    shinyjs::addClass("submit_step1_indicator", "active")
-
-    # Clear inputs
-    updateSelectInput(session, "submit_store", selected = "")
-    updateDateInput(session, "submit_date", value = NA)
-    updateSelectInput(session, "submit_event_type", selected = "")
-    updateSelectInput(session, "submit_format", selected = "")
-    updateNumericInput(session, "submit_players", value = 8)
-    updateCheckboxInput(session, "submit_confirm", value = FALSE)
-    shinyjs::reset("submit_screenshots")
-
     notify(
       paste("Tournament submitted successfully!", nrow(results), "results recorded."),
       type = "message"
     )
 
-    # Navigate to tournaments page
-    nav_select("main_content", "tournaments")
-    rv$current_nav <- "tournaments"
-    session$sendCustomMessage("updateSidebarNav", "nav_tournaments")
+    # Recalculate ratings in background (deferred so UI transitions to Step 3 first)
+    later::later(function() {
+      ratings_ok <- recalculate_ratings_cache(db_pool)
+      if (!isTRUE(ratings_ok)) {
+        notify("Ratings failed to update. They will refresh on next app restart.",
+               type = "warning", duration = 8)
+      }
+    }, delay = 0.5)
+
+    # Load submitted results for decklist entry (Step 3)
+    rv$submit_decklist_results <- safe_query(db_pool, "
+      SELECT r.result_id, r.placement, p.display_name as player_name,
+             COALESCE(da.archetype_name, 'UNKNOWN') as deck_name,
+             CONCAT(r.wins, '-', r.losses, '-', r.ties) as record,
+             r.decklist_url
+      FROM results r
+      JOIN players p ON r.player_id = p.player_id
+      LEFT JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
+      WHERE r.tournament_id = $1
+      ORDER BY r.placement ASC
+    ", params = list(tournament_id), default = data.frame())
+    rv$submit_decklist_tournament_id <- tournament_id
+
+    # Switch to Step 3 (decklists)
+    shinyjs::hide("submit_wizard_step2")
+    shinyjs::show("submit_wizard_step3")
+    shinyjs::removeClass("submit_step2_indicator", "active")
+    shinyjs::addClass("submit_step2_indicator", "completed")
+    shinyjs::addClass("submit_step3_indicator", "active")
 
   }, error = function(e) {
     tryCatch(DBI::dbExecute(conn, "ROLLBACK"), error = function(re) NULL)
@@ -1435,6 +1433,87 @@ observeEvent(input$submit_tournament, {
 # Request new store - reuse the shared modal function
 observeEvent(input$submit_request_store, {
   show_store_request_modal()
+})
+
+# =============================================================================
+# =============================================================================
+# Upload Results: Step 3 — Decklist Links
+# =============================================================================
+
+rv$submit_decklist_results <- NULL
+rv$submit_decklist_tournament_id <- NULL
+
+# Summary bar for Step 3
+output$submit_decklist_summary_bar <- renderUI({
+  req(rv$submit_decklist_tournament_id)
+  tournament <- safe_query(db_pool, "
+    SELECT t.tournament_id, s.name as store_name, t.event_date, t.event_type, t.format
+    FROM tournaments t JOIN stores s ON t.store_id = s.store_id
+    WHERE t.tournament_id = $1
+  ", params = list(rv$submit_decklist_tournament_id), default = data.frame())
+  if (nrow(tournament) == 0) return(NULL)
+  t <- tournament[1, ]
+  div(class = "alert alert-success d-flex align-items-center gap-2 mb-3",
+      bsicons::bs_icon("check-circle-fill"),
+      sprintf("Results submitted for %s — %s (%s)", t$store_name, t$event_date, t$format))
+})
+
+# Render decklist entry table
+output$submit_decklist_table <- renderUI({
+  req(rv$submit_decklist_results)
+  render_decklist_entry(rv$submit_decklist_results, "submit_decklist_")
+})
+
+# Save decklist links
+save_submit_decklists <- function() {
+  req(rv$submit_decklist_results)
+  save_decklist_urls(rv$submit_decklist_results, input, "submit_decklist_", db_pool)
+}
+
+# Reset upload form to Step 1
+reset_submit_wizard <- function() {
+  rv$submit_ocr_results <- NULL
+  rv$submit_uploaded_files <- NULL
+  rv$submit_parsed_count <- 0
+  rv$submit_total_players <- 0
+  rv$submit_grid_data <- NULL
+  rv$submit_player_matches <- list()
+  rv$submit_ocr_row_indices <- NULL
+  rv$submit_decklist_results <- NULL
+  rv$submit_decklist_tournament_id <- NULL
+
+  shinyjs::hide("submit_wizard_step3")
+  shinyjs::hide("submit_wizard_step2")
+  shinyjs::show("submit_wizard_step1")
+  shinyjs::removeClass("submit_step2_indicator", "active completed")
+  shinyjs::removeClass("submit_step3_indicator", "active completed")
+  shinyjs::addClass("submit_step1_indicator", "active")
+
+  updateSelectInput(session, "submit_store", selected = "")
+  updateDateInput(session, "submit_date", value = NA)
+  updateSelectInput(session, "submit_event_type", selected = "")
+  updateSelectInput(session, "submit_format", selected = "")
+  updateNumericInput(session, "submit_players", value = 8)
+  updateCheckboxInput(session, "submit_confirm", value = FALSE)
+  shinyjs::reset("submit_screenshots")
+}
+
+observeEvent(input$submit_save_decklists, {
+  saved <- save_submit_decklists()
+  if (saved > 0) {
+    notify(sprintf("Saved %d decklist link%s.", saved, if (saved == 1) "" else "s"), type = "message")
+  } else {
+    notify("No decklist links to save.", type = "warning")
+  }
+})
+
+observeEvent(input$submit_done_decklists, {
+  save_submit_decklists()
+  reset_submit_wizard()
+})
+
+observeEvent(input$submit_skip_decklists, {
+  reset_submit_wizard()
 })
 
 # =============================================================================

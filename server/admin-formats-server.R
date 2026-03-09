@@ -11,14 +11,14 @@ output$admin_format_list <- renderReactable({
   input$update_format
   input$confirm_delete_format
 
-  data <- dbGetQuery(db_pool, "
+  data <- safe_query(db_pool, "
     SELECT format_id as \"Set Code\",
            set_name as \"Set Name\",
            release_date as \"Release Date\",
            is_active as \"Active\"
     FROM formats
     ORDER BY release_date DESC
-  ")
+  ", default = data.frame())
 
   if (nrow(data) == 0) {
     return(admin_empty_state("No formats added yet", "// add one using the form", "calendar3"))
@@ -53,11 +53,11 @@ observeEvent(input$admin_format_list__reactable__selected, {
   if (is.null(selected_idx)) return()
 
   # Get the format_id from the selected row
-  data <- dbGetQuery(db_pool, "
+  data <- safe_query(db_pool, "
     SELECT format_id, set_name, release_date, is_active
     FROM formats
     ORDER BY release_date DESC
-  ")
+  ", default = data.frame())
 
   if (selected_idx > nrow(data)) return()
 
@@ -100,7 +100,7 @@ observeEvent(input$add_format, {
   display_name <- sprintf("%s (%s)", format_id, set_name)
 
   tryCatch({
-    dbExecute(db_pool, "
+    safe_execute(db_pool, "
       INSERT INTO formats (format_id, set_name, display_name, release_date, sort_order, is_active)
       VALUES ($1, $2, $3, $4, 0, $5)
     ", params = list(format_id, set_name, display_name, release_date, is_active))
@@ -209,9 +209,10 @@ observeEvent(input$cancel_edit_format, {
 observe({
   req(input$editing_format_id)
 
-  count <- dbGetQuery(db_pool, "
+  count <- safe_query(db_pool, "
     SELECT COUNT(*) as cnt FROM tournaments WHERE format = $1
-  ", params = list(input$editing_format_id))$cnt
+  ", params = list(input$editing_format_id),
+     default = data.frame(cnt = 0))$cnt
 
   rv$format_tournament_count <- count
   rv$can_delete_format <- count == 0
@@ -221,8 +222,9 @@ observe({
 observeEvent(input$delete_format, {
   req(rv$is_superadmin, input$editing_format_id)
 
-  format <- dbGetQuery(db_pool, "SELECT set_name, display_name FROM formats WHERE format_id = $1",
-                       params = list(input$editing_format_id))
+  format <- safe_query(db_pool, "SELECT set_name, display_name FROM formats WHERE format_id = $1",
+                       params = list(input$editing_format_id),
+                       default = data.frame(set_name = character(), display_name = character()))
 
   if (rv$can_delete_format) {
     showModal(modalDialog(
@@ -250,7 +252,7 @@ observeEvent(input$confirm_delete_format, {
   req(rv$is_superadmin, db_pool, input$editing_format_id)
 
   tryCatch({
-    dbExecute(db_pool, "DELETE FROM formats WHERE format_id = $1",
+    safe_execute(db_pool, "DELETE FROM formats WHERE format_id = $1",
               params = list(input$editing_format_id))
     notify("Format deleted", type = "message")
 

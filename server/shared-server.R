@@ -175,26 +175,36 @@ show_scene_request_modal <- function(prefill = NULL) {
 # ---------------------------------------------------------------------------
 
 observe({
-  tryCatch({
-    cache_count <- dbGetQuery(db_pool,
-      "SELECT COUNT(*) as n FROM player_ratings_cache")$n
-    if (is.na(cache_count) || cache_count == 0) {
-      message("[startup] Ratings cache empty, populating...")
+  # Batch startup checks into a single query
+  startup <- safe_query(db_pool, "
+      SELECT
+        (SELECT COUNT(*) FROM player_ratings_cache) as ratings_count,
+        (SELECT COUNT(*) FROM admin_users) as admin_count
+    ", default = data.frame(ratings_count = NA_integer_, admin_count = 0L))
+
+  ratings_count <- startup$ratings_count %||% 0
+  if (is.na(ratings_count) || ratings_count == 0) {
+    message("[startup] Ratings cache empty, populating...")
+    tryCatch({
       recalculate_ratings_cache(db_pool)
       message("[startup] Ratings cache populated")
-    }
-  }, error = function(e) {
-    message("[startup] Could not check/populate ratings cache: ", e$message)
-  })
+    }, error = function(e) {
+      message("[startup] Could not populate ratings cache: ", e$message)
+    })
+  }
 
-  admin_count <- tryCatch(
-    dbGetQuery(db_pool, "SELECT COUNT(*) as n FROM admin_users"),
-    error = function(e) data.frame(n = 0))
-  if (nrow(admin_count) > 0 && admin_count$n[1] == 0) {
+  admin_count <- startup$admin_count %||% 0
+  if (is.na(admin_count) || admin_count == 0) {
     rv$needs_bootstrap <- TRUE
   }
 
-  session$sendCustomMessage("hideLoading", list())
+  # Delay hiding loading screen so dashboard reactives have time to evaluate.
+  # Dashboard is pre-seeded in visited_tabs and its queries are fast (<200ms
+  # each via materialized views), so 0.3s is sufficient for the reactive graph
+  # to flush before the user sees the page.
+  later::later(function() {
+    session$sendCustomMessage("hideLoading", list())
+  }, delay = 0.3)
 }) |> bindEvent(TRUE, once = TRUE)
 
 # Keepalive handler - receiving the input is enough to keep connection alive
@@ -215,6 +225,19 @@ is_mobile <- reactive({
 # ---------------------------------------------------------------------------
 # Navigation
 # ---------------------------------------------------------------------------
+
+# Track which tabs have been visited for lazy data loading.
+# Dashboard is pre-visited since it's the default landing tab.
+visited_tabs <- reactiveVal("dashboard")
+
+# Mark current tab as visited whenever navigation changes
+observeEvent(rv$current_nav, {
+  current <- rv$current_nav
+  visited <- visited_tabs()
+  if (!current %in% visited) {
+    visited_tabs(c(visited, current))
+  }
+})
 
 observeEvent(input$nav_dashboard, {
   nav_select("main_content", "dashboard")
@@ -730,7 +753,7 @@ observeEvent(input$admin_login_link, {
   if (rv$is_admin) {
     # Already logged in - show account info, change password, nav (mobile)
     role_label <- if (rv$is_superadmin) "Super Admin" else "Scene Admin"
-    admin_name <- rv$admin_user$display_name
+    admin_name <- rv$admin_user$username
 
     # Get scene name for display
     scene_display <- "All Scenes"
@@ -847,7 +870,6 @@ observeEvent(input$admin_login_link, {
         autocomplete = "on",
         onsubmit = "event.preventDefault(); $('#bootstrap_btn').click();",
         tagAppendAttributes(textInput("bootstrap_username", "Username", placeholder = "e.g., michael"), autocomplete = "username"),
-        textInput("bootstrap_display_name", "Display Name", placeholder = "e.g., Michael"),
         tags$div(
           tagAppendAttributes(passwordInput("bootstrap_password", "Password"), autocomplete = "new-password"),
           style = "margin-bottom: 0.5rem;"
@@ -891,7 +913,7 @@ observeEvent(input$login_btn, {
 
   # Look up user
   user <- safe_query(db_pool,
-    "SELECT user_id, username, password_hash, display_name, role, scene_id
+    "SELECT user_id, username, password_hash, discord_user_id, role, scene_id
      FROM admin_users WHERE username = $1 AND is_active = TRUE",
     params = list(username),
     default = data.frame())
@@ -913,13 +935,13 @@ observeEvent(input$login_btn, {
   rv$admin_user <- list(
     user_id = user$user_id[1],
     username = user$username[1],
-    display_name = user$display_name[1],
+    discord_user_id = user$discord_user_id[1],
     role = user$role[1],
     scene_id = if (is.na(user$scene_id[1])) NULL else user$scene_id[1]
   )
 
   removeModal()
-  notify(paste0("Welcome, ", user$display_name[1], "!"), type = "message")
+  notify(paste0("Welcome, ", user$username[1], "!"), type = "message")
 
   # Force scene for scene admins
   if (rv$admin_user$role == "scene_admin" && !is.null(rv$admin_user$scene_id)) {
@@ -940,17 +962,12 @@ observeEvent(input$login_btn, {
 # Handle bootstrap (first super admin creation)
 observeEvent(input$bootstrap_btn, {
   username <- trimws(input$bootstrap_username)
-  display_name <- trimws(input$bootstrap_display_name)
   password <- input$bootstrap_password
   confirm <- input$bootstrap_confirm
 
   # Validation
   if (nchar(username) < 3) {
     notify("Username must be at least 3 characters", type = "warning")
-    return()
-  }
-  if (nchar(display_name) == 0) {
-    notify("Display name is required", type = "warning")
     return()
   }
   if (nchar(password) < 8) {
@@ -977,9 +994,9 @@ observeEvent(input$bootstrap_btn, {
   hash <- bcrypt::hashpw(password)
 
   result <- safe_query(db_pool,
-    "INSERT INTO admin_users (username, password_hash, display_name, role, scene_id)
-     VALUES ($1, $2, $3, 'super_admin', NULL) RETURNING user_id",
-    params = list(username, hash, display_name),
+    "INSERT INTO admin_users (username, password_hash, role, scene_id)
+     VALUES ($1, $2, 'super_admin', NULL) RETURNING user_id",
+    params = list(username, hash),
     default = data.frame())
 
   if (nrow(result) > 0) {
@@ -990,12 +1007,12 @@ observeEvent(input$bootstrap_btn, {
     rv$admin_user <- list(
       user_id = new_id,
       username = username,
-      display_name = display_name,
+      discord_user_id = NA_character_,
       role = "super_admin",
       scene_id = NULL
     )
     removeModal()
-    notify(paste0("Super admin account created. Welcome, ", display_name, "!"), type = "message")
+    notify(paste0("Super admin account created. Welcome, ", username, "!"), type = "message")
 
     # Update dropdowns with data
     updateSelectInput(session, "tournament_store",
@@ -1122,140 +1139,29 @@ sentry_context_tags <- function() {
 
 #' Safe Database Query Wrapper
 #'
-#' Executes a database query with error handling, returning a sensible default
-#' instead of crashing the app if the query fails. Useful for public-facing
-#' queries where graceful degradation is preferred over error screens.
+#' Delegates to safe_query_impl() (R/safe_db.R) with session-level Sentry tags.
 #'
-#' @param db_con Database connection object from DBI
-#' @param query Character. SQL query string (can include ? placeholders for params)
+#' @param pool Database connection pool or DBI connection
+#' @param query Character. SQL query string
 #' @param params List or NULL. Parameters for parameterized query (default: NULL)
 #' @param default Default value to return on error (default: empty data.frame)
 #'
 #' @return Query result on success, or default value on error
-#'
-#' @examples
-#' # Simple query
-#' result <- safe_query(db_pool, "SELECT * FROM players")
-#'
-#' # Parameterized query
-#' result <- safe_query(db_pool, "SELECT * FROM players WHERE player_id = $1",
-#'                      params = list(42))
-#'
-#' # Custom default for aggregations
-#' result <- safe_query(db_pool, "SELECT COUNT(*) as n FROM results",
-#'                      default = data.frame(n = 0))
 safe_query <- function(pool, query, params = NULL, default = data.frame()) {
-  # Helper to detect retryable connection pool / prepared statement errors
-  is_prepared_stmt_error <- function(msg) {
-    grepl("prepared statement", msg, ignore.case = TRUE) ||
-    grepl("bind message supplies", msg, ignore.case = TRUE) ||
-    grepl("needs to be bound", msg, ignore.case = TRUE) ||
-    grepl("multiple queries.*same column", msg, ignore.case = TRUE) ||
-    grepl("Query requires \\d+ params", msg, ignore.case = TRUE) ||
-    grepl("invalid input syntax", msg, ignore.case = TRUE)
-  }
-
-  # First attempt
-  result <- tryCatch({
-    if (!is.null(params) && length(params) > 0) {
-      DBI::dbGetQuery(pool, query, params = params)
-    } else {
-      DBI::dbGetQuery(pool, query)
-    }
-  }, error = function(e) e)
-
-  # If prepared statement error, retry once (connection pool may have stale state)
-  if (inherits(result, "error") && is_prepared_stmt_error(conditionMessage(result))) {
-    message("[safe_query] Prepared statement error, retrying: ", conditionMessage(result))
-    Sys.sleep(0.1)  # Brief pause before retry
-    result <- tryCatch({
-      if (!is.null(params) && length(params) > 0) {
-        DBI::dbGetQuery(pool, query, params = params)
-      } else {
-        DBI::dbGetQuery(pool, query)
-      }
-    }, error = function(e) e)
-  }
-
-  # Handle final result
-  if (inherits(result, "error")) {
-    query_preview <- substr(gsub("\\s+", " ", query), 1, 500)
-    params_preview <- if (!is.null(params)) paste(sapply(params, as.character), collapse = ", ") else "NULL"
-    message("[safe_query] Error: ", conditionMessage(result), " | Query: ", query_preview, " | Params: ", params_preview)
-    if (sentry_enabled) {
-      tryCatch(
-        sentryR::capture_exception(result, tags = c(
-          sentry_context_tags(),
-          list(query_preview = query_preview, params = params_preview)
-        )),
-        error = function(se) NULL
-      )
-    }
-    return(default)
-  }
-
-  result
+  safe_query_impl(pool, query, params, default, sentry_tags = sentry_context_tags())
 }
 
 #' Safe Database Execute Wrapper
 #'
-#' Executes a database write operation (INSERT, UPDATE, DELETE) with error
-#' handling. Returns 0 rows affected instead of crashing on error.
+#' Delegates to safe_execute_impl() (R/safe_db.R) with session-level Sentry tags.
 #'
-#' @param db_con Database connection object from DBI
-#' @param query Character. SQL statement string (can include ? placeholders for params)
+#' @param pool Database connection pool or DBI connection
+#' @param query Character. SQL statement string
 #' @param params List or NULL. Parameters for parameterized query (default: NULL)
 #'
 #' @return Number of rows affected on success, or 0 on error
-#'
-#' @examples
-#' # Simple execute
-#' rows <- safe_execute(db_pool, "DELETE FROM results WHERE result_id = $1",
-#'                      params = list(42))
 safe_execute <- function(pool, query, params = NULL) {
-  # Helper to detect retryable connection pool / prepared statement errors
-  is_prepared_stmt_error <- function(msg) {
-    grepl("prepared statement", msg, ignore.case = TRUE) ||
-    grepl("bind message supplies", msg, ignore.case = TRUE) ||
-    grepl("needs to be bound", msg, ignore.case = TRUE) ||
-    grepl("multiple queries.*same column", msg, ignore.case = TRUE) ||
-    grepl("Query requires \\d+ params", msg, ignore.case = TRUE) ||
-    grepl("invalid input syntax", msg, ignore.case = TRUE)
-  }
-
-  # First attempt
-  result <- tryCatch({
-    if (!is.null(params) && length(params) > 0) {
-      DBI::dbExecute(pool, query, params = params)
-    } else {
-      DBI::dbExecute(pool, query)
-    }
-  }, error = function(e) e)
-
-  # If prepared statement error, retry once (connection pool may have stale state)
-  if (inherits(result, "error") && is_prepared_stmt_error(conditionMessage(result))) {
-    message("[safe_execute] Prepared statement error, retrying: ", conditionMessage(result))
-    Sys.sleep(0.1)  # Brief pause before retry
-    result <- tryCatch({
-      if (!is.null(params) && length(params) > 0) {
-        DBI::dbExecute(pool, query, params = params)
-      } else {
-        DBI::dbExecute(pool, query)
-      }
-    }, error = function(e) e)
-  }
-
-  # Handle final result
-  if (inherits(result, "error")) {
-    message("[safe_execute] Error: ", conditionMessage(result))
-    message("[safe_execute] Query: ", substr(gsub("\\s+", " ", query), 1, 200))
-    if (sentry_enabled) {
-      tryCatch(sentryR::capture_exception(result, tags = sentry_context_tags()), error = function(se) NULL)
-    }
-    return(0)
-  }
-
-  result
+  safe_execute_impl(pool, query, params, sentry_tags = sentry_context_tags())
 }
 
 get_store_choices <- function(pool, include_none = FALSE) {
@@ -1286,7 +1192,7 @@ get_format_choices <- function(pool) {
     WHERE is_active = TRUE
     ORDER BY release_date DESC NULLS LAST
   ", default = data.frame())
-  if (nrow(formats) == 0) {
+  if (nrow(formats) == 0 || !"format_id" %in% names(formats)) {
     return(c("No formats configured" = ""))
   }
   choices <- setNames(formats$format_id, formats$display_name)
@@ -1564,3 +1470,100 @@ build_filters_param <- function(table_alias = "t",
     next_idx = idx
   )
 }
+
+# ---------------------------------------------------------------------------
+# Materialized View Helpers
+# ---------------------------------------------------------------------------
+
+# Build WHERE clause filters for materialized view queries.
+# MV columns use flat names (no table aliases needed for JOINs).
+# Set alias if using a table alias in the query (e.g., "mv").
+build_mv_filters <- function(format = NULL,
+                             event_type = NULL,
+                             scene = NULL,
+                             community_store = NULL,
+                             search = NULL,
+                             search_column = NULL,
+                             start_idx = 1,
+                             alias = NULL) {
+  prefix <- if (!is.null(alias)) paste0(alias, ".") else ""
+  sql_parts <- character(0)
+  params <- list()
+  idx <- start_idx
+
+  # Format filter
+  if (!is.null(format) && format != "") {
+    sql_parts <- c(sql_parts, sprintf("AND %sformat = $%d", prefix, idx))
+    params <- c(params, list(format))
+    idx <- idx + 1
+  }
+
+  # Event type filter
+  if (!is.null(event_type) && event_type != "") {
+    sql_parts <- c(sql_parts, sprintf("AND %sevent_type = $%d", prefix, idx))
+    params <- c(params, list(event_type))
+    idx <- idx + 1
+  }
+
+  # Search filter (LIKE match, case-insensitive)
+  if (!is.null(search) && trimws(search) != "" && !is.null(search_column)) {
+    col_ref <- if (!is.null(alias)) sprintf("%s.%s", alias, search_column) else search_column
+    sql_parts <- c(sql_parts, sprintf("AND LOWER(%s) LIKE LOWER($%d)", col_ref, idx))
+    params <- c(params, list(paste0("%", trimws(search), "%")))
+    idx <- idx + 1
+  }
+
+  # Community store filter (takes precedence over scene)
+  if (!is.null(community_store) && community_store != "") {
+    sql_parts <- c(sql_parts, sprintf("AND %sslug = $%d", prefix, idx))
+    params <- c(params, list(community_store))
+    idx <- idx + 1
+  } else if (!is.null(scene) && scene != "" && scene != "all") {
+    if (scene == "online") {
+      sql_parts <- c(sql_parts, sprintf("AND %sis_online = TRUE", prefix))
+    } else {
+      sql_parts <- c(sql_parts, sprintf(
+        "AND %sscene_id = (SELECT scene_id FROM scenes WHERE slug = $%d)", prefix, idx
+      ))
+      params <- c(params, list(scene))
+      idx <- idx + 1
+    }
+  }
+
+  list(
+    sql = paste(sql_parts, collapse = " "),
+    params = params,
+    next_idx = idx
+  )
+}
+
+# Refresh all materialized views concurrently.
+# Called after data mutations (result submission, tournament edit, sync).
+refresh_materialized_views <- function(pool) {
+  views <- c("mv_player_store_stats", "mv_archetype_store_stats",
+             "mv_tournament_list", "mv_store_summary", "mv_dashboard_counts")
+  con <- pool::localCheckout(pool)
+  for (v in views) {
+    tryCatch(
+      DBI::dbExecute(con, sprintf("REFRESH MATERIALIZED VIEW %s", v)),
+      error = function(e) message(sprintf("[MV REFRESH ERROR] %s: %s", v, e$message))
+    )
+  }
+}
+
+# Check if materialized views exist (used for graceful fallback)
+mv_views_exist <- function(pool) {
+  result <- safe_query(pool, "
+      SELECT COUNT(*) as n FROM pg_matviews
+      WHERE matviewname IN ('mv_player_store_stats', 'mv_archetype_store_stats',
+                            'mv_tournament_list', 'mv_store_summary', 'mv_dashboard_counts')
+    ", default = data.frame(n = 0))
+  result$n[1] == 5
+}
+
+# Auto-refresh materialized views when data changes
+observe({
+  rv$data_refresh
+  req(rv$data_refresh > 0)  # Skip initial value
+  refresh_materialized_views(db_pool)
+})

@@ -103,75 +103,57 @@ output$historical_rating_badge <- renderUI({
 })
 
 output$player_standings <- renderReactable({
+  req("players" %in% visited_tabs())  # Lazy load: skip until tab visited
   rv$data_refresh  # Trigger refresh on admin changes
 
 
-  # Build parameterized filters to prevent SQL injection
-  search_filters <- build_filters_param(
-    table_alias = "p",
+  # Build MV filters
+  filters <- build_mv_filters(
+    format = input$players_format,
+    scene = rv$current_scene,
+    community_store = rv$community_filter,
     search = players_search_debounced(),
     search_column = "display_name",
     start_idx = 1
   )
 
-  format_filters <- build_filters_param(
-    table_alias = "t",
-    format = input$players_format,
-    scene = rv$current_scene,
-    store_alias = "s",
-    community_store = rv$community_filter,
-    start_idx = search_filters$next_idx
-  )
-
-  # Combine filter SQL and params
-  filter_sql <- paste(search_filters$sql, format_filters$sql)
-  filter_params <- c(search_filters$params, format_filters$params)
-
   min_events <- as.numeric(input$players_min_events %||% 0)
   if (length(min_events) == 0 || is.na(min_events)) min_events <- 0
 
-  # HAVING clause parameter is numbered after all filter params
-  having_idx <- format_filters$next_idx
+  having_idx <- filters$next_idx
 
-  # Build query with parameterized HAVING clause
-  query <- sprintf("
-    SELECT p.player_id, p.display_name as \"Player\",
-           COUNT(DISTINCT r.tournament_id) as \"Events\",
-           SUM(r.wins) as \"W\", SUM(r.losses) as \"L\", SUM(r.ties) as \"T\",
-           ROUND(SUM(r.wins) * 100.0 / NULLIF(SUM(r.wins) + SUM(r.losses), 0), 1) as \"Win %%\",
-           COUNT(CASE WHEN r.placement = 1 THEN 1 END) as \"1sts\",
-           COUNT(CASE WHEN r.placement <= 3 THEN 1 END) as \"Top 3s\"
-    FROM players p
-    JOIN results r ON p.player_id = r.player_id
-    JOIN tournaments t ON r.tournament_id = t.tournament_id
-    JOIN stores s ON t.store_id = s.store_id
-    WHERE 1=1 %s
-    GROUP BY p.player_id, p.display_name
-    HAVING COUNT(DISTINCT r.tournament_id) >= $%d
-  ", filter_sql, having_idx)
-
-  result <- safe_query(db_pool, query, params = c(filter_params, list(min_events)), default = data.frame())
-
-  # Get most played deck for each player (Main Deck)
-  main_decks_query <- sprintf("
-    WITH player_deck_counts AS (
-      SELECT r.player_id, da.archetype_name, da.primary_color,
-             COUNT(*) as times_played,
-             ROW_NUMBER() OVER (PARTITION BY r.player_id ORDER BY COUNT(*) DESC) as rn
-      FROM results r
-      JOIN players p ON r.player_id = p.player_id
-      JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
-      JOIN tournaments t ON r.tournament_id = t.tournament_id
-      JOIN stores s ON t.store_id = s.store_id
-      WHERE da.archetype_name != 'UNKNOWN' %s
-      GROUP BY r.player_id, da.archetype_name, da.primary_color
+  # Single query: player stats + main deck from MV, ratings from cache
+  # Both CTEs share the same filter params ($1..N for filters, $N+1 for HAVING)
+  # The deck_ranked CTE reuses the same $1..N placeholders (same filter values)
+  result <- safe_query(db_pool, sprintf("
+    WITH player_agg AS (
+      SELECT player_id, display_name as \"Player\",
+             SUM(events)::int as \"Events\",
+             SUM(wins)::int as \"W\", SUM(losses)::int as \"L\", SUM(ties)::int as \"T\",
+             ROUND(SUM(wins) * 100.0 / NULLIF(SUM(wins) + SUM(losses), 0), 1) as \"Win %%\",
+             SUM(firsts)::int as \"1sts\",
+             SUM(top3s)::int as \"Top 3s\"
+      FROM mv_player_store_stats
+      WHERE 1=1 %s
+      GROUP BY player_id, display_name
+      HAVING SUM(events) >= $%d
+    ),
+    deck_ranked AS (
+      SELECT player_id, archetype_name as main_deck, primary_color as main_deck_color,
+             ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY SUM(times_played) DESC) as rn
+      FROM mv_player_store_stats
+      WHERE 1=1 %s
+        AND archetype_name IS NOT NULL AND archetype_name != 'UNKNOWN'
+      GROUP BY player_id, archetype_name, primary_color
     )
-    SELECT player_id, archetype_name as main_deck, primary_color as main_deck_color
-    FROM player_deck_counts
-    WHERE rn = 1
-  ", filter_sql)
-
-  main_decks <- safe_query(db_pool, main_decks_query, params = filter_params, default = data.frame())
+    SELECT pa.*,
+           COALESCE(dr.main_deck, '-') as main_deck,
+           COALESCE(dr.main_deck_color, '') as main_deck_color
+    FROM player_agg pa
+    LEFT JOIN deck_ranked dr ON pa.player_id = dr.player_id AND dr.rn = 1
+  ", filters$sql, having_idx, filters$sql),
+  params = c(filters$params, list(as.integer(min_events))),
+  default = data.frame())
 
   if (nrow(result) == 0) {
     has_filters <- nchar(trimws(players_search_debounced() %||% "")) > 0 ||
@@ -194,24 +176,22 @@ output$player_standings <- renderReactable({
 
   # Determine rating source: historical snapshot or live cache
   snapshot <- historical_snapshot_data()
-
-  if (!is.null(snapshot)) {
-    # Historical format with available snapshots
+  if (!is.null(snapshot) && nrow(snapshot) > 0) {
     result <- merge(result, snapshot, by = "player_id", all.x = TRUE)
   } else {
-    # Current format or no snapshots: use live cache
     comp_ratings <- player_competitive_ratings()
-    result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+    if (nrow(comp_ratings) > 0) {
+      result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+    }
     ach_scores <- player_achievement_scores()
-    result <- merge(result, ach_scores, by = "player_id", all.x = TRUE)
+    if (nrow(ach_scores) > 0) {
+      result <- merge(result, ach_scores, by = "player_id", all.x = TRUE)
+    }
   }
+  if (!"competitive_rating" %in% names(result)) result$competitive_rating <- NA
+  if (!"achievement_score" %in% names(result)) result$achievement_score <- NA
   result$competitive_rating[is.na(result$competitive_rating)] <- 1500
   result$achievement_score[is.na(result$achievement_score)] <- 0
-
-  # Join with main decks
-  result <- merge(result, main_decks, by = "player_id", all.x = TRUE)
-  result$main_deck[is.na(result$main_deck)] <- "-"
-  result$main_deck_color[is.na(result$main_deck_color)] <- ""
 
   # Create Record column as HTML (W-L-T with colors)
   result$Record <- sapply(1:nrow(result), function(i) {
@@ -345,73 +325,53 @@ observeEvent(input$mobile_players_load_more, {
 
 output$mobile_players_cards <- renderUI({
   req(is_mobile())
+  req("players" %in% visited_tabs())  # Lazy load: skip until tab visited
   rv$data_refresh
 
-  # -- Reuse exact same query logic as desktop renderReactable ----------------
-  search_filters <- build_filters_param(
-    table_alias = "p",
+  # -- Build MV filters (same pattern as desktop) ------------------------------
+  filters <- build_mv_filters(
+    format = input$players_format,
+    scene = rv$current_scene,
+    community_store = rv$community_filter,
     search = players_search_debounced(),
     search_column = "display_name",
     start_idx = 1
   )
 
-  format_filters <- build_filters_param(
-    table_alias = "t",
-    format = input$players_format,
-    scene = rv$current_scene,
-    store_alias = "s",
-    community_store = rv$community_filter,
-    start_idx = search_filters$next_idx
-  )
-
-  filter_sql <- paste(search_filters$sql, format_filters$sql)
-  filter_params <- c(search_filters$params, format_filters$params)
-
   min_events <- as.numeric(input$players_min_events %||% 0)
   if (length(min_events) == 0 || is.na(min_events)) min_events <- 0
-  having_idx <- format_filters$next_idx
+  having_idx <- filters$next_idx
 
-  query <- sprintf("
-    SELECT p.player_id, p.display_name as \"Player\",
-           COUNT(DISTINCT r.tournament_id) as \"Events\",
-           SUM(r.wins) as \"W\", SUM(r.losses) as \"L\", SUM(r.ties) as \"T\",
-           ROUND(SUM(r.wins) * 100.0 / NULLIF(SUM(r.wins) + SUM(r.losses), 0), 1) as \"Win_Pct\",
-           COUNT(CASE WHEN r.placement = 1 THEN 1 END) as \"Firsts\",
-           COUNT(CASE WHEN r.placement <= 3 THEN 1 END) as \"Top3s\"
-    FROM players p
-    JOIN results r ON p.player_id = r.player_id
-    JOIN tournaments t ON r.tournament_id = t.tournament_id
-    JOIN stores s ON t.store_id = s.store_id
-    WHERE 1=1 %s
-    GROUP BY p.player_id, p.display_name
-    HAVING COUNT(DISTINCT r.tournament_id) >= $%d
-  ", filter_sql, having_idx)
-
-  result <- safe_query(db_pool, query,
-    params = c(filter_params, list(min_events)),
-    default = data.frame())
-
-  # Main decks
-  main_decks_query <- sprintf("
-    WITH player_deck_counts AS (
-      SELECT r.player_id, da.archetype_name, da.primary_color,
-             COUNT(*) as times_played,
-             ROW_NUMBER() OVER (PARTITION BY r.player_id ORDER BY COUNT(*) DESC) as rn
-      FROM results r
-      JOIN players p ON r.player_id = p.player_id
-      JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
-      JOIN tournaments t ON r.tournament_id = t.tournament_id
-      JOIN stores s ON t.store_id = s.store_id
-      WHERE da.archetype_name != 'UNKNOWN' %s
-      GROUP BY r.player_id, da.archetype_name, da.primary_color
+  # Single query: player stats + main deck from MV
+  result <- safe_query(db_pool, sprintf("
+    WITH player_agg AS (
+      SELECT player_id, display_name as \"Player\",
+             SUM(events)::int as \"Events\",
+             SUM(wins)::int as \"W\", SUM(losses)::int as \"L\", SUM(ties)::int as \"T\",
+             ROUND(SUM(wins) * 100.0 / NULLIF(SUM(wins) + SUM(losses), 0), 1) as \"Win %%\",
+             SUM(firsts)::int as \"1sts\",
+             SUM(top3s)::int as \"Top 3s\"
+      FROM mv_player_store_stats
+      WHERE 1=1 %s
+      GROUP BY player_id, display_name
+      HAVING SUM(events) >= $%d
+    ),
+    deck_ranked AS (
+      SELECT player_id, archetype_name as main_deck, primary_color as main_deck_color,
+             ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY SUM(times_played) DESC) as rn
+      FROM mv_player_store_stats
+      WHERE 1=1 %s
+        AND archetype_name IS NOT NULL AND archetype_name != 'UNKNOWN'
+      GROUP BY player_id, archetype_name, primary_color
     )
-    SELECT player_id, archetype_name as main_deck, primary_color as main_deck_color
-    FROM player_deck_counts
-    WHERE rn = 1
-  ", filter_sql)
-
-  main_decks <- safe_query(db_pool, main_decks_query,
-    params = filter_params, default = data.frame())
+    SELECT pa.*,
+           COALESCE(dr.main_deck, '') as main_deck,
+           COALESCE(dr.main_deck_color, '') as main_deck_color
+    FROM player_agg pa
+    LEFT JOIN deck_ranked dr ON pa.player_id = dr.player_id AND dr.rn = 1
+  ", filters$sql, having_idx, filters$sql),
+  params = c(filters$params, list(as.integer(min_events))),
+  default = data.frame())
 
   if (nrow(result) == 0) {
     has_filters <- nchar(trimws(players_search_debounced() %||% "")) > 0 ||
@@ -432,23 +392,24 @@ output$mobile_players_cards <- renderUI({
     }
   }
 
-  # Ratings: historical snapshot or live
+  # Determine rating source: historical snapshot or live cache
   snapshot <- historical_snapshot_data()
-  if (!is.null(snapshot)) {
+  if (!is.null(snapshot) && nrow(snapshot) > 0) {
     result <- merge(result, snapshot, by = "player_id", all.x = TRUE)
   } else {
     comp_ratings <- player_competitive_ratings()
-    result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+    if (nrow(comp_ratings) > 0) {
+      result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+    }
     ach_scores <- player_achievement_scores()
-    result <- merge(result, ach_scores, by = "player_id", all.x = TRUE)
+    if (nrow(ach_scores) > 0) {
+      result <- merge(result, ach_scores, by = "player_id", all.x = TRUE)
+    }
   }
+  if (!"competitive_rating" %in% names(result)) result$competitive_rating <- NA
+  if (!"achievement_score" %in% names(result)) result$achievement_score <- NA
   result$competitive_rating[is.na(result$competitive_rating)] <- 1500
   result$achievement_score[is.na(result$achievement_score)] <- 0
-
-  # Join main decks
-  result <- merge(result, main_decks, by = "player_id", all.x = TRUE)
-  result$main_deck[is.na(result$main_deck)] <- ""
-  result$main_deck_color[is.na(result$main_deck_color)] <- ""
 
   # Sort by competitive rating descending
 
@@ -770,17 +731,19 @@ output$player_detail_modal <- renderUI({
                   ordinal(row$Place)
                 ),
                 tags$td(sprintf("%d-%d", row$W, row$L)),
-                tags$td(
-                  if (!is.na(row$decklist_url) && nchar(row$decklist_url) > 0) {
+                tags$td({
+                  dl_url <- validate_decklist_url(row$decklist_url)
+                  if (!is.null(dl_url)) {
                     tags$a(
-                      href = row$decklist_url,
+                      href = dl_url,
                       target = "_blank",
+                      rel = "noopener noreferrer",
                       title = "View decklist",
                       class = "text-primary",
                       bsicons::bs_icon("list-ul")
                     )
                   }
-                )
+                })
               )
             })
           )

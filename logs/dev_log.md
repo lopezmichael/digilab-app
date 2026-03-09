@@ -4,6 +4,98 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-09: Safe Query Migration, Transaction Safety, Performance
+
+**Branch:** `feature/safe-query-migration`
+
+### Safe Query Migration
+Migrated 160 raw `dbGetQuery`/`dbExecute` calls to `safe_query`/`safe_execute` wrappers across all server files and key R/ utilities. Every DB call now has prepared statement retry logic and Sentry error reporting.
+
+Key architectural change: extracted `safe_query_impl`/`safe_execute_impl` to `R/safe_db.R` (global scope) so that `R/ratings.R` and `R/admin_grid.R` can use the same retry + error handling. Server-scoped `safe_query`/`safe_execute` in `shared-server.R` now delegate to these with session-level Sentry tags.
+
+### Transaction Safety
+Found that Enter Results and Edit Tournament had no transaction blocks — a failure mid-loop would leave partial data. Added `localCheckout` + BEGIN/COMMIT/ROLLBACK to 3 locations (Enter Results submit, Edit Tournament save, Delete Tournament). Pattern matches existing `public-submit-server.R` transactions.
+
+Key insight: `safe_query`/`safe_execute` must NOT be used inside transactions — their retry logic grabs a different connection, breaking the transaction. Use raw `DBI::dbGetQuery(conn, ...)` inside transaction blocks.
+
+### Performance: Deferred Rating Recalculation
+Rating recalculation (`recalculate_ratings_cache`) is the heaviest operation. Moved all 6 call sites to `later::later(delay = 0.5)` so the UI transitions immediately after DB commits. Added missing rating recalc on tournament delete and public submit flows.
+
+### Performance: Dashboard Preload
+Loading screen dismissal was happening before dashboard outputs rendered, causing a flash of empty content. Added 0.3s delay via `later::later()` so dashboard reactives evaluate behind the loading screen.
+
+### Bug Fixes
+- Welcome modal dismissal with same scene triggered unnecessary data refresh. `select_scene()` now skips `rv$data_refresh` when scene hasn't changed.
+- Delete tournament error path: `rows` undefined on tryCatch error, causing secondary crash.
+- Renamed "Save Links" → "Save Progress" on decklist entry step for clarity.
+
+---
+
+## 2026-03-09: Bug Fixes (BUG 1-4, 6), Decklist Entry, URL Validation
+
+**Branch:** `feature/performance-caching`
+
+### Bug Fixes
+
+**BUG 1 — Points→W-L-T format switch:** Edit tournament view inferred record format from stored data by checking for irregular point totals and ties. This was fundamentally broken — zero-tie records always looked like "points" format. Fix: added `record_format` column to tournaments table and `points` column to results table. Format is now stored at entry time and read back on edit. Migration 006 backfills existing data.
+
+**BUG 2 — Modal stacking on deck request:** `observe({ lapply(seq_len(n), function(i) { observeEvent(...) }) })` re-creates handlers every time the grid data changes. One click could trigger multiple stacked modals. Fix: replaced with `lapply(1:128, function(i) { observeEvent(...) })` at init — fixed handler set that never accumulates. Applied across all 3 grid flows.
+
+**BUG 3 — Deck assignment mismatch:** When grid rows had gaps (empty rows), `filled_rows` filtering broke the 1:1 correspondence between loop index and input IDs. Row 3 in the filtered set might read `input$deck_5` from the grid. Fix: preserve `row_idx` before filtering.
+
+**BUG 4 — Tournament deep links:** `resolve_entity_slug()` returned NULL for tournament slugs — the case handler had a comment "Tournaments use ID only" but no implementation. Fix: parse slug as integer, validate against DB.
+
+### Decklist Entry (BUG 6 Restore)
+
+Restored decklist URL entry removed during a previous refactor. Implemented as a post-submission "Step 3" wizard step across all three result entry flows: Enter Results, Upload Results, Edit Tournaments.
+
+**Shared components in `R/admin_grid.R`:**
+- `render_decklist_entry(results_df, prefix)` — renders read-only result rows + URL text inputs
+- `save_decklist_urls(results_df, input, prefix, db_pool)` — validates + saves with skip warning
+- `validate_decklist_url(url)` — domain allowlist enforcement
+
+**Domain allowlist (`ALLOWED_DECKLIST_DOMAINS`):** digimoncard.io, digimoncard.dev, digimoncard.app, digimonmeta.com, digitalgateopen.com, limitlesstcg.com (+ play./my. subdomains), tcgstacked.com. Strips `www.` prefix, requires `https://`, blocks spaces/brackets/quotes.
+
+**Display-side sanitization:** All 4 public views (tournaments, players, meta, stores) now validate URLs through `validate_decklist_url()` before rendering as `<a href>`, with `rel="noopener noreferrer"`. Legacy bad data won't render as clickable.
+
+### Prepared Statement Fixes
+
+Converted 7 raw `dbGetQuery`/`dbExecute` calls in `admin-tournaments-server.R` (edit grid save loop + delete handler) to `safe_query`/`safe_execute`. These were causing intermittent "bind message supplies N parameters, but prepared statement requires 0" errors when pool reused connections with stale prepared statements. ~136 raw calls remain across the codebase — scheduled for full migration in v1.5.0.
+
+---
+
+## 2026-03-08: PERF2 — Materialized Views Implementation
+
+**Branch:** `feature/performance-caching`
+
+Implemented 5 materialized views to replace multi-table JOINs across all 5 public tabs. Key design decisions:
+
+**Per-store grain:** All MVs store data at `store_id` level with `scene_id`, `country`, `state_region`, `is_online` columns. This enables scene, country, state, single-store, and global filtering as simple WHERE clauses on the same flat table — no schema changes needed when we add country-level or single-store filtering later.
+
+**Views created:**
+1. `mv_player_store_stats` — player stats per store/format/archetype (Players tab)
+2. `mv_archetype_store_stats` — deck stats per store/format/week (Meta tab, Dashboard deck analytics)
+3. `mv_tournament_list` — tournament listing with winner info (Tournaments tab, Dashboard)
+4. `mv_store_summary` — store stats with tournament/player counts (Stores tab)
+5. `mv_dashboard_counts` — scene/format/event_type counts (created but mostly unused — see below)
+
+**Double-counting lesson:** `mv_dashboard_counts` pre-aggregates `COUNT(DISTINCT player_id)` per (scene, format, event_type) group. You can't `SUM()` these across groups — players spanning multiple groups get counted multiple times. Dashboard core metrics now use `mv_tournament_list` with proper `COUNT(DISTINCT)` at query time instead.
+
+**Refresh strategy:** Non-concurrent `REFRESH MATERIALIZED VIEW` (not CONCURRENTLY). CONCURRENTLY requires unique indexes on plain columns — our indexes use `COALESCE()` expressions for nullable columns, which don't qualify. At current scale (~5000 rows), non-concurrent refresh takes milliseconds so blocking is negligible.
+
+**Refresh triggers:**
+- R app: `refresh_materialized_views()` called via `rv$data_refresh` observer (fires on any admin mutation)
+- Python: `sync_limitless.py` refreshes all 5 MVs after syncing tournaments (non-dry-run, >0 synced)
+
+**New helpers in `shared-server.R`:**
+- `build_mv_filters()` — generates WHERE clauses for flat MV tables (no table aliases needed)
+- `refresh_materialized_views(pool)` — refreshes all 5 MVs using a checked-out connection
+- `mv_views_exist(pool)` — startup guard for graceful fallback if migration hasn't run
+
+**Migration:** `scripts/run_migration_005.R` executes each CREATE statement individually (can't split on semicolons due to multi-line SQL). Drops old regular views first, then creates MVs with indexes.
+
+---
+
 ## 2026-03-08: v1.4.1 Audit Trail & Scene Guard
 
 **Bug discovered:** Scene admin in Brazil (Santa Catarina) reported all records vanished. Investigation found 4 stores had `scene_id` set to NULL after a store edit. Root cause was a race condition in the scene dropdown observer in `admin-stores-server.R` — when `rv$data_refresh` triggered mid-edit, `updateSelectInput()` could reset the selection to `""`, which the save handler converted to `NA_integer_` (PostgreSQL NULL).

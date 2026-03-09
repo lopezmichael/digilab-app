@@ -10,7 +10,7 @@
 # -----------------------------------------------------------------------------
 get_store_scene_id <- function(store_id, con) {
   if (is.null(store_id) || is.na(store_id)) return(NULL)
-  result <- DBI::dbGetQuery(con, "SELECT scene_id FROM stores WHERE store_id = $1", params = list(store_id))
+  result <- safe_query_impl(con, "SELECT scene_id FROM stores WHERE store_id = $1", params = list(store_id), default = data.frame(scene_id = NA))
   if (nrow(result) == 0 || is.na(result$scene_id[1])) return(NULL)
   result$scene_id[1]
 }
@@ -52,9 +52,9 @@ init_grid_data <- function(player_count) {
 # Points calculated as (wins * 3) + ties.
 # -----------------------------------------------------------------------------
 load_grid_from_results <- function(tournament_id, con) {
-  rows <- DBI::dbGetQuery(con, "
+  rows <- safe_query_impl(con, "
     SELECT r.result_id, r.placement, r.player_id, p.display_name,
-           r.wins, r.losses, r.ties, r.archetype_id,
+           r.wins, r.losses, r.ties, r.points, r.archetype_id,
            p.member_number
     FROM results r
     JOIN players p ON r.player_id = p.player_id
@@ -69,7 +69,7 @@ load_grid_from_results <- function(tournament_id, con) {
     placement = rows$placement,
     player_name = rows$display_name,
     member_number = ifelse(is.na(rows$member_number), "", rows$member_number),
-    points = as.integer((rows$wins * 3L) + rows$ties),
+    points = ifelse(!is.na(rows$points), as.integer(rows$points), as.integer((rows$wins * 3L) + rows$ties)),
     wins = as.integer(rows$wins),
     losses = as.integer(rows$losses),
     ties = as.integer(rows$ties),
@@ -283,6 +283,129 @@ render_grid_ui <- function(grid_data, record_format, is_release, deck_choices,
 }
 
 # -----------------------------------------------------------------------------
+# validate_decklist_url: Sanitize and validate decklist URLs
+# Only allows https:// URLs from approved deckbuilder domains.
+# Returns trimmed URL or NULL if invalid.
+# -----------------------------------------------------------------------------
+ALLOWED_DECKLIST_DOMAINS <- c(
+  "digimoncard.dev",
+  "digimoncard.io",
+  "digimoncard.app",
+  "digimonmeta.com",
+  "digitalgateopen.com",
+  "limitlesstcg.com",
+  "play.limitlesstcg.com",
+  "my.limitlesstcg.com",
+  "tcgstacked.com"
+)
+
+validate_decklist_url <- function(url) {
+  if (is.null(url) || is.na(url)) return(NULL)
+  url <- trimws(url)
+  if (nchar(url) == 0) return(NULL)
+  if (!grepl("^https://", url, ignore.case = TRUE)) return(NULL)
+  if (grepl("[<>\\s\"]", url, perl = TRUE)) return(NULL)
+  # Extract domain and check against allowlist
+  domain <- sub("^https://([^/]+).*$", "\\1", url, ignore.case = TRUE)
+  domain <- tolower(sub("^www\\.", "", domain))
+  if (!domain %in% ALLOWED_DECKLIST_DOMAINS) return(NULL)
+  url
+}
+
+# -----------------------------------------------------------------------------
+# save_decklist_urls: Shared save logic for decklist URL inputs
+# Used by all three entry flows (admin, submit, edit).
+# Parameters:
+#   results_df - Data frame with result_id column
+#   input      - Shiny input object
+#   prefix     - Input ID prefix (e.g., "admin_decklist_")
+#   db_pool    - Database connection pool
+# Returns: number of URLs saved
+# -----------------------------------------------------------------------------
+save_decklist_urls <- function(results_df, input, prefix, db_pool) {
+  saved <- 0L
+  skipped <- 0L
+  for (i in seq_len(nrow(results_df))) {
+    url_raw <- input[[paste0(prefix, i)]]
+    if (!is.null(url_raw) && nchar(trimws(url_raw)) > 0) {
+      url_val <- validate_decklist_url(url_raw)
+      if (!is.null(url_val)) {
+        safe_execute(db_pool, "UPDATE results SET decklist_url = $1, updated_at = CURRENT_TIMESTAMP WHERE result_id = $2",
+                     params = list(url_val, results_df$result_id[i]))
+        saved <- saved + 1L
+      } else {
+        skipped <- skipped + 1L
+      }
+    }
+  }
+  if (skipped > 0) {
+    notify(sprintf("%d invalid URL%s skipped — only links from approved deckbuilders are accepted.",
+                   skipped, if (skipped == 1) "" else "s"), type = "warning")
+  }
+  saved
+}
+
+# -----------------------------------------------------------------------------
+# render_decklist_entry: Post-submission confirmation screen with decklist URL inputs
+# Shows submitted results (placement, player, deck, record) with a URL field per row.
+# Parameters:
+#   results_df  - Data frame with result_id, placement, player_name, deck_name, record
+#   prefix      - Input ID prefix (e.g., "admin_decklist_", "submit_decklist_", "edit_decklist_")
+# Returns: tagList with header, result rows (read-only + URL input), and action buttons
+# -----------------------------------------------------------------------------
+render_decklist_entry <- function(results_df, prefix) {
+  if (is.null(results_df) || nrow(results_df) == 0) {
+    return(div(class = "text-muted text-center py-4", "No results to show."))
+  }
+
+  tips <- div(
+    class = "alert alert-info d-flex mb-3 py-2",
+    bsicons::bs_icon("link-45deg", class = "me-2 flex-shrink-0", size = "1.2em"),
+    div(
+      div(
+        "Paste decklist URLs from supported sites: ",
+        tags$strong("digimoncard.io"), ", ",
+        tags$strong("digimoncard.dev"), ", ",
+        tags$strong("digimoncard.app"), ", ",
+        tags$strong("digimonmeta.com"), ", ",
+        tags$strong("digitalgateopen.com"), ", ",
+        tags$strong("limitlesstcg.com"), ", or ",
+        tags$strong("tcgstacked.com"), "."
+      ),
+      tags$small(
+        class = "text-muted",
+        "Want to use a different deckbuilder? Let us know in the Discord."
+      )
+    )
+  )
+
+  header <- layout_columns(
+    col_widths = c(1, 3, 2, 2, 4),
+    class = "results-header-row",
+    div("#"), div("Player"), div("Deck"), div("Record"), div("Decklist URL")
+  )
+
+  rows <- lapply(seq_len(nrow(results_df)), function(i) {
+    row <- results_df[i, ]
+    place_class <- if (row$placement == 1) "place-1st" else if (row$placement == 2) "place-2nd" else if (row$placement == 3) "place-3rd" else ""
+
+    layout_columns(
+      col_widths = c(1, 3, 2, 2, 4),
+      class = "upload-result-row decklist-entry-row",
+      div(span(class = paste("placement-badge", place_class), grid_ordinal(row$placement))),
+      div(class = "fw-medium", row$player_name),
+      div(class = "text-muted small", if (!is.na(row$deck_name) && row$deck_name != "UNKNOWN") row$deck_name else "-"),
+      div(class = "text-muted small", row$record),
+      div(textInput(paste0(prefix, i), NULL,
+                    value = if (!is.na(row$decklist_url)) row$decklist_url else "",
+                    placeholder = "https://..."))
+    )
+  })
+
+  tagList(tips, header, rows)
+}
+
+# -----------------------------------------------------------------------------
 # parse_paste_data: Parse pasted spreadsheet text into structured row data
 # Splits by newlines, then by tabs (fallback: 2+ spaces).
 # Supported formats:
@@ -361,12 +484,12 @@ parse_paste_data <- function(text, all_decks) {
 # Returns named character vector: Unknown, Request new, pending requests, active archetypes
 # -----------------------------------------------------------------------------
 build_deck_choices <- function(con) {
-  decks <- DBI::dbGetQuery(con, "
+  decks <- safe_query_impl(con, "
     SELECT archetype_id, archetype_name FROM deck_archetypes
     WHERE is_active = TRUE ORDER BY archetype_name
   ")
 
-  pending_requests <- DBI::dbGetQuery(con, "
+  pending_requests <- safe_query_impl(con, "
     SELECT request_id, deck_name FROM deck_requests
     WHERE status = 'pending' ORDER BY deck_name
   ")
@@ -402,7 +525,7 @@ build_deck_choices <- function(con) {
 match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
   # If member_number provided, try exact member_number match first (global)
   if (!is.null(member_number) && nchar(trimws(member_number)) > 0) {
-    member_match <- DBI::dbGetQuery(con, "
+    member_match <- safe_query_impl(con, "
       SELECT player_id, display_name, member_number
       FROM players WHERE member_number = $1 AND is_active IS NOT FALSE
       LIMIT 1
@@ -420,7 +543,7 @@ match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
   # Fall back to name match
   # If scene_id provided, scope to players who have competed in this scene
   if (!is.null(scene_id)) {
-    player <- DBI::dbGetQuery(con, "
+    player <- safe_query_impl(con, "
       SELECT DISTINCT p.player_id, p.display_name, p.member_number
       FROM players p
       JOIN results r ON p.player_id = r.player_id
@@ -433,7 +556,7 @@ match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
     ", params = list(name, scene_id))
   } else {
     # No scene_id - global name match (backward compatible)
-    player <- DBI::dbGetQuery(con, "
+    player <- safe_query_impl(con, "
       SELECT player_id, display_name, member_number
       FROM players WHERE LOWER(display_name) = LOWER($1) AND is_active IS NOT FALSE
       LIMIT 1

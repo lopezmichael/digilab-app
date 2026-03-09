@@ -24,6 +24,12 @@ admin_results_ui <- tagList(
       class = "wizard-step",
       span(class = "step-number", "2"),
       span(class = "step-label", "Add Results")
+    ),
+    div(
+      id = "step3_indicator",
+      class = "wizard-step",
+      span(class = "step-number", "3"),
+      span(class = "step-label", "Decklists")
     )
   ),
 
@@ -134,6 +140,37 @@ admin_results_ui <- tagList(
         ),
         actionButton("admin_submit_results", "Submit Results", class = "btn-primary btn-lg",
                      icon = icon("check"))
+      )
+    )
+  ),
+
+  # Step 3: Decklist Links (hidden initially)
+  shinyjs::hidden(
+    div(
+      id = "wizard_step3",
+      class = "admin-panel",
+      uiOutput("admin_decklist_summary_bar"),
+      card(
+        card_header(
+          class = "d-flex justify-content-between align-items-center",
+          span("Add Decklist Links"),
+          span(class = "text-muted small", "Optional — paste external decklist URLs for any players")
+        ),
+        card_body(
+          uiOutput("admin_decklist_table")
+        )
+      ),
+      div(
+        class = "d-flex justify-content-between mt-3",
+        actionButton("admin_skip_decklists", "Skip", class = "btn-outline-secondary",
+                     icon = icon("forward")),
+        div(
+          class = "d-flex gap-2",
+          actionButton("admin_save_decklists", "Save Progress", class = "btn-primary",
+                       icon = icon("floppy-disk")),
+          actionButton("admin_done_decklists", "Done", class = "btn-success",
+                       icon = icon("check"))
+        )
       )
     )
   )

@@ -1,0 +1,19 @@
+name: Validate Roadmap
+
+on:
+  pull_request:
+    paths:
+      - 'ROADMAP.md'
+  push:
+    branches: [main, develop]
+    paths:
+      - 'ROADMAP.md'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate ROADMAP.md frontmatter
+        run: python3 scripts/validate_roadmap.py

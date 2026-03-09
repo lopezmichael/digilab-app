@@ -141,13 +141,11 @@ observe({
     return()
   }
 
-  scenes <- tryCatch(
-    dbGetQuery(db_pool,
-      "SELECT scene_id, display_name FROM scenes
-       WHERE is_active = TRUE
-       ORDER BY scene_type, display_name"),
-    error = function(e) data.frame()
-  )
+  scenes <- safe_query(db_pool,
+    "SELECT scene_id, display_name FROM scenes
+     WHERE is_active = TRUE
+     ORDER BY scene_type, display_name",
+    default = data.frame(scene_id = integer(), display_name = character()))
   if (nrow(scenes) > 0) {
     choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
     # Preserve current selection when repopulating choices
@@ -156,11 +154,9 @@ observe({
     editing_id <- isolate(input$editing_store_id)
     if (!is.null(editing_id) && nchar(editing_id) > 0 && (is.null(current_selection) || current_selection == "")) {
       # Mid-edit but selection is empty — look up the store's actual scene_id to prevent NULL
-      stored_scene <- tryCatch(
-        dbGetQuery(db_pool, "SELECT scene_id FROM stores WHERE store_id = $1",
-                   params = list(as.integer(editing_id))),
-        error = function(e) data.frame()
-      )
+      stored_scene <- safe_query(db_pool, "SELECT scene_id FROM stores WHERE store_id = $1",
+                   params = list(as.integer(editing_id)),
+                   default = data.frame(scene_id = integer()))
       if (nrow(stored_scene) > 0 && !is.na(stored_scene$scene_id)) {
         current_selection <- as.character(stored_scene$scene_id)
       }
@@ -262,15 +258,15 @@ observeEvent(input$add_store, {
   # Check for duplicate store name in same city/region
   # For online stores with no region, check for duplicate name among online stores
   if (is_online && nchar(store_city) == 0) {
-    existing <- dbGetQuery(db_pool, "
+    existing <- safe_query(db_pool, "
       SELECT store_id FROM stores
       WHERE LOWER(name) = LOWER($1) AND is_online = TRUE AND (city IS NULL OR city = '')
-    ", params = list(store_name))
+    ", params = list(store_name), default = data.frame(store_id = integer()))
   } else {
-    existing <- dbGetQuery(db_pool, "
+    existing <- safe_query(db_pool, "
       SELECT store_id FROM stores
       WHERE LOWER(name) = LOWER($1) AND LOWER(city) = LOWER($2)
-    ", params = list(store_name, store_city))
+    ", params = list(store_name, store_city), default = data.frame(store_id = integer()))
   }
 
   if (nrow(existing) > 0) {
@@ -336,19 +332,20 @@ observeEvent(input$add_store, {
     # Use NA for empty city/region
     store_city_db <- if (nchar(store_city) > 0) store_city else NA_character_
 
-    store_result <- dbGetQuery(db_pool, "
+    store_result <- safe_query(db_pool, "
       INSERT INTO stores (name, address, city, state, zip_code, latitude, longitude, website, is_online, country, scene_id)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING store_id
     ", params = list(store_name, address, store_city_db,
-                     state, zip_code, lat, lng, website, is_online, store_country, scene_id))
+                     state, zip_code, lat, lng, website, is_online, store_country, scene_id),
+       default = data.frame(store_id = integer()))
     new_id <- store_result$store_id[1]
 
     # Insert any pending schedules for physical stores
     if (!is_online && length(rv$pending_schedules) > 0) {
       for (i in seq_along(rv$pending_schedules)) {
         sched <- rv$pending_schedules[[i]]
-        dbExecute(db_pool, "
+        safe_execute(db_pool, "
           INSERT INTO store_schedules (store_id, day_of_week, start_time, frequency, week_of_month, next_occurrence)
           VALUES ($1, $2, $3, $4, $5, $6::date)
         ", params = list(new_id, sched$day_of_week, sched$start_time, sched$frequency,
@@ -423,7 +420,7 @@ output$admin_store_list <- renderReactable({
   }
 
   # Query stores with schedule count
-  data <- dbGetQuery(db_pool, sprintf("
+  data <- safe_query(db_pool, sprintf("
     SELECT s.store_id, s.name as \"Store\", s.city as \"City\", s.state as \"State\",
            s.is_online, s.zip_code,
            COUNT(ss.schedule_id) as schedule_count
@@ -435,7 +432,8 @@ output$admin_store_list <- renderReactable({
       CASE WHEN s.is_online = FALSE AND COUNT(ss.schedule_id) = 0 THEN 0 ELSE 1 END,
       CASE WHEN s.zip_code IS NULL OR s.zip_code = '' THEN 0 ELSE 1 END,
       s.name
-  ", scene_filter), params = if (length(scene_params) > 0) scene_params else NULL)
+  ", scene_filter), params = if (length(scene_params) > 0) scene_params else NULL,
+     default = data.frame())
 
   if (nrow(data) == 0) {
     data <- data.frame(Message = "No stores yet")
@@ -547,11 +545,12 @@ observeEvent(input$admin_store_list__reactable__selected, {
   store_id <- table_data$store_id[selected_idx]
 
   # Fetch full store details by ID
-  store <- dbGetQuery(db_pool, "
+  store <- safe_query(db_pool, "
     SELECT s.store_id, s.name, s.address, s.city, s.state, s.zip_code, s.website, s.is_online, s.country, s.scene_id
     FROM stores s
     WHERE s.store_id = $1
-  ", params = list(store_id))
+  ", params = list(store_id),
+     default = data.frame())
 
   if (nrow(store) == 0) return()
   store <- store[1, ]
@@ -680,8 +679,9 @@ observeEvent(input$update_store, {
       if (is.na(lat) || is.na(lng)) {
         notify("Could not geocode address. Keeping existing coordinates.", type = "warning")
         # Keep existing coordinates
-        existing <- dbGetQuery(db_pool, "SELECT latitude, longitude FROM stores WHERE store_id = $1",
-                               params = list(store_id))
+        existing <- safe_query(db_pool, "SELECT latitude, longitude FROM stores WHERE store_id = $1",
+                               params = list(store_id),
+                               default = data.frame(latitude = NA_real_, longitude = NA_real_))
         lat <- existing$latitude
         lng <- existing$longitude
       }
@@ -773,8 +773,9 @@ observeEvent(input$delete_store, {
   req(rv$is_admin, input$editing_store_id)
 
   store_id <- as.integer(input$editing_store_id)
-  store <- dbGetQuery(db_pool, "SELECT name FROM stores WHERE store_id = $1",
-                      params = list(store_id))
+  store <- safe_query(db_pool, "SELECT name FROM stores WHERE store_id = $1",
+                      params = list(store_id),
+                      default = data.frame(name = character()))
 
   if (rv$can_delete_store) {
     showModal(modalDialog(
@@ -925,12 +926,12 @@ output$store_schedules_table <- renderReactable({
   # Trigger refresh when schedules change
   rv$schedules_refresh
 
-  schedules <- dbGetQuery(db_pool, "
+  schedules <- safe_query(db_pool, "
     SELECT schedule_id, day_of_week, start_time, frequency, week_of_month, next_occurrence
     FROM store_schedules
     WHERE store_id = $1 AND is_active = TRUE
     ORDER BY day_of_week, start_time
-  ", params = list(store_id))
+  ", params = list(store_id), default = data.frame())
 
   if (nrow(schedules) == 0) {
     return(NULL)
@@ -1011,17 +1012,18 @@ observeEvent(input$add_schedule, {
 
     tryCatch({
       # Check for duplicate schedule
-      existing <- dbGetQuery(db_pool, "
+      existing <- safe_query(db_pool, "
         SELECT schedule_id FROM store_schedules
         WHERE store_id = $1 AND day_of_week = $2 AND start_time = $3 AND is_active = TRUE
-      ", params = list(store_id, day_of_week, start_time))
+      ", params = list(store_id, day_of_week, start_time),
+         default = data.frame(schedule_id = integer()))
 
       if (nrow(existing) > 0) {
         notify("This schedule already exists for this store", type = "warning")
         return()
       }
 
-      dbExecute(db_pool, "
+      safe_execute(db_pool, "
         INSERT INTO store_schedules (store_id, day_of_week, start_time, frequency, week_of_month, next_occurrence)
         VALUES ($1, $2, $3, $4, $5, $6::date)
       ", params = list(store_id, day_of_week, start_time, frequency, week_of_month,
@@ -1094,7 +1096,7 @@ observeEvent(input$confirm_delete_schedule, {
   req(rv$is_admin, db_pool, rv$schedule_to_delete_id)
 
   tryCatch({
-    dbExecute(db_pool, "
+    safe_execute(db_pool, "
       UPDATE store_schedules SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
       WHERE schedule_id = $1
     ", params = list(rv$schedule_to_delete_id))

@@ -482,8 +482,8 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
     cursor.execute("""
         INSERT INTO tournaments
             (store_id, event_date, event_type, format, player_count,
-             rounds, limitless_id, notes, created_at, updated_at)
-        VALUES (%s, %s, 'online', %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+             rounds, limitless_id, record_format, notes, created_at, updated_at)
+        VALUES (%s, %s, 'online', %s, %s, %s, %s, 'wlt', %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING tournament_id
     """, (
         store_id,
@@ -560,14 +560,17 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
         # Build Limitless decklist URL
         decklist_url = f"https://play.limitlesstcg.com/tournament/{limitless_id}/player/{limitless_username}/decklist" if decklist_json else None
 
+        # Calculate points from W-L-T
+        points = (wins * 3) + ties
+
         # Insert result (let PostgreSQL generate result_id via IDENTITY)
         try:
             cursor.execute("""
                 INSERT INTO results
                     (tournament_id, player_id, archetype_id, pending_deck_request_id,
-                     placement, wins, losses, ties, decklist_json, decklist_url, notes,
+                     placement, wins, losses, ties, points, decklist_json, decklist_url, notes,
                      created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, (
                 next_tournament_id,
                 player_id,
@@ -577,6 +580,7 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
                 wins,
                 losses,
                 ties,
+                points,
                 decklist_json,
                 decklist_url,
                 notes,
@@ -960,13 +964,16 @@ def repair_tournament(cursor, tournament_id, limitless_id):
         if existing:
             continue  # Already have this result
 
+        # Calculate points from W-L-T
+        points = (wins * 3) + ties
+
         # Insert result (let PostgreSQL generate result_id via IDENTITY)
         try:
             cursor.execute("""
                 INSERT INTO results
                     (tournament_id, player_id, archetype_id, pending_deck_request_id,
-                     placement, wins, losses, ties, notes, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                     placement, wins, losses, ties, points, notes, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             """, (
                 tournament_id,
                 player_id,
@@ -976,6 +983,7 @@ def repair_tournament(cursor, tournament_id, limitless_id):
                 wins,
                 losses,
                 ties,
+                points,
                 notes,
             ))
             results_inserted += 1
@@ -1547,6 +1555,25 @@ def main():
     if args.classify and not args.dry_run:
         classified_count = run_classify_decklists(cursor)
         conn.commit()
+
+    # Refresh materialized views after sync
+    if not args.dry_run and total_synced > 0:
+        print("\nRefreshing materialized views...")
+        mv_views = [
+            "mv_player_store_stats",
+            "mv_archetype_store_stats",
+            "mv_tournament_list",
+            "mv_store_summary",
+            "mv_dashboard_counts",
+        ]
+        for mv in mv_views:
+            try:
+                cursor.execute(f"REFRESH MATERIALIZED VIEW {mv}")
+                conn.commit()
+            except Exception as e:
+                print(f"  WARNING: Failed to refresh {mv}: {e}")
+                conn.rollback()
+        print("  Materialized views refreshed.")
 
     # Close connection
     cursor.close()

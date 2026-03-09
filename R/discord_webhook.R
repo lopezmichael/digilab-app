@@ -293,17 +293,40 @@ discord_create_scene_thread <- function(scene_name, message_content, lat = NULL,
 }
 
 # Post a short announcement to #scene-updates
+# Randomly selects from a pool of message templates for variety
 discord_post_scene_update <- function(scene_name) {
-  webhook_url <- Sys.getenv("DISCORD_WEBHOOK_SCENE_REQUESTS")
+  webhook_url <- Sys.getenv("DISCORD_WEBHOOK_SCENE_UPDATES")
 
   if (is.null(webhook_url) || nchar(webhook_url) == 0) return(invisible(FALSE))
 
-  body <- list(
-    content = paste0(
-      "**New Scene:** ", scene_name, " is now live on DigiLab! ",
-      "Check out the local leaderboard and tournament history at https://app.digilab.cards"
+  templates <- c(
+    paste0(
+      "**New Scene:** ", scene_name, " just joined DigiLab! ",
+      "Check out their local leaderboard and tournament history at <https://app.digilab.cards>"
+    ),
+    paste0(
+      "Welcome to the family, **", scene_name, "**! ",
+      "Your scene is now live — start tracking tournaments, players, and meta at <https://app.digilab.cards>"
+    ),
+    paste0(
+      "**", scene_name, "** is officially on the map! ",
+      "Local players can now find their stats, standings, and tournament history at <https://app.digilab.cards>"
+    ),
+    paste0(
+      "Another scene enters the fray — **", scene_name, "** is now live on DigiLab! ",
+      "Explore the local meta and leaderboard at <https://app.digilab.cards>"
+    ),
+    paste0(
+      "The DigiLab network keeps growing! **", scene_name, "** is now live. ",
+      "Track your local tournaments and climb the leaderboard at <https://app.digilab.cards>"
+    ),
+    paste0(
+      "**", scene_name, "** has arrived! ",
+      "Your community now has its own leaderboard, tournament history, and meta breakdown at <https://app.digilab.cards>"
     )
   )
+
+  body <- list(content = sample(templates, 1))
 
   discord_send(webhook_url, body)
 }

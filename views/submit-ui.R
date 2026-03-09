@@ -45,6 +45,12 @@ submit_ui <- tagList(
             class = "wizard-step",
             span(class = "step-number", "2"),
             span(class = "step-label", "Review & Submit")
+          ),
+          div(
+            id = "submit_step3_indicator",
+            class = "wizard-step",
+            span(class = "step-number", "3"),
+            span(class = "step-label", "Decklists")
           )
         ),
 
@@ -198,6 +204,36 @@ submit_ui <- tagList(
                            icon = icon("arrow-left")),
               actionButton("submit_tournament", "Submit Tournament",
                            class = "btn-primary btn-lg", icon = icon("check"))
+            )
+          )
+        ),
+
+        # Step 3: Decklist Links (hidden initially)
+        shinyjs::hidden(
+          div(
+            id = "submit_wizard_step3",
+            uiOutput("submit_decklist_summary_bar"),
+            card(
+              card_header(
+                class = "d-flex justify-content-between align-items-center",
+                span("Add Decklist Links"),
+                span(class = "text-muted small", "Optional — paste external decklist URLs for any players")
+              ),
+              card_body(
+                uiOutput("submit_decklist_table")
+              )
+            ),
+            div(
+              class = "d-flex justify-content-between mt-3",
+              actionButton("submit_skip_decklists", "Skip", class = "btn-outline-secondary",
+                           icon = icon("forward")),
+              div(
+                class = "d-flex gap-2",
+                actionButton("submit_save_decklists", "Save Progress", class = "btn-primary",
+                             icon = icon("floppy-disk")),
+                actionButton("submit_done_decklists", "Done", class = "btn-success",
+                             icon = icon("check"))
+              )
             )
           )
         )

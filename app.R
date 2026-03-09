@@ -27,10 +27,11 @@ library(bcrypt)
 # - httr: Lazy-loaded via namespacing in R/digimoncard_api.R (rarely used, cards cached)
 
 # App version (update with each release)
-APP_VERSION <- "1.4.1"
+APP_VERSION <- "1.5.0"
 
 # Load modules
 source("R/db_connection.R")
+source("R/safe_db.R")
 source("R/admin_grid.R")
 source("R/digimoncard_api.R")
 source("R/ratings.R")
@@ -990,7 +991,7 @@ server <- function(input, output, session) {
     # === CORE ===
     is_admin = FALSE,
     is_superadmin = FALSE,
-    admin_user = NULL,          # List: user_id, username, display_name, role, scene_id
+    admin_user = NULL,          # List: user_id, username, discord_user_id, role, scene_id
     needs_bootstrap = FALSE,    # TRUE when admin_users table is empty
 
     # === NAVIGATION ===

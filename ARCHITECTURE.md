@@ -2,7 +2,7 @@
 
 Technical reference for the DigiLab codebase. Consult this document before adding new server modules, reactive values, or modifying core patterns.
 
-**Last Updated:** March 2026 (v1.3.0)
+**Last Updated:** March 2026 (v1.5.0-dev)
 
 > **Note:** Always keep this document in sync with code changes. Update when adding new reactive values, server modules, or patterns.
 
@@ -226,6 +226,8 @@ Declared at top of respective server files. All three grids use shared functions
 | `admin_record_format` | string | "points" or "wlt" |
 | `admin_player_matches` | list | Player match status per row |
 | `admin_deck_request_row` | integer | Row requesting a new deck |
+| `admin_decklist_results` | data.frame | Results for post-submit decklist entry (Step 3) |
+| `admin_decklist_tournament_id` | integer | Tournament ID for decklist entry |
 
 **Upload Results** (prefix: `submit_`, declared in `public-submit-server.R`):
 
@@ -240,16 +242,20 @@ Declared at top of respective server files. All three grids use shared functions
 | `ocr_pending_total_players` | integer | Pending player count for quality check |
 | `ocr_pending_total_rounds` | integer | Pending round count for quality check |
 | `ocr_pending_parsed_count` | integer | Parsed player count for quality check |
+| `submit_decklist_results` | data.frame | Results for post-submit decklist entry (Step 3) |
+| `submit_decklist_tournament_id` | integer | Tournament ID for decklist entry |
 
 **Edit Tournaments** (prefix: `edit_`, declared in `admin-tournaments-server.R`):
 
 | Name | Type | Description |
 |------|------|-------------|
 | `edit_grid_data` | data.frame | Grid rows for editing existing results |
-| `edit_record_format` | string | "points" or "wlt" (inferred from data) |
+| `edit_record_format` | string | "points" or "wlt" (read from DB) |
 | `edit_player_matches` | list | Player match status per row |
 | `edit_deleted_result_ids` | integer[] | Result IDs marked for DB deletion |
 | `edit_grid_tournament_id` | integer | Tournament being edited in grid |
+| `edit_decklist_results` | data.frame | Results for post-save decklist entry |
+| `edit_decklist_tournament_id` | integer | Tournament ID for decklist entry |
 
 ### Refresh Triggers
 
@@ -428,15 +434,12 @@ Logic lives in `observeEvent(input$scene_from_storage)` in `server/scene-server.
 
 ### Connection Handling
 
-Connection is established in `shared-server.R` and stored in `rv$db_con`:
+Uses Neon PostgreSQL via the `pool` package. `db_pool` is created once at app startup and shared across all sessions:
 
 ```r
-# Check connection before use
-req(rv$db_con)
-if (!dbIsValid(rv$db_con)) return(NULL)
-
-# Use connection
-data <- dbGetQuery(rv$db_con, "SELECT * FROM table")
+# All queries use the shared pool — no manual connect/disconnect
+data <- safe_query(db_pool, "SELECT * FROM players WHERE player_id = $1",
+                   params = list(player_id), default = data.frame())
 ```
 
 ### Refresh Pattern
@@ -450,79 +453,82 @@ rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 # In public view reactive
 reactive({
   rv$data_refresh  # React to changes
-  req(rv$db_con)
-  dbGetQuery(rv$db_con, "...")
+  safe_query(db_pool, "...")
 })
 ```
 
 ### Parameterized Queries
 
-Always use parameterized queries to prevent SQL injection:
+Always use parameterized queries with `$1, $2, $3` numbered placeholders (RPostgres style):
 
 ```r
 # Correct
-dbGetQuery(rv$db_con, "SELECT * FROM players WHERE player_id = ?",
-           params = list(player_id))
-
-# Also correct (named)
-dbGetQuery(rv$db_con, "SELECT * FROM players WHERE player_id = $1",
-           params = list(player_id))
+safe_query(db_pool, "SELECT * FROM players WHERE player_id = $1",
+           params = list(player_id), default = data.frame())
 
 # WRONG - SQL injection risk
-dbGetQuery(rv$db_con, paste0("SELECT * FROM players WHERE player_id = ", player_id))
+dbGetQuery(db_pool, paste0("SELECT * FROM players WHERE player_id = ", player_id))
 ```
 
-### safe_query() Wrapper (v0.21.1+)
+### safe_query / safe_execute (v0.21.1+, refactored v1.5.0)
 
-All public queries should use the `safe_query()` wrapper for graceful error handling:
+**All DB calls** should use wrappers — never raw `dbGetQuery`/`dbExecute` (except inside transaction blocks).
+
+**Two tiers:**
+- `safe_query()` / `safe_execute()` — defined in `shared-server.R`, add session-level Sentry context tags. Use in all `server/` files.
+- `safe_query_impl()` / `safe_execute_impl()` — defined in `R/safe_db.R`, available globally. Use in `R/` utility files (`ratings.R`, `admin_grid.R`).
+
+Both provide: prepared statement retry logic, Sentry error reporting, slow query logging (>200ms), graceful defaults on error.
 
 ```r
-# In shared-server.R
-safe_query <- function(con, query, params = NULL, default = NULL) {
-  tryCatch({
-    if (is.null(params) || length(params) == 0) {
-      dbGetQuery(con, query)
-    } else {
-      dbGetQuery(con, query, params = params)
-    }
-  }, error = function(e) {
-    message("Database query error: ", e$message)
-    default
-  })
-}
-
-# Usage
-result <- safe_query(rv$db_con, "SELECT * FROM players WHERE id = ?",
+# In server/ files (session-scoped Sentry tags)
+result <- safe_query(db_pool, "SELECT * FROM players WHERE player_id = $1",
                      params = list(player_id),
-                     default = data.frame())
+                     default = data.frame(player_id = integer()))
+
+rows <- safe_execute(db_pool, "UPDATE players SET name = $1 WHERE player_id = $2",
+                     params = list(name, player_id))
+
+# In R/ utility files (global scope, no session tags)
+result <- safe_query_impl(db_con, "SELECT * FROM players", default = data.frame())
 ```
 
-### Transaction Safety (v1.0+)
+### Transaction Safety (v1.5.0)
 
-Inside explicit `BEGIN TRANSACTION` / `COMMIT` blocks, use `DBI::dbExecute()` directly — **not** `safe_execute()`. The `safe_execute()` wrapper swallows errors (returns 0), which prevents DuckDB from rolling back the aborted transaction. All subsequent statements fail silently.
+Multi-statement operations use `pool::localCheckout()` + BEGIN/COMMIT/ROLLBACK for atomicity. Inside transaction blocks, use raw `DBI::` calls — **not** `safe_query`/`safe_execute` (retry logic would break the transaction by grabbing a different connection).
 
 ```r
+conn <- pool::localCheckout(db_pool)
+# Transaction block: raw DBI calls intentional (retry would break atomicity)
+DBI::dbExecute(conn, "BEGIN")
 tryCatch({
-  dbExecute(rv$db_con, "BEGIN TRANSACTION")
-
-  # Use DBI::dbExecute() for writes inside transactions
-  DBI::dbExecute(rv$db_con, "INSERT INTO ...", params = list(...))
-  DBI::dbExecute(rv$db_con, "UPDATE ...", params = list(...))
-
-  # safe_query() is fine for SELECT (read-only, no rollback concern)
-  player <- safe_query(rv$db_con, "SELECT ...", params = list(...))
-
-  dbExecute(rv$db_con, "COMMIT")
+  DBI::dbExecute(conn, "INSERT INTO tournaments ...", params = list(...))
+  DBI::dbExecute(conn, "INSERT INTO results ...", params = list(...))
+  DBI::dbExecute(conn, "COMMIT")
 }, error = function(e) {
-  tryCatch(dbExecute(rv$db_con, "ROLLBACK"), error = function(re) NULL)
-  if (sentry_enabled) {
-    tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
-  }
-  notify(paste("Error:", e$message), type = "error")
+  tryCatch(DBI::dbExecute(conn, "ROLLBACK"), error = function(re) NULL)
+  stop(e)  # re-throw to outer handler
 })
 ```
 
+**Transaction locations:** Enter Results submit (`admin-results-server.R`), Edit Tournament save and Delete Tournament (`admin-tournaments-server.R`), Submit Results and Match History submit (`public-submit-server.R`), Materialized view refresh (`shared-server.R`).
+
 Outside of transactions, `safe_execute()` remains the correct choice — it prevents one failed write from crashing the session.
+
+### Deferred Rating Recalculation (v1.5.0)
+
+Rating recalculation is the heaviest operation in the app. All call sites use `later::later()` to defer it so the UI updates immediately:
+
+```r
+later::later(function() {
+  ratings_ok <- recalculate_ratings_cache(db_pool)
+  if (!isTRUE(ratings_ok)) {
+    notify("Ratings failed to update.", type = "warning", duration = 8)
+  }
+}, delay = 0.5)
+```
+
+The only exception is the startup check in `shared-server.R` which runs synchronously.
 
 ### Lazy-Loaded Admin UI (v1.0+)
 
@@ -534,6 +540,55 @@ observe({
   req(rv$db_con, rv$is_admin)
   updateSelectInput(session, "my_dropdown", choices = ...)
 })
+```
+
+### Materialized Views (v1.5.0+)
+
+All 5 public tabs read from materialized views instead of multi-table JOINs. Views are stored at per-store grain with scene/country/state/online columns for flexible filtering.
+
+| View | Source Tabs | Grain |
+|------|------------|-------|
+| `mv_player_store_stats` | Players | player + store + format + archetype |
+| `mv_archetype_store_stats` | Meta, Dashboard | archetype + store + format + week |
+| `mv_tournament_list` | Tournaments, Dashboard | tournament (1 row per tournament) |
+| `mv_store_summary` | Stores | store (1 row per active store) |
+| `mv_dashboard_counts` | (mostly unused) | scene + format + event_type |
+
+**Refresh:** `refresh_materialized_views(pool)` in `shared-server.R` runs non-concurrent `REFRESH MATERIALIZED VIEW` on all 5 views. Triggered by:
+- `rv$data_refresh` observer (fires after any admin mutation)
+- `sync_limitless.py` (after online tournament sync)
+
+**Startup guard:** `mv_views_exist(pool)` checks if MVs are available. If not, the app can fall back to direct table queries.
+
+**Query pattern:**
+```r
+filters <- build_mv_filters(format = input$format, scene = rv$current_scene)
+result <- safe_query(db_pool, sprintf("
+  SELECT archetype_name, SUM(entries) as total
+  FROM mv_archetype_store_stats
+  WHERE 1=1 %s
+  GROUP BY archetype_name
+", filters$sql), params = filters$params)
+```
+
+**Important:** Never `SUM()` pre-aggregated `COUNT(DISTINCT)` columns across groups — entities spanning multiple groups get double-counted. Use `COUNT(DISTINCT)` at query time instead, or query from a view with the right grain (e.g., `mv_tournament_list` for tournament/player counts).
+
+### build_mv_filters() Helper (v1.5.0+)
+
+Generates WHERE clauses for flat materialized view queries. Unlike `build_filters_param()`, no table aliases or JOINs are needed because MVs are flat tables with all filter columns inline.
+
+```r
+filters <- build_mv_filters(
+  format = input$format,           # Format filter value
+  event_type = input$event_type,   # Event type filter
+  scene = rv$current_scene,        # Scene slug
+  community_store = rv$community_store,  # Single-store filter (future)
+  search = input$search,           # Text search
+  search_column = "display_name",  # Column to search
+  start_idx = 1,                   # Starting param index ($1, $2, ...)
+  alias = NULL                     # Optional table alias (for CTEs)
+)
+# Returns: list(sql = "AND format = $1 AND scene_id = ...", params = list(...), next_idx = 3)
 ```
 
 ### build_filters_param() Helper (v0.21.1+)
@@ -648,15 +703,14 @@ session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events"
 
 JS in `www/pill-toggle.js` handles click events and `Shiny.setInputValue()`.
 
-### Auto-Reconnection (v0.23+)
+### Prepared Statement Retry (v0.21.1+)
 
-`safe_query()` now detects stale connections and auto-reconnects:
+`safe_query`/`safe_execute` detect stale prepared statement errors from pool connection reuse and retry once with a fresh connection:
 
 ```r
-safe_query <- function(con, query, ...) {
-  # If connection invalid, reconnect via connect_db()
-  # Updates rv$db_con and retries the query
-}
+# Errors matching these patterns trigger a single retry:
+# "prepared statement", "bind message supplies", "needs to be bound",
+# "multiple queries.*same column", "invalid input syntax"
 ```
 
 ---

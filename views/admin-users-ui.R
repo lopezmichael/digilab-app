@@ -49,7 +49,11 @@ admin_users_ui <- tagList(
         ),
         card_body(
           textInput("admin_username", "Username", placeholder = "e.g., sarah"),
-          textInput("admin_display_name", "Display Name", placeholder = "e.g., Sarah"),
+          textInput("admin_discord_id", "Discord User ID (optional)",
+                    placeholder = "e.g., 123456789012345678"),
+          tags$small(class = "form-text text-muted mt-n2 mb-2",
+            "Numeric ID from Discord (right-click user → Copy User ID). Enables @mentions in webhooks."
+          ),
           div(
             passwordInput("admin_password", "Password"),
             div(class = "d-flex justify-content-between align-items-center mt-n2 mb-2",

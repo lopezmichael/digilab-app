@@ -65,11 +65,11 @@ admin_users_data <- reactive({
   rv$data_refresh  # Trigger refresh
   req(db_pool, rv$is_superadmin)
   safe_query(db_pool,
-    "SELECT u.user_id, u.username, u.display_name, u.role,
+    "SELECT u.user_id, u.username, u.discord_user_id, u.role,
             u.is_active, u.created_at, u.scene_id, s.display_name as scene_name
      FROM admin_users u
      LEFT JOIN scenes s ON u.scene_id = s.scene_id
-     ORDER BY u.role DESC, u.display_name",
+     ORDER BY u.role DESC, u.username",
     default = data.frame())
 })
 
@@ -99,8 +99,7 @@ output$admin_users_grouped <- renderUI({
     div(
       class = "admin-user-row",
       onclick = sprintf("Shiny.setInputValue('admin_user_clicked', {user_id: %d, nonce: Math.random()}, {priority: 'event'})", row$user_id),
-      div(class = "admin-user-row-name", row$display_name),
-      div(class = "admin-user-row-username", paste0("@", row$username)),
+      div(class = "admin-user-row-name", row$username),
       div(class = "admin-user-row-status", if (row$is_active) "\u2705" else "\u274c")
     )
   }
@@ -185,7 +184,7 @@ observeEvent(input$admin_user_clicked, {
 
   editing_admin_id(row$user_id)
   updateTextInput(session, "admin_username", value = row$username)
-  updateTextInput(session, "admin_display_name", value = row$display_name)
+  updateTextInput(session, "admin_discord_id", value = row$discord_user_id %||% "")
   updateTextInput(session, "admin_password", value = "")
   updateSelectInput(session, "admin_role", selected = row$role)
 
@@ -215,7 +214,7 @@ observeEvent(input$admin_user_clicked, {
 observeEvent(input$clear_admin_form_btn, {
   editing_admin_id(NULL)
   updateTextInput(session, "admin_username", value = "")
-  updateTextInput(session, "admin_display_name", value = "")
+  updateTextInput(session, "admin_discord_id", value = "")
   updateTextInput(session, "admin_password", value = "")
   updateSelectInput(session, "admin_role", selected = "scene_admin")
   updateSelectInput(session, "admin_scene", selected = "")
@@ -242,7 +241,8 @@ observeEvent(input$save_admin_btn, {
   req(rv$is_superadmin)
 
   username <- trimws(input$admin_username)
-  display_name <- trimws(input$admin_display_name)
+  discord_user_id <- trimws(input$admin_discord_id)
+  if (nchar(discord_user_id) == 0) discord_user_id <- NA_character_
   password <- input$admin_password
   role <- input$admin_role
   scene_id <- if (role == "scene_admin" && nchar(input$admin_scene) > 0) {
@@ -254,10 +254,6 @@ observeEvent(input$save_admin_btn, {
   # Validation
   if (nchar(username) < 3) {
     notify("Username must be at least 3 characters", type = "warning")
-    return()
-  }
-  if (nchar(display_name) == 0) {
-    notify("Display name is required", type = "warning")
     return()
   }
   if (role == "scene_admin" && is.na(scene_id)) {
@@ -285,10 +281,10 @@ observeEvent(input$save_admin_btn, {
     hash <- bcrypt::hashpw(password)
 
     insert_result <- safe_query(db_pool,
-      "INSERT INTO admin_users (username, password_hash, display_name, role, scene_id)
+      "INSERT INTO admin_users (username, password_hash, discord_user_id, role, scene_id)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING user_id",
-      params = list(username, hash, display_name, role,
+      params = list(username, hash, discord_user_id, role,
                     if (is.na(scene_id)) NA_integer_ else scene_id),
       default = data.frame())
 
@@ -318,7 +314,7 @@ observeEvent(input$save_admin_btn, {
       }
 
       welcome_dm <- paste0(
-        "Hey ", display_name, "! You've been added as a Scene Admin for ", scene_name,
+        "Hey ", username, "! You've been added as a Scene Admin for ", scene_name,
         " on DigiLab. Here's everything you need to get started:\n\n",
         "**Your Login:**\n",
         "- App: https://app.digilab.cards/\n",
@@ -347,7 +343,7 @@ observeEvent(input$save_admin_btn, {
       # Clear form
       editing_admin_id(NULL)
       updateTextInput(session, "admin_username", value = "")
-      updateTextInput(session, "admin_display_name", value = "")
+      updateTextInput(session, "admin_discord_id", value = "")
       updateTextInput(session, "admin_password", value = "")
       updateSelectInput(session, "admin_role", selected = "scene_admin")
       updateSelectInput(session, "admin_scene", selected = "")
@@ -384,16 +380,16 @@ observeEvent(input$save_admin_btn, {
       }
       hash <- bcrypt::hashpw(password)
       safe_execute(db_pool,
-        "UPDATE admin_users SET username = $1, password_hash = $2, display_name = $3, role = $4, scene_id = $5
+        "UPDATE admin_users SET username = $1, password_hash = $2, discord_user_id = $3, role = $4, scene_id = $5
          WHERE user_id = $6",
-        params = list(username, hash, display_name, role,
+        params = list(username, hash, discord_user_id, role,
                       if (is.na(scene_id)) NA_integer_ else scene_id, uid))
     } else {
       # Update without changing password
       safe_execute(db_pool,
-        "UPDATE admin_users SET username = $1, display_name = $2, role = $3, scene_id = $4
+        "UPDATE admin_users SET username = $1, discord_user_id = $2, role = $3, scene_id = $4
          WHERE user_id = $5",
-        params = list(username, display_name, role,
+        params = list(username, discord_user_id, role,
                       if (is.na(scene_id)) NA_integer_ else scene_id, uid))
     }
 
@@ -402,7 +398,7 @@ observeEvent(input$save_admin_btn, {
 
     # If editing self, update reactive state
     if (uid == rv$admin_user$user_id) {
-      rv$admin_user$display_name <- display_name
+      rv$admin_user$discord_user_id <- discord_user_id
       rv$admin_user$username <- username
     }
   }

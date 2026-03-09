@@ -5,7 +5,45 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.5.0] - 2026-03-09 - Performance & Caching
+
+### Added
+- **Materialized views (PERF2)**: 5 pre-computed views (`mv_player_store_stats`, `mv_archetype_store_stats`, `mv_tournament_list`, `mv_store_summary`, `mv_dashboard_counts`) replace multi-table JOINs across all public tabs. Per-store grain design enables future country/state/single-store filtering without schema changes.
+- **`build_mv_filters()` helper**: New filter builder for flat materialized view queries — no table aliases or JOINs needed.
+- **`refresh_materialized_views()` helper**: Refreshes all 5 MVs after admin data mutations via `rv$data_refresh` observer.
+- **Limitless sync MV refresh**: `sync_limitless.py` refreshes all MVs after syncing online tournaments.
+- **`mv_views_exist()` guard**: Checks MV availability at startup to fail gracefully if migration hasn't run.
+- **`record_format` column**: Tournaments table now stores original entry format (`'points'` or `'wlt'`).
+- **`points` column**: Results table now stores original points value alongside W-L-T.
+- **Decklist entry (BUG 6 restore)**: Post-submission Step 3 across all three result entry flows (Enter Results, Upload Results, Edit Tournaments) for adding decklist URLs. Shared `render_decklist_entry()` component with Skip/Save/Done controls.
+- **Decklist URL validation**: Domain allowlist restricts URLs to 7 approved deckbuilder sites (digimoncard.io, digimoncard.dev, digimoncard.app, digimonmeta.com, digitalgateopen.com, limitlesstcg.com, tcgstacked.com). Validates on save and sanitizes on display. `rel="noopener noreferrer"` on all decklist links.
+- **Shared `save_decklist_urls()` helper**: Single function in `R/admin_grid.R` handles validation, save, and skip-warning across all three entry flows.
+- **`R/safe_db.R` global wrappers**: Extracted `safe_query_impl`/`safe_execute_impl` to global scope so `R/ratings.R` and `R/admin_grid.R` get the same retry + Sentry error handling as server-scoped code. Server-scoped `safe_query`/`safe_execute` now delegate to these with session-level Sentry tags.
+- **Transaction blocks**: Enter Results submit, Edit Tournament save, and Delete Tournament now use `localCheckout` + BEGIN/COMMIT/ROLLBACK for atomicity. Prevents partial database state if a failure occurs mid-loop.
+
+### Changed
+- **Dashboard metrics**: Core metrics (tournaments, players) now use `mv_tournament_list` with proper `COUNT(DISTINCT)` instead of pre-aggregated `mv_dashboard_counts` to avoid double-counting.
+- **Players tab**: Replaced 2 separate 4-table JOIN queries + 3 R merges with single CTE query on `mv_player_store_stats`.
+- **Meta tab**: Replaced 4-table JOIN with simple aggregation on `mv_archetype_store_stats`.
+- **Tournaments tab**: Replaced LATERAL JOIN query with flat SELECT on `mv_tournament_list`.
+- **Stores tab**: Replaced stores+tournaments JOIN with `mv_store_summary`.
+- **Dashboard deck analytics**: Replaced 4-table JOIN + window function with `mv_archetype_store_stats`.
+- **Safe query migration**: Migrated 160 raw `dbGetQuery`/`dbExecute` calls to `safe_query`/`safe_execute` wrappers across all server and R/ utility files. Every DB call now has prepared statement retry logic and Sentry error reporting.
+- **Background rating recalculation**: All rating recalc calls now use `later::later(delay = 0.5)` so the UI transitions immediately after DB commits instead of blocking on the heavy Elo calculation.
+- **Dashboard preload**: Loading screen dismissal delayed 0.3s so dashboard outputs render behind the loading screen, eliminating the flash of empty content on first load.
+- **"Save Links" → "Save Progress"**: Renamed decklist save button across all 3 entry flows for clarity.
+
+### Fixed
+- **Deck assignment mismatch (BUG 3)**: Submit handlers read deck input using `row$placement` instead of the grid row index. When rows were empty/skipped, the wrong deck was assigned (e.g., Chronicle showing as Pulsemon). Fixed in both Enter Results and Edit Results flows.
+- **Tournament deep links broken (BUG 4)**: URLs like `?tournament=411` always showed "Tournament Not Found" because `resolve_entity_slug()` returned NULL for tournaments. Now correctly resolves numeric IDs.
+- **Points→W-L-D format switch (BUG 1)**: Edit tournament view inferred format from stored data, which was always wrong for zero-tie records. Now reads stored `record_format` from database instead of inferring.
+- **Modal stacking on deck request (BUG 2)**: `observeEvent` inside `observe` + `lapply` created duplicate handlers on every grid change. One click could open multiple stacked modals. Replaced with fixed handler set created once at init.
+- **`get_format_choices` NULL crash**: Guard against missing columns when format query fails.
+- **Player CTE duplicate params**: PostgreSQL reuses `$1` across CTEs — removed duplicate filter params.
+- **Missing rating recalculation on tournament delete**: Deleting a tournament left stale player ratings until next app restart. Now recalculates after deletion.
+- **Missing rating recalculation on public submit**: Public Upload Results submissions never triggered rating recalculation. Now deferred via `later::later()`.
+- **Welcome modal unnecessary re-query**: Dismissing the welcome modal with "All Scenes" (the default) triggered a full data refresh even though nothing changed. Scene selection now skips refresh when the scene hasn't changed.
+- **Delete tournament error path**: `rows` variable was undefined if the transaction errored, causing a secondary crash. Fixed with proper `tryCatch` return value.
 
 ## [1.4.1] - 2026-03-08 - Audit Trail & Scene Guard
 

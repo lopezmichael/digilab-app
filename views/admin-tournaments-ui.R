@@ -147,5 +147,36 @@ admin_tournaments_ui <- tagList(
                      icon = icon("check"))
       )
     )
+  ),
+
+  # Edit Decklist Links (hidden initially, shown after saving results)
+  shinyjs::hidden(
+    div(
+      id = "edit_decklist_section",
+      class = "admin-panel mt-3",
+      uiOutput("edit_decklist_summary_bar"),
+      card(
+        card_header(
+          class = "d-flex justify-content-between align-items-center",
+          span("Add Decklist Links"),
+          span(class = "text-muted small", "Optional — paste external decklist URLs for any players")
+        ),
+        card_body(
+          uiOutput("edit_decklist_table")
+        )
+      ),
+      div(
+        class = "d-flex justify-content-between mt-3",
+        actionButton("edit_decklist_skip", "Skip", class = "btn-outline-secondary",
+                     icon = icon("forward")),
+        div(
+          class = "d-flex gap-2",
+          actionButton("edit_decklist_save", "Save Progress", class = "btn-primary",
+                       icon = icon("floppy-disk")),
+          actionButton("edit_decklist_done", "Done", class = "btn-success",
+                       icon = icon("check"))
+        )
+      )
+    )
   )
 )

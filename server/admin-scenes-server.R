@@ -520,14 +520,22 @@ observeEvent(input$post_scene_welcome_btn, {
 
   # Get scene admins
   admins <- safe_query(db_pool,
-    "SELECT display_name, username FROM admin_users
+    "SELECT username, discord_user_id FROM admin_users
      WHERE scene_id = $1 AND is_active = TRUE AND role = 'scene_admin'
-     ORDER BY display_name",
+     ORDER BY username",
     params = list(sid),
     default = data.frame())
 
   admin_mentions <- if (nrow(admins) > 0) {
-    paste(paste0("@", admins$username), collapse = ", ")
+    mentions <- sapply(seq_len(nrow(admins)), function(i) {
+      did <- admins$discord_user_id[i]
+      if (!is.na(did) && nchar(did) > 0) {
+        paste0("<@", did, ">")
+      } else {
+        paste0("@", admins$username[i])
+      }
+    })
+    paste(mentions, collapse = ", ")
   } else {
     "(no scene admin assigned yet)"
   }
@@ -549,7 +557,7 @@ observeEvent(input$post_scene_welcome_btn, {
     "Scene Admin(s): ", admin_mentions, "\n\n",
     "Welcome to DigiLab! Your scene ", scene_name, " is now live and your admin account has been set up.\n\n",
     "**Getting Started:**\n",
-    "- Log in at https://app.digilab.cards/ using the credentials sent to you\n",
+    "- Log in at <https://app.digilab.cards/> using the credentials sent to you\n",
     "- Head to Admin -> Enter Results to start adding tournament data\n",
     "- First you'll need to verify your local store(s) are set up via Admin -> Stores\n\n",
     "**Stores added:**\n",
