@@ -1324,7 +1324,7 @@ get_format_choices <- function(pool) {
     WHERE is_active = TRUE
     ORDER BY release_date DESC NULLS LAST
   ", default = data.frame())
-  if (nrow(formats) == 0) {
+  if (nrow(formats) == 0 || !"format_id" %in% names(formats)) {
     return(c("No formats configured" = ""))
   }
   choices <- setNames(formats$format_id, formats$display_name)
