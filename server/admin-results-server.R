@@ -640,36 +640,33 @@ observeEvent(input$paste_apply, {
 # Admin Grid: Deck Request
 # =============================================================================
 
-observe({
-  req(rv$admin_grid_data)
-  grid <- rv$admin_grid_data
-
-  lapply(seq_len(nrow(grid)), function(i) {
-    observeEvent(input[[paste0("admin_deck_", i)]], {
-      if (!is.null(input[[paste0("admin_deck_", i)]]) &&
-          input[[paste0("admin_deck_", i)]] == "__REQUEST_NEW__") {
-        rv$admin_deck_request_row <- i
-        showModal(modalDialog(
-          title = tagList(bsicons::bs_icon("collection-fill"), " Request New Deck"),
-          textInput("admin_deck_request_name", "Deck Name", placeholder = "e.g., Blue Flare"),
-          uiOutput("admin_deck_request_suggestions"),
-          layout_columns(
-            col_widths = c(6, 6),
-            selectInput("admin_deck_request_color", "Primary Color",
-                        choices = c("Red", "Blue", "Yellow", "Green", "Purple", "Black", "White")),
-            selectInput("admin_deck_request_color2", "Secondary Color (optional)",
-                        choices = c("None" = "", "Red", "Blue", "Yellow", "Green", "Purple", "Black", "White"))
-          ),
-          textInput("admin_deck_request_card_id", "Card ID (optional)",
-                    placeholder = "e.g., BT1-001"),
-          footer = tagList(
-            modalButton("Cancel"),
-            actionButton("admin_deck_request_submit", "Submit Request", class = "btn-primary")
-          )
-        ))
-      }
-    }, ignoreInit = TRUE)
-  })
+# Create deck request handlers ONCE at init (not inside observe, which would accumulate handlers)
+lapply(1:128, function(i) {
+  observeEvent(input[[paste0("admin_deck_", i)]], {
+    if (isTRUE(input[[paste0("admin_deck_", i)]] == "__REQUEST_NEW__")) {
+      rv$admin_deck_request_row <- i
+      showModal(modalDialog(
+        title = tagList(bsicons::bs_icon("collection-fill"), " Request New Deck"),
+        textInput("admin_deck_request_name", "Deck Name", placeholder = "e.g., Blue Flare"),
+        uiOutput("admin_deck_request_suggestions"),
+        layout_columns(
+          col_widths = c(6, 6),
+          selectInput("admin_deck_request_color", "Primary Color",
+                      choices = c("Red", "Blue", "Yellow", "Green", "Purple", "Black", "White"),
+                      selectize = FALSE),
+          selectInput("admin_deck_request_color2", "Secondary Color (optional)",
+                      choices = c("None" = "", "Red", "Blue", "Yellow", "Green", "Purple", "Black", "White"),
+                      selectize = FALSE)
+        ),
+        textInput("admin_deck_request_card_id", "Card ID (optional)",
+                  placeholder = "e.g., BT1-001"),
+        footer = tagList(
+          modalButton("Cancel"),
+          actionButton("admin_deck_request_submit", "Submit Request", class = "btn-primary")
+        )
+      ))
+    }
+  }, ignoreInit = TRUE)
 })
 
 # Debounced deck name input for suggestions (300ms delay)

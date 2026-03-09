@@ -932,54 +932,49 @@ observeEvent(input$submit_player_blur, {
 # Track which row triggered the deck request modal
 rv$deck_request_row <- NULL
 
-# Handle deck dropdown selections - detect "Request new deck" option
-observe({
-  req(rv$submit_grid_data)
-  grid <- rv$submit_grid_data
-
-  lapply(seq_len(nrow(grid)), function(i) {
-    observeEvent(input[[paste0("submit_deck_", i)]], {
-      if (isTRUE(input[[paste0("submit_deck_", i)]] == "__REQUEST_NEW__")) {
-        rv$deck_request_row <- i
-        showModal(modalDialog(
-          title = "Request New Deck",
-          div(
-            class = "deck-request-form",
-            textInput("deck_request_name", "Deck Name", placeholder = "e.g., Blue Flare"),
-            uiOutput("deck_request_suggestions"),
-            layout_columns(
-              col_widths = c(6, 6),
-              class = "deck-request-colors",
-              selectInput("deck_request_color", "Primary Color",
-                          choices = c("Select..." = "",
-                                      "Red" = "Red", "Blue" = "Blue",
-                                      "Yellow" = "Yellow", "Green" = "Green",
-                                      "Purple" = "Purple", "Black" = "Black",
-                                      "White" = "White"),
-                          selectize = FALSE),
-              selectInput("deck_request_color2", "Secondary Color (optional)",
-                          choices = c("None" = "",
-                                      "Red" = "Red", "Blue" = "Blue",
-                                      "Yellow" = "Yellow", "Green" = "Green",
-                                      "Purple" = "Purple", "Black" = "Black",
-                                      "White" = "White"),
-                          selectize = FALSE)
-            ),
-            textInput("deck_request_card_id", "Card ID (optional)",
-                      placeholder = "e.g., BT12-031")
+# Deck request handlers — created ONCE at init (not inside observe, which would accumulate handlers)
+lapply(1:128, function(i) {
+  observeEvent(input[[paste0("submit_deck_", i)]], {
+    if (isTRUE(input[[paste0("submit_deck_", i)]] == "__REQUEST_NEW__")) {
+      rv$deck_request_row <- i
+      showModal(modalDialog(
+        title = "Request New Deck",
+        div(
+          class = "deck-request-form",
+          textInput("deck_request_name", "Deck Name", placeholder = "e.g., Blue Flare"),
+          uiOutput("deck_request_suggestions"),
+          layout_columns(
+            col_widths = c(6, 6),
+            class = "deck-request-colors",
+            selectInput("deck_request_color", "Primary Color",
+                        choices = c("Select..." = "",
+                                    "Red" = "Red", "Blue" = "Blue",
+                                    "Yellow" = "Yellow", "Green" = "Green",
+                                    "Purple" = "Purple", "Black" = "Black",
+                                    "White" = "White"),
+                        selectize = FALSE),
+            selectInput("deck_request_color2", "Secondary Color (optional)",
+                        choices = c("None" = "",
+                                    "Red" = "Red", "Blue" = "Blue",
+                                    "Yellow" = "Yellow", "Green" = "Green",
+                                    "Purple" = "Purple", "Black" = "Black",
+                                    "White" = "White"),
+                        selectize = FALSE)
           ),
-          footer = tagList(
-            modalButton("Cancel"),
-            actionButton("deck_request_submit", "Submit Request", class = "btn-primary")
-          ),
-          size = "m",
-          easyClose = TRUE
-        ))
-        # Reset dropdown to Unknown while modal is open
-        updateSelectizeInput(session, paste0("submit_deck_", i), selected = "")
-      }
-    }, ignoreInit = TRUE)
-  })
+          textInput("deck_request_card_id", "Card ID (optional)",
+                    placeholder = "e.g., BT12-031")
+        ),
+        footer = tagList(
+          modalButton("Cancel"),
+          actionButton("deck_request_submit", "Submit Request", class = "btn-primary")
+        ),
+        size = "m",
+        easyClose = TRUE
+      ))
+      # Reset dropdown to Unknown while modal is open
+      updateSelectizeInput(session, paste0("submit_deck_", i), selected = "")
+    }
+  }, ignoreInit = TRUE)
 })
 
 # Debounced deck name input for suggestions (300ms delay)

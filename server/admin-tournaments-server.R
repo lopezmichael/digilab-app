@@ -726,36 +726,32 @@ observeEvent(input$edit_paste_apply, {
   rv$edit_grid_data <- grid
 })
 
-# Deck request watcher for edit grid
-observe({
-  req(rv$edit_grid_data)
-  grid <- rv$edit_grid_data
-
-  lapply(seq_len(nrow(grid)), function(i) {
-    observeEvent(input[[paste0("edit_deck_", i)]], {
-      if (!is.null(input[[paste0("edit_deck_", i)]]) &&
-          input[[paste0("edit_deck_", i)]] == "__REQUEST_NEW__") {
-        rv$admin_deck_request_row <- i
-        showModal(modalDialog(
-          title = tagList(bsicons::bs_icon("collection-fill"), " Request New Deck"),
-          textInput("editgrid_deck_request_name", "Deck Name", placeholder = "e.g., Blue Flare"),
-          layout_columns(
-            col_widths = c(6, 6),
-            selectInput("editgrid_deck_request_color", "Primary Color",
-                        choices = c("Red", "Blue", "Yellow", "Green", "Purple", "Black", "White")),
-            selectInput("editgrid_deck_request_color2", "Secondary Color (optional)",
-                        choices = c("None" = "", "Red", "Blue", "Yellow", "Green", "Purple", "Black", "White"))
-          ),
-          textInput("editgrid_deck_request_card_id", "Card ID (optional)",
-                    placeholder = "e.g., BT1-001"),
-          footer = tagList(
-            modalButton("Cancel"),
-            actionButton("edit_deck_request_submit", "Submit Request", class = "btn-primary")
-          )
-        ))
-      }
-    }, ignoreInit = TRUE)
-  })
+# Deck request handlers for edit grid — created ONCE at init (not inside observe)
+lapply(1:128, function(i) {
+  observeEvent(input[[paste0("edit_deck_", i)]], {
+    if (isTRUE(input[[paste0("edit_deck_", i)]] == "__REQUEST_NEW__")) {
+      rv$admin_deck_request_row <- i
+      showModal(modalDialog(
+        title = tagList(bsicons::bs_icon("collection-fill"), " Request New Deck"),
+        textInput("editgrid_deck_request_name", "Deck Name", placeholder = "e.g., Blue Flare"),
+        layout_columns(
+          col_widths = c(6, 6),
+          selectInput("editgrid_deck_request_color", "Primary Color",
+                      choices = c("Red", "Blue", "Yellow", "Green", "Purple", "Black", "White"),
+                      selectize = FALSE),
+          selectInput("editgrid_deck_request_color2", "Secondary Color (optional)",
+                      choices = c("None" = "", "Red", "Blue", "Yellow", "Green", "Purple", "Black", "White"),
+                      selectize = FALSE)
+        ),
+        textInput("editgrid_deck_request_card_id", "Card ID (optional)",
+                  placeholder = "e.g., BT1-001"),
+        footer = tagList(
+          modalButton("Cancel"),
+          actionButton("edit_deck_request_submit", "Submit Request", class = "btn-primary")
+        )
+      ))
+    }
+  }, ignoreInit = TRUE)
 })
 
 observeEvent(input$edit_deck_request_submit, {
