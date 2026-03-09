@@ -196,16 +196,22 @@ output$player_standings <- renderReactable({
   # Determine rating source: historical snapshot or live cache
   snapshot <- historical_snapshot_data()
 
-  if (!is.null(snapshot)) {
+  if (!is.null(snapshot) && nrow(snapshot) > 0) {
     # Historical format with available snapshots
     result <- merge(result, snapshot, by = "player_id", all.x = TRUE)
   } else {
     # Current format or no snapshots: use live cache
     comp_ratings <- player_competitive_ratings()
-    result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+    if (nrow(comp_ratings) > 0) {
+      result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+    }
     ach_scores <- player_achievement_scores()
-    result <- merge(result, ach_scores, by = "player_id", all.x = TRUE)
+    if (nrow(ach_scores) > 0) {
+      result <- merge(result, ach_scores, by = "player_id", all.x = TRUE)
+    }
   }
+  if (!"competitive_rating" %in% names(result)) result$competitive_rating <- NA
+  if (!"achievement_score" %in% names(result)) result$achievement_score <- NA
   result$competitive_rating[is.na(result$competitive_rating)] <- 1500
   result$achievement_score[is.na(result$achievement_score)] <- 0
 
@@ -436,14 +442,20 @@ output$mobile_players_cards <- renderUI({
 
   # Ratings: historical snapshot or live
   snapshot <- historical_snapshot_data()
-  if (!is.null(snapshot)) {
+  if (!is.null(snapshot) && nrow(snapshot) > 0) {
     result <- merge(result, snapshot, by = "player_id", all.x = TRUE)
   } else {
     comp_ratings <- player_competitive_ratings()
-    result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+    if (nrow(comp_ratings) > 0) {
+      result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+    }
     ach_scores <- player_achievement_scores()
-    result <- merge(result, ach_scores, by = "player_id", all.x = TRUE)
+    if (nrow(ach_scores) > 0) {
+      result <- merge(result, ach_scores, by = "player_id", all.x = TRUE)
+    }
   }
+  if (!"competitive_rating" %in% names(result)) result$competitive_rating <- NA
+  if (!"achievement_score" %in% names(result)) result$achievement_score <- NA
   result$competitive_rating[is.na(result$competitive_rating)] <- 1500
   result$achievement_score[is.na(result$achievement_score)] <- 0
 
@@ -792,5 +804,5 @@ output$player_detail_modal <- renderUI({
       digital_empty_state("No results recorded", "// deck data pending", "clipboard-x", mascot = "agumon")
     }
   ))
-}) |> bindCache(rv$selected_player_id, rv$data_refresh)
+})
 outputOptions(output, "player_detail_modal", suspendWhenHidden = FALSE)

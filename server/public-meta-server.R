@@ -508,5 +508,5 @@ output$deck_detail_modal <- renderUI({
       digital_empty_state("No tournament history", "// player data pending", "person-x", mascot = "agumon")
     }
   ))
-}) |> bindCache(rv$selected_archetype_id, rv$current_scene, rv$community_filter, rv$data_refresh)
+})
 outputOptions(output, "deck_detail_modal", suspendWhenHidden = FALSE)

@@ -813,7 +813,7 @@ output$store_detail_modal <- renderUI({
       )
     }
   ))
-}) |> bindCache(rv$selected_store_id, rv$data_refresh)
+})
 
 # Mini map for store modal
 output$store_modal_map <- renderMapboxgl({

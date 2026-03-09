@@ -1234,15 +1234,15 @@ output$rising_stars_cards <- renderUI({
     return(div(class = "text-muted text-center py-3", "No recent top placements"))
   }
 
-  # Get competitive ratings
+  # Get competitive ratings and merge
   comp_ratings <- player_competitive_ratings()
-
-  # Merge ratings
-  result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+  if (nrow(comp_ratings) > 0) {
+    result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+  }
+  if (!"competitive_rating" %in% names(result)) result$competitive_rating <- NA
   result$competitive_rating[is.na(result$competitive_rating)] <- 1500
 
   # Re-sort after merge
-
   result <- result[order(-result$recent_wins, -result$recent_top3, -result$recent_events), ]
 
   # Build player cards
@@ -1330,9 +1330,12 @@ output$mobile_rising_stars <- renderUI({
     return(div(class = "text-muted text-center py-3", "No recent top placements"))
   }
 
-  # Get competitive ratings
+  # Get competitive ratings and merge
   comp_ratings <- player_competitive_ratings()
-  result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+  if (nrow(comp_ratings) > 0) {
+    result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
+  }
+  if (!"competitive_rating" %in% names(result)) result$competitive_rating <- NA
   result$competitive_rating[is.na(result$competitive_rating)] <- 1500
   result <- result[order(-result$recent_wins, -result$recent_top3, -result$recent_events), ]
 
