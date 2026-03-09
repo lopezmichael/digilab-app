@@ -1450,7 +1450,12 @@ output$submit_decklist_table <- renderUI({
 # Save decklist links
 save_submit_decklists <- function() {
   req(rv$submit_decklist_results)
-  save_decklist_urls(rv$submit_decklist_results, input, "submit_decklist_", db_pool)
+  result <- save_decklist_urls(rv$submit_decklist_results, input, "submit_decklist_", db_pool)
+  if (result$skipped > 0) {
+    notify(sprintf("%d invalid URL%s skipped — only links from approved deckbuilders are accepted.",
+                   result$skipped, if (result$skipped == 1) "" else "s"), type = "warning")
+  }
+  result$saved
 }
 
 # Reset upload form to Step 1

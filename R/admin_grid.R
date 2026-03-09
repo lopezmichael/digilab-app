@@ -372,7 +372,7 @@ validate_decklist_url <- function(url) {
 #   input      - Shiny input object
 #   prefix     - Input ID prefix (e.g., "admin_decklist_")
 #   db_pool    - Database connection pool
-# Returns: number of URLs saved
+# Returns: list(saved = count, skipped = count) — callers handle notifications
 # -----------------------------------------------------------------------------
 save_decklist_urls <- function(results_df, input, prefix, db_pool) {
   saved <- 0L
@@ -382,7 +382,7 @@ save_decklist_urls <- function(results_df, input, prefix, db_pool) {
     if (!is.null(url_raw) && nchar(trimws(url_raw)) > 0) {
       url_val <- validate_decklist_url(url_raw)
       if (!is.null(url_val)) {
-        safe_execute(db_pool, "UPDATE results SET decklist_url = $1, updated_at = CURRENT_TIMESTAMP WHERE result_id = $2",
+        safe_execute_impl(db_pool, "UPDATE results SET decklist_url = $1, updated_at = CURRENT_TIMESTAMP WHERE result_id = $2",
                      params = list(url_val, results_df$result_id[i]))
         saved <- saved + 1L
       } else {
@@ -390,11 +390,7 @@ save_decklist_urls <- function(results_df, input, prefix, db_pool) {
       }
     }
   }
-  if (skipped > 0) {
-    notify(sprintf("%d invalid URL%s skipped — only links from approved deckbuilders are accepted.",
-                   skipped, if (skipped == 1) "" else "s"), type = "warning")
-  }
-  saved
+  list(saved = saved, skipped = skipped)
 }
 
 # -----------------------------------------------------------------------------

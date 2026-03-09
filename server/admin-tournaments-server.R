@@ -1051,7 +1051,12 @@ output$edit_decklist_table <- renderUI({
 
 save_edit_decklists <- function() {
   req(rv$edit_decklist_results)
-  save_decklist_urls(rv$edit_decklist_results, input, "edit_decklist_", db_pool)
+  result <- save_decklist_urls(rv$edit_decklist_results, input, "edit_decklist_", db_pool)
+  if (result$skipped > 0) {
+    notify(sprintf("%d invalid URL%s skipped — only links from approved deckbuilders are accepted.",
+                   result$skipped, if (result$skipped == 1) "" else "s"), type = "warning")
+  }
+  result$saved
 }
 
 close_edit_decklist <- function() {
