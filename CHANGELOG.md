@@ -5,6 +5,11 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-03-09
+
+### Fixed
+- **Decklist save crash**: Adding decklist URLs via Edit Tournament or public submission caused server disconnect. Root cause: `save_decklist_urls()` (global scope) called `safe_execute()` (server scope) — R's lexical scoping couldn't resolve it. Fixed by using `safe_execute_impl()` and moving notifications to server-scoped callers.
+
 ## [1.5.0] - 2026-03-09 - Performance & Caching
 
 ### Added

@@ -984,7 +984,12 @@ output$admin_decklist_table <- renderUI({
 # Save decklist links
 save_admin_decklists <- function() {
   req(rv$admin_decklist_results)
-  save_decklist_urls(rv$admin_decklist_results, input, "admin_decklist_", db_pool)
+  result <- save_decklist_urls(rv$admin_decklist_results, input, "admin_decklist_", db_pool)
+  if (result$skipped > 0) {
+    notify(sprintf("%d invalid URL%s skipped — only links from approved deckbuilders are accepted.",
+                   result$skipped, if (result$skipped == 1) "" else "s"), type = "warning")
+  }
+  result$saved
 }
 
 # Reset wizard to Step 1
