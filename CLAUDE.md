@@ -95,7 +95,7 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.5.0 - Performance & Caching
+### Latest Release: v1.5.1 - Decklist Fix
 
 Materialized views, safe query migration (160 calls), transaction safety, deferred rating recalculation, lazy tab loading, bindCache expansion, dashboard preload, decklist URL entry, and bug fixes. See `CHANGELOG.md` for full details.
 
@@ -105,6 +105,7 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v1.5.1 | Decklist Fix |
 | v1.5.0 | Performance & Caching |
 | v1.4.0 | Admin Infrastructure & Request Queue |
 | v1.3.2 | Sentry Error Fixes |
@@ -377,6 +378,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.5.0** - Performance & Caching
+**v1.5.1** - Decklist Fix
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.
