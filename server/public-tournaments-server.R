@@ -400,5 +400,5 @@ output$tournament_detail_modal <- renderUI({
       digital_empty_state("No results recorded", "// tournament data pending", "list-ul", mascot = "agumon")
     }
   ))
-})
+}) |> bindCache(rv$selected_tournament_id, rv$data_refresh)
 outputOptions(output, "tournament_detail_modal", suspendWhenHidden = FALSE)

@@ -44,7 +44,9 @@ create_db_pool <- function() {
       sslmode = "require",
       bigint = "integer",
       minSize = 1,
-      maxSize = 5
+      maxSize = 5,
+      idleTimeout = 600,         # Keep idle connections 10min (Neon auto-suspends at 5min)
+      validationInterval = 60    # Check connection health every 60s
     )
     message("Connected to Neon PostgreSQL: ", dbname, " @ ", host)
     p

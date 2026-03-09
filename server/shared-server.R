@@ -175,22 +175,30 @@ show_scene_request_modal <- function(prefill = NULL) {
 # ---------------------------------------------------------------------------
 
 observe({
-  tryCatch({
-    cache_count <- dbGetQuery(db_pool,
-      "SELECT COUNT(*) as n FROM player_ratings_cache")$n
-    if (is.na(cache_count) || cache_count == 0) {
-      message("[startup] Ratings cache empty, populating...")
+  # Batch startup checks into a single query
+  startup <- tryCatch(
+    dbGetQuery(db_pool, "
+      SELECT
+        (SELECT COUNT(*) FROM player_ratings_cache) as ratings_count,
+        (SELECT COUNT(*) FROM admin_users) as admin_count
+    "),
+    error = function(e) {
+      message("[startup] Database check failed: ", e$message)
+      data.frame(ratings_count = NA, admin_count = 0)
+    }
+  )
+
+  if (is.na(startup$ratings_count) || startup$ratings_count == 0) {
+    message("[startup] Ratings cache empty, populating...")
+    tryCatch({
       recalculate_ratings_cache(db_pool)
       message("[startup] Ratings cache populated")
-    }
-  }, error = function(e) {
-    message("[startup] Could not check/populate ratings cache: ", e$message)
-  })
+    }, error = function(e) {
+      message("[startup] Could not populate ratings cache: ", e$message)
+    })
+  }
 
-  admin_count <- tryCatch(
-    dbGetQuery(db_pool, "SELECT COUNT(*) as n FROM admin_users"),
-    error = function(e) data.frame(n = 0))
-  if (nrow(admin_count) > 0 && admin_count$n[1] == 0) {
+  if (startup$admin_count == 0) {
     rv$needs_bootstrap <- TRUE
   }
 

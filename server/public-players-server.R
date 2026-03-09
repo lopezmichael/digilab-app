@@ -792,5 +792,5 @@ output$player_detail_modal <- renderUI({
       digital_empty_state("No results recorded", "// deck data pending", "clipboard-x", mascot = "agumon")
     }
   ))
-})
+}) |> bindCache(rv$selected_player_id, rv$data_refresh)
 outputOptions(output, "player_detail_modal", suspendWhenHidden = FALSE)

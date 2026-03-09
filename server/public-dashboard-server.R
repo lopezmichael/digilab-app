@@ -47,7 +47,7 @@ output$dashboard_context_text <- renderUI({
   }
 
   HTML(paste0(format_name, " <span style='opacity: 0.6;'>·</span> ", event_name))
-})
+}) |> bindCache(input$dashboard_format, input$dashboard_event_type)
 
 # Value box outputs (read from core_metrics batch reactive)
 output$total_tournaments_val <- renderText({
