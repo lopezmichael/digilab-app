@@ -229,7 +229,7 @@ submit_ui <- tagList(
                            icon = icon("forward")),
               div(
                 class = "d-flex gap-2",
-                actionButton("submit_save_decklists", "Save Links", class = "btn-primary",
+                actionButton("submit_save_decklists", "Save Progress", class = "btn-primary",
                              icon = icon("floppy-disk")),
                 actionButton("submit_done_decklists", "Done", class = "btn-success",
                              icon = icon("check"))

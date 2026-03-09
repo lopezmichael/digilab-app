@@ -95,9 +95,9 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.4.0 - Admin Infrastructure & Request Queue
+### Latest Release: v1.5.0 - Performance & Caching
 
-Admin notification bar, request queue with approve/reject workflow, announcement system, fuzzy duplicate detection on request modals, scene onboarding automation, admin table search/filters, and audit columns. See `CHANGELOG.md` for full details.
+Materialized views, safe query migration (160 calls), transaction safety, deferred rating recalculation, lazy tab loading, bindCache expansion, dashboard preload, decklist URL entry, and bug fixes. See `CHANGELOG.md` for full details.
 
 See `ROADMAP.md` for the full version plan.
 
@@ -105,6 +105,7 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v1.5.0 | Performance & Caching |
 | v1.4.0 | Admin Infrastructure & Request Queue |
 | v1.3.2 | Sentry Error Fixes |
 | v1.3.1 | Fixes & Upload Improvements |
@@ -376,6 +377,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.4.0** - Admin Infrastructure & Request Queue
+**v1.5.0** - Performance & Caching
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

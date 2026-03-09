@@ -176,17 +176,11 @@ show_scene_request_modal <- function(prefill = NULL) {
 
 observe({
   # Batch startup checks into a single query
-  startup <- tryCatch(
-    dbGetQuery(db_pool, "
+  startup <- safe_query(db_pool, "
       SELECT
         (SELECT COUNT(*) FROM player_ratings_cache) as ratings_count,
         (SELECT COUNT(*) FROM admin_users) as admin_count
-    "),
-    error = function(e) {
-      message("[startup] Database check failed: ", e$message)
-      data.frame(ratings_count = NA, admin_count = 0)
-    }
-  )
+    ", default = data.frame(ratings_count = NA_integer_, admin_count = 0L))
 
   ratings_count <- startup$ratings_count %||% 0
   if (is.na(ratings_count) || ratings_count == 0) {
@@ -204,7 +198,13 @@ observe({
     rv$needs_bootstrap <- TRUE
   }
 
-  session$sendCustomMessage("hideLoading", list())
+  # Delay hiding loading screen so dashboard reactives have time to evaluate.
+  # Dashboard is pre-seeded in visited_tabs and its queries are fast (<200ms
+  # each via materialized views), so 0.3s is sufficient for the reactive graph
+  # to flush before the user sees the page.
+  later::later(function() {
+    session$sendCustomMessage("hideLoading", list())
+  }, delay = 0.3)
 }) |> bindEvent(TRUE, once = TRUE)
 
 # Keepalive handler - receiving the input is enough to keep connection alive
@@ -1139,161 +1139,29 @@ sentry_context_tags <- function() {
 
 #' Safe Database Query Wrapper
 #'
-#' Executes a database query with error handling, returning a sensible default
-#' instead of crashing the app if the query fails. Useful for public-facing
-#' queries where graceful degradation is preferred over error screens.
+#' Delegates to safe_query_impl() (R/safe_db.R) with session-level Sentry tags.
 #'
-#' @param db_con Database connection object from DBI
-#' @param query Character. SQL query string (can include ? placeholders for params)
+#' @param pool Database connection pool or DBI connection
+#' @param query Character. SQL query string
 #' @param params List or NULL. Parameters for parameterized query (default: NULL)
 #' @param default Default value to return on error (default: empty data.frame)
 #'
 #' @return Query result on success, or default value on error
-#'
-#' @examples
-#' # Simple query
-#' result <- safe_query(db_pool, "SELECT * FROM players")
-#'
-#' # Parameterized query
-#' result <- safe_query(db_pool, "SELECT * FROM players WHERE player_id = $1",
-#'                      params = list(42))
-#'
-#' # Custom default for aggregations
-#' result <- safe_query(db_pool, "SELECT COUNT(*) as n FROM results",
-#'                      default = data.frame(n = 0))
 safe_query <- function(pool, query, params = NULL, default = data.frame()) {
-  # Helper to detect retryable connection pool / prepared statement errors
-  is_prepared_stmt_error <- function(msg) {
-    grepl("prepared statement", msg, ignore.case = TRUE) ||
-    grepl("bind message supplies", msg, ignore.case = TRUE) ||
-    grepl("needs to be bound", msg, ignore.case = TRUE) ||
-    grepl("multiple queries.*same column", msg, ignore.case = TRUE) ||
-    grepl("Query requires \\d+ params", msg, ignore.case = TRUE) ||
-    grepl("invalid input syntax", msg, ignore.case = TRUE)
-  }
-
-  # Time the query for performance monitoring
-  start_time <- proc.time()[["elapsed"]]
-
-  # First attempt
-  result <- tryCatch({
-    if (!is.null(params) && length(params) > 0) {
-      DBI::dbGetQuery(pool, query, params = params)
-    } else {
-      DBI::dbGetQuery(pool, query)
-    }
-  }, error = function(e) e)
-
-  # If prepared statement error, retry once (connection pool may have stale state)
-  if (inherits(result, "error") && is_prepared_stmt_error(conditionMessage(result))) {
-    message("[safe_query] Prepared statement error, retrying: ", conditionMessage(result))
-    Sys.sleep(0.1)  # Brief pause before retry
-    result <- tryCatch({
-      if (!is.null(params) && length(params) > 0) {
-        DBI::dbGetQuery(pool, query, params = params)
-      } else {
-        DBI::dbGetQuery(pool, query)
-      }
-    }, error = function(e) e)
-  }
-
-  # Log slow queries (>200ms)
-  elapsed_ms <- (proc.time()[["elapsed"]] - start_time) * 1000
-  if (elapsed_ms > 200) {
-    query_preview <- substr(gsub("\\s+", " ", trimws(query)), 1, 120)
-    rows <- if (is.data.frame(result)) nrow(result) else "?"
-    message(sprintf("[SLOW QUERY %.0fms, %s rows] %s", elapsed_ms, rows, query_preview))
-  }
-
-  # Handle final result
-  if (inherits(result, "error")) {
-    query_preview <- substr(gsub("\\s+", " ", query), 1, 500)
-    params_preview <- if (!is.null(params)) paste(sapply(params, as.character), collapse = ", ") else "NULL"
-    message("[safe_query] Error: ", conditionMessage(result), " | Query: ", query_preview, " | Params: ", params_preview)
-    if (sentry_enabled) {
-      tryCatch(
-        sentryR::capture_exception(result, tags = c(
-          sentry_context_tags(),
-          list(query_preview = query_preview, params = params_preview)
-        )),
-        error = function(se) NULL
-      )
-    }
-    return(default)
-  }
-
-  result
+  safe_query_impl(pool, query, params, default, sentry_tags = sentry_context_tags())
 }
 
 #' Safe Database Execute Wrapper
 #'
-#' Executes a database write operation (INSERT, UPDATE, DELETE) with error
-#' handling. Returns 0 rows affected instead of crashing on error.
+#' Delegates to safe_execute_impl() (R/safe_db.R) with session-level Sentry tags.
 #'
-#' @param db_con Database connection object from DBI
-#' @param query Character. SQL statement string (can include ? placeholders for params)
+#' @param pool Database connection pool or DBI connection
+#' @param query Character. SQL statement string
 #' @param params List or NULL. Parameters for parameterized query (default: NULL)
 #'
 #' @return Number of rows affected on success, or 0 on error
-#'
-#' @examples
-#' # Simple execute
-#' rows <- safe_execute(db_pool, "DELETE FROM results WHERE result_id = $1",
-#'                      params = list(42))
 safe_execute <- function(pool, query, params = NULL) {
-  # Helper to detect retryable connection pool / prepared statement errors
-  is_prepared_stmt_error <- function(msg) {
-    grepl("prepared statement", msg, ignore.case = TRUE) ||
-    grepl("bind message supplies", msg, ignore.case = TRUE) ||
-    grepl("needs to be bound", msg, ignore.case = TRUE) ||
-    grepl("multiple queries.*same column", msg, ignore.case = TRUE) ||
-    grepl("Query requires \\d+ params", msg, ignore.case = TRUE) ||
-    grepl("invalid input syntax", msg, ignore.case = TRUE)
-  }
-
-  # Time the query for performance monitoring
-  start_time <- proc.time()[["elapsed"]]
-
-  # First attempt
-  result <- tryCatch({
-    if (!is.null(params) && length(params) > 0) {
-      DBI::dbExecute(pool, query, params = params)
-    } else {
-      DBI::dbExecute(pool, query)
-    }
-  }, error = function(e) e)
-
-  # If prepared statement error, retry once (connection pool may have stale state)
-  if (inherits(result, "error") && is_prepared_stmt_error(conditionMessage(result))) {
-    message("[safe_execute] Prepared statement error, retrying: ", conditionMessage(result))
-    Sys.sleep(0.1)  # Brief pause before retry
-    result <- tryCatch({
-      if (!is.null(params) && length(params) > 0) {
-        DBI::dbExecute(pool, query, params = params)
-      } else {
-        DBI::dbExecute(pool, query)
-      }
-    }, error = function(e) e)
-  }
-
-  # Log slow writes (>200ms)
-  elapsed_ms <- (proc.time()[["elapsed"]] - start_time) * 1000
-  if (elapsed_ms > 200) {
-    query_preview <- substr(gsub("\\s+", " ", trimws(query)), 1, 120)
-    message(sprintf("[SLOW EXECUTE %.0fms] %s", elapsed_ms, query_preview))
-  }
-
-  # Handle final result
-  if (inherits(result, "error")) {
-    message("[safe_execute] Error: ", conditionMessage(result))
-    message("[safe_execute] Query: ", substr(gsub("\\s+", " ", query), 1, 200))
-    if (sentry_enabled) {
-      tryCatch(sentryR::capture_exception(result, tags = sentry_context_tags()), error = function(se) NULL)
-    }
-    return(0)
-  }
-
-  result
+  safe_execute_impl(pool, query, params, sentry_tags = sentry_context_tags())
 }
 
 get_store_choices <- function(pool, include_none = FALSE) {
@@ -1685,14 +1553,11 @@ refresh_materialized_views <- function(pool) {
 
 # Check if materialized views exist (used for graceful fallback)
 mv_views_exist <- function(pool) {
-  result <- tryCatch(
-    dbGetQuery(pool, "
+  result <- safe_query(pool, "
       SELECT COUNT(*) as n FROM pg_matviews
       WHERE matviewname IN ('mv_player_store_stats', 'mv_archetype_store_stats',
                             'mv_tournament_list', 'mv_store_summary', 'mv_dashboard_counts')
-    "),
-    error = function(e) data.frame(n = 0)
-  )
+    ", default = data.frame(n = 0))
   result$n[1] == 5
 }
 

@@ -1,34 +1,10 @@
 ---
-currentVersion: "1.4.0"
-lastUpdated: "2026-03-08"
+currentVersion: "1.5.0"
+lastUpdated: "2026-03-09"
 
-inProgress:
-  - id: query-optimization
-    title: "Materialized Views & Query Optimization"
-    description: "5 materialized views replace multi-table JOINs across all public tabs. Per-store grain enables future country/state/store-level filtering. Auto-refresh on admin mutations and Limitless sync."
-    tags: [scaling]
-    targetVersion: "v1.5.0"
-
-  - id: safe-query-migration
-    title: "Migrate Raw DB Calls to safe_query/safe_execute"
-    description: "Convert ~136 remaining raw dbGetQuery/dbExecute calls to safe_query/safe_execute wrappers with prepared statement retry logic. Prevents intermittent 'bind message supplies N parameters' errors from pool connection reuse."
-    tags: [reliability, tech-debt]
-    targetVersion: "v1.5.0"
+inProgress: []
 
 planned:
-
-  # v1.5.0 — Performance & Caching
-  - id: caching-expansion
-    title: "Caching Expansion"
-    description: "Expand bindCache() coverage across all outputs, batch startup queries, and tune Neon connection pool settings."
-    tags: [scaling]
-    targetVersion: "v1.5.0"
-
-  - id: lazy-tab-loading
-    title: "Lazy Tab Loading"
-    description: "Defer data fetching until a tab is actually visited instead of loading all tabs on startup."
-    tags: [scaling]
-    targetVersion: "v1.5.0"
 
   # v1.6.0 — Results Redesign & Data Entry
   - id: results-upload-redesign
@@ -154,6 +130,20 @@ planned:
 
 completed:
   # v1.5.0 — Performance & Caching
+  - id: safe-query-migration
+    title: "Safe Query Migration & Transaction Safety"
+    description: "Migrated 160 raw DB calls to safe_query/safe_execute with retry logic and Sentry reporting. Added transaction blocks for atomicity on Enter Results, Edit Tournament, and Delete Tournament. Extracted safe_query_impl to R/safe_db.R for global scope access."
+    tags: [reliability, tech-debt]
+    date: "2026-03"
+    version: "v1.5.0"
+
+  - id: performance-optimizations
+    title: "Performance Optimizations (PERF1-6)"
+    description: "Query timing instrumentation, lazy tab loading, bindCache expansion, pool tuning, batched startup queries, deferred rating recalculation via later::later(), and dashboard preload behind loading screen."
+    tags: [scaling]
+    date: "2026-03"
+    version: "v1.5.0"
+
   - id: decklist-entry
     title: "Decklist Entry (Tier 1 — URL Links)"
     description: "Post-submission Step 3 across Enter Results, Upload Results, and Edit Tournaments for adding decklist URLs. Domain-allowlisted validation (7 approved deckbuilder sites), shared save component, sanitized display."
@@ -169,8 +159,8 @@ completed:
     version: "v1.5.0"
 
   - id: bug-fixes-v1.5
-    title: "Bug Fixes (BUG 1-4, BUG 6)"
-    description: "Deck assignment mismatch, broken tournament deep links, points/WLT format persistence, modal stacking from accumulated handlers, decklist URL field restored."
+    title: "Bug Fixes (BUG 1-4, BUG 6 + 4 new)"
+    description: "Deck assignment mismatch, broken tournament deep links, points/WLT format persistence, modal stacking, decklist URL field restored, missing rating recalc on delete/public submit, welcome modal re-query, delete tournament error path."
     tags: [fix]
     date: "2026-03"
     version: "v1.5.0"
@@ -482,8 +472,8 @@ completed:
 
 # DigiLab Roadmap
 
-**Current Version:** v1.4.0
-**Last Updated:** 2026-03-08
+**Current Version:** v1.5.0
+**Last Updated:** 2026-03-09
 
 > This file is the source of truth for the [public roadmap](https://digilab.cards/roadmap).
 > A GitHub Action syncs the YAML frontmatter to the website on every push to main.
@@ -492,19 +482,11 @@ completed:
 
 ## In Progress
 
-| Feature | Description |
-|---------|-------------|
-| **Materialized Views & Query Optimization** | 5 MVs replace multi-table JOINs across all public tabs. Per-store grain for future filtering. Auto-refresh on mutations. |
+No features currently in progress.
 
 ---
 
 ## Planned
-
-### v1.5.0 — Performance & Caching
-| Feature | Description |
-|---------|-------------|
-| **Caching Expansion** | Broader bindCache() coverage, batched startup queries, pool tuning |
-| **Lazy Tab Loading** | Defer data fetch until tab is actually visited |
 
 ### v1.6.0 — Results Redesign & Data Entry
 | Feature | Description |
@@ -553,6 +535,11 @@ completed:
 
 | Version | Feature | Shipped |
 |---------|---------|---------|
+| v1.5.0 | Safe Query Migration & Transaction Safety | 2026-03 |
+| v1.5.0 | Performance Optimizations (PERF1-6) | 2026-03 |
+| v1.5.0 | Decklist Entry (URL Links) | 2026-03 |
+| v1.5.0 | Materialized Views | 2026-03 |
+| v1.5.0 | Bug Fixes (BUG 1-4, 6 + 4 new) | 2026-03 |
 | v1.4.0 | Admin Infrastructure & Request Queue | 2026-03 |
 | v1.3.2 | Sentry Error Fixes | 2026-03 |
 | v1.3.1 | Fixes & Upload Improvements | 2026-03 |
@@ -686,16 +673,20 @@ Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
 
 ---
 
-## v1.5.0 — Performance & Caching
+## v1.5.0 — Performance & Caching (COMPLETE)
 
 | ID | Type | Status | Description |
 |----|------|--------|-------------|
-| PERF1 | PERFORMANCE | TODO | Query audit — identify slowest queries with `EXPLAIN ANALYZE`, add missing indexes |
-| PERF2 | PERFORMANCE | **DONE** | Materialized views — 5 MVs replace all public tab JOINs, per-store grain, auto-refresh on mutations + Limitless sync |
-| PERF3 | PERFORMANCE | TODO | Expand `bindCache()` coverage — audit which outputs aren't cached yet |
-| PERF4 | PERFORMANCE | TODO | Lazy tab loading — defer data fetch until tab is actually visited |
-| PERF5 | PERFORMANCE | TODO | Neon connection pool tuning — review pool size limits and timeouts |
-| PERF6 | PERFORMANCE | TODO | Batch initial queries — combine startup queries into fewer DB round trips |
+| PERF1 | PERFORMANCE | **DONE** | Query timing instrumentation — slow query logging >200ms |
+| PERF2 | PERFORMANCE | **DONE** | Materialized views — 5 MVs replace all public tab JOINs, per-store grain, auto-refresh |
+| PERF3 | PERFORMANCE | **DONE** | bindCache() expansion — 29 cached outputs across 6 files |
+| PERF4 | PERFORMANCE | **DONE** | Lazy tab loading — `visited_tabs` reactive defers data fetch until tab visited |
+| PERF5 | PERFORMANCE | **DONE** | Pool tuning — Neon connection pool size and timeout settings |
+| PERF6 | PERFORMANCE | **DONE** | Batched startup queries — single query for ratings + admin count |
+| SQM | RELIABILITY | **DONE** | Safe query migration — 160 raw DB calls → safe_query/safe_execute |
+| TXN | RELIABILITY | **DONE** | Transaction blocks — Enter Results, Edit Tournament, Delete Tournament |
+| DEFER | PERFORMANCE | **DONE** | Deferred rating recalc — `later::later()` on all 6 call sites |
+| PRELOAD | PERFORMANCE | **DONE** | Dashboard preload — renders behind loading screen |
 
 ---
 

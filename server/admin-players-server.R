@@ -76,7 +76,7 @@ output$player_list <- renderReactable({
     ORDER BY p.display_name
   ", scene_filter, search_filter)
 
-  data <- dbGetQuery(db_pool, query, params = if (length(query_params) > 0) query_params else NULL)
+  data <- safe_query(db_pool, query, params = if (length(query_params) > 0) query_params else NULL, default = data.frame())
 
   if (nrow(data) == 0) {
     return(admin_empty_state("No players found", "// add players via tournament entry", "people"))
@@ -120,9 +120,9 @@ observeEvent(input$player_list_clicked, {
   if (is.null(player_id)) return()
 
   # Look up player directly by ID
-  player <- dbGetQuery(db_pool, "
+  player <- safe_query(db_pool, "
     SELECT player_id, display_name, member_number FROM players WHERE player_id = $1
-  ", params = list(as.integer(player_id)))
+  ", params = list(as.integer(player_id)), default = data.frame())
 
   if (nrow(player) == 0) return()
 
@@ -147,7 +147,7 @@ output$player_stats_info <- renderUI({
 
   player_id <- as.integer(input$editing_player_id)
 
-  stats <- dbGetQuery(db_pool, "
+  stats <- safe_query(db_pool, "
     SELECT
       COUNT(DISTINCT r.tournament_id) as tournaments,
       COUNT(r.result_id) as total_results,
@@ -156,7 +156,7 @@ output$player_stats_info <- renderUI({
       SUM(r.losses) as match_losses
     FROM results r
     WHERE r.player_id = $1
-  ", params = list(player_id))
+  ", params = list(player_id), default = data.frame(tournaments = 0L, total_results = 0L, wins = 0L, match_wins = 0L, match_losses = 0L))
 
   if (stats$total_results == 0) {
     return(div(
@@ -217,10 +217,10 @@ observeEvent(input$update_player, {
   }
 
   # Check for duplicate name (excluding current player)
-  existing <- dbGetQuery(db_pool, "
+  existing <- safe_query(db_pool, "
     SELECT player_id FROM players
     WHERE LOWER(display_name) = LOWER($1) AND player_id != $2
-  ", params = list(new_name, player_id))
+  ", params = list(new_name, player_id), default = data.frame())
 
   if (nrow(existing) > 0) {
     notify(sprintf("A player named '%s' already exists", new_name), type = "error")
@@ -231,7 +231,7 @@ observeEvent(input$update_player, {
   if (nchar(new_member) == 0) new_member <- NA_character_
 
   tryCatch({
-    dbExecute(db_pool, "
+    safe_execute(db_pool, "
       UPDATE players
       SET display_name = $1, member_number = $2, updated_at = CURRENT_TIMESTAMP, updated_by = $3
       WHERE player_id = $4
@@ -260,9 +260,10 @@ observe({
   req(input$editing_player_id, db_pool)
   player_id <- as.integer(input$editing_player_id)
 
-  count <- dbGetQuery(db_pool, "
+  count_df <- safe_query(db_pool, "
     SELECT COUNT(*) as cnt FROM results WHERE player_id = $1
-  ", params = list(player_id))$cnt
+  ", params = list(player_id), default = data.frame(cnt = 0L))
+  count <- count_df$cnt
 
   rv$player_result_count <- count
   rv$can_delete_player <- count == 0
@@ -273,8 +274,8 @@ observeEvent(input$delete_player, {
   req(rv$is_admin, input$editing_player_id)
 
   player_id <- as.integer(input$editing_player_id)
-  player <- dbGetQuery(db_pool, "SELECT display_name FROM players WHERE player_id = $1",
-                       params = list(player_id))
+  player <- safe_query(db_pool, "SELECT display_name FROM players WHERE player_id = $1",
+                       params = list(player_id), default = data.frame())
 
   if (rv$can_delete_player) {
     showModal(modalDialog(
@@ -305,9 +306,10 @@ observeEvent(input$confirm_delete_player, {
   player_id <- as.integer(input$editing_player_id)
 
   # Re-check for referential integrity
-  count <- dbGetQuery(db_pool, "
+  count_df2 <- safe_query(db_pool, "
     SELECT COUNT(*) as cnt FROM results WHERE player_id = $1
-  ", params = list(player_id))$cnt
+  ", params = list(player_id), default = data.frame(cnt = 0L))
+  count <- count_df2$cnt
 
   if (count > 0) {
     removeModal()
@@ -316,7 +318,7 @@ observeEvent(input$confirm_delete_player, {
   }
 
   tryCatch({
-    dbExecute(db_pool, "DELETE FROM players WHERE player_id = $1",
+    safe_execute(db_pool, "DELETE FROM players WHERE player_id = $1",
               params = list(player_id))
     notify("Player deleted", type = "message")
 
@@ -386,19 +388,22 @@ output$merge_preview <- renderUI({
   src <- as.integer(source_id)
   tgt <- as.integer(target_id)
 
-  source_count <- dbGetQuery(db_pool, "
+  source_count_df <- safe_query(db_pool, "
     SELECT COUNT(*) as cnt FROM results WHERE player_id = $1
-  ", params = list(src))$cnt
+  ", params = list(src), default = data.frame(cnt = 0L))
+  source_count <- source_count_df$cnt
 
-  match_count <- dbGetQuery(db_pool, "
+  match_count_df <- safe_query(db_pool, "
     SELECT COUNT(*) as cnt FROM matches WHERE player_id = $1 OR opponent_id = $2
-  ", params = list(src, src))$cnt
+  ", params = list(src, src), default = data.frame(cnt = 0L))
+  match_count <- match_count_df$cnt
 
-  conflict_count <- dbGetQuery(db_pool, "
+  conflict_count_df <- safe_query(db_pool, "
     SELECT COUNT(*) as cnt
     FROM results r1 INNER JOIN results r2 ON r1.tournament_id = r2.tournament_id
     WHERE r1.player_id = $1 AND r2.player_id = $2
-  ", params = list(src, tgt))$cnt
+  ", params = list(src, tgt), default = data.frame(cnt = 0L))
+  conflict_count <- conflict_count_df$cnt
 
   tagList(
     div(
@@ -439,12 +444,12 @@ observeEvent(input$confirm_merge_players, {
 
   tryCatch({
     # Check for conflicting results (both players in same tournament)
-    conflicts <- dbGetQuery(db_pool, "
+    conflicts <- safe_query(db_pool, "
       SELECT r1.tournament_id
       FROM results r1
       INNER JOIN results r2 ON r1.tournament_id = r2.tournament_id
       WHERE r1.player_id = $1 AND r2.player_id = $2
-    ", params = list(source_id, target_id))
+    ", params = list(source_id, target_id), default = data.frame())
 
     if (nrow(conflicts) > 0) {
       # Delete source results that conflict (target's result takes priority)

@@ -434,15 +434,12 @@ Logic lives in `observeEvent(input$scene_from_storage)` in `server/scene-server.
 
 ### Connection Handling
 
-Connection is established in `shared-server.R` and stored in `rv$db_con`:
+Uses Neon PostgreSQL via the `pool` package. `db_pool` is created once at app startup and shared across all sessions:
 
 ```r
-# Check connection before use
-req(rv$db_con)
-if (!dbIsValid(rv$db_con)) return(NULL)
-
-# Use connection
-data <- dbGetQuery(rv$db_con, "SELECT * FROM table")
+# All queries use the shared pool — no manual connect/disconnect
+data <- safe_query(db_pool, "SELECT * FROM players WHERE player_id = $1",
+                   params = list(player_id), default = data.frame())
 ```
 
 ### Refresh Pattern
@@ -456,79 +453,82 @@ rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 # In public view reactive
 reactive({
   rv$data_refresh  # React to changes
-  req(rv$db_con)
-  dbGetQuery(rv$db_con, "...")
+  safe_query(db_pool, "...")
 })
 ```
 
 ### Parameterized Queries
 
-Always use parameterized queries to prevent SQL injection:
+Always use parameterized queries with `$1, $2, $3` numbered placeholders (RPostgres style):
 
 ```r
 # Correct
-dbGetQuery(rv$db_con, "SELECT * FROM players WHERE player_id = ?",
-           params = list(player_id))
-
-# Also correct (named)
-dbGetQuery(rv$db_con, "SELECT * FROM players WHERE player_id = $1",
-           params = list(player_id))
+safe_query(db_pool, "SELECT * FROM players WHERE player_id = $1",
+           params = list(player_id), default = data.frame())
 
 # WRONG - SQL injection risk
-dbGetQuery(rv$db_con, paste0("SELECT * FROM players WHERE player_id = ", player_id))
+dbGetQuery(db_pool, paste0("SELECT * FROM players WHERE player_id = ", player_id))
 ```
 
-### safe_query() Wrapper (v0.21.1+)
+### safe_query / safe_execute (v0.21.1+, refactored v1.5.0)
 
-All public queries should use the `safe_query()` wrapper for graceful error handling:
+**All DB calls** should use wrappers — never raw `dbGetQuery`/`dbExecute` (except inside transaction blocks).
+
+**Two tiers:**
+- `safe_query()` / `safe_execute()` — defined in `shared-server.R`, add session-level Sentry context tags. Use in all `server/` files.
+- `safe_query_impl()` / `safe_execute_impl()` — defined in `R/safe_db.R`, available globally. Use in `R/` utility files (`ratings.R`, `admin_grid.R`).
+
+Both provide: prepared statement retry logic, Sentry error reporting, slow query logging (>200ms), graceful defaults on error.
 
 ```r
-# In shared-server.R
-safe_query <- function(con, query, params = NULL, default = NULL) {
-  tryCatch({
-    if (is.null(params) || length(params) == 0) {
-      dbGetQuery(con, query)
-    } else {
-      dbGetQuery(con, query, params = params)
-    }
-  }, error = function(e) {
-    message("Database query error: ", e$message)
-    default
-  })
-}
-
-# Usage
-result <- safe_query(rv$db_con, "SELECT * FROM players WHERE id = ?",
+# In server/ files (session-scoped Sentry tags)
+result <- safe_query(db_pool, "SELECT * FROM players WHERE player_id = $1",
                      params = list(player_id),
-                     default = data.frame())
+                     default = data.frame(player_id = integer()))
+
+rows <- safe_execute(db_pool, "UPDATE players SET name = $1 WHERE player_id = $2",
+                     params = list(name, player_id))
+
+# In R/ utility files (global scope, no session tags)
+result <- safe_query_impl(db_con, "SELECT * FROM players", default = data.frame())
 ```
 
-### Transaction Safety (v1.0+)
+### Transaction Safety (v1.5.0)
 
-Inside explicit `BEGIN TRANSACTION` / `COMMIT` blocks, use `DBI::dbExecute()` directly — **not** `safe_execute()`. The `safe_execute()` wrapper swallows errors (returns 0), which prevents DuckDB from rolling back the aborted transaction. All subsequent statements fail silently.
+Multi-statement operations use `pool::localCheckout()` + BEGIN/COMMIT/ROLLBACK for atomicity. Inside transaction blocks, use raw `DBI::` calls — **not** `safe_query`/`safe_execute` (retry logic would break the transaction by grabbing a different connection).
 
 ```r
+conn <- pool::localCheckout(db_pool)
+# Transaction block: raw DBI calls intentional (retry would break atomicity)
+DBI::dbExecute(conn, "BEGIN")
 tryCatch({
-  dbExecute(rv$db_con, "BEGIN TRANSACTION")
-
-  # Use DBI::dbExecute() for writes inside transactions
-  DBI::dbExecute(rv$db_con, "INSERT INTO ...", params = list(...))
-  DBI::dbExecute(rv$db_con, "UPDATE ...", params = list(...))
-
-  # safe_query() is fine for SELECT (read-only, no rollback concern)
-  player <- safe_query(rv$db_con, "SELECT ...", params = list(...))
-
-  dbExecute(rv$db_con, "COMMIT")
+  DBI::dbExecute(conn, "INSERT INTO tournaments ...", params = list(...))
+  DBI::dbExecute(conn, "INSERT INTO results ...", params = list(...))
+  DBI::dbExecute(conn, "COMMIT")
 }, error = function(e) {
-  tryCatch(dbExecute(rv$db_con, "ROLLBACK"), error = function(re) NULL)
-  if (sentry_enabled) {
-    tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
-  }
-  notify(paste("Error:", e$message), type = "error")
+  tryCatch(DBI::dbExecute(conn, "ROLLBACK"), error = function(re) NULL)
+  stop(e)  # re-throw to outer handler
 })
 ```
 
+**Transaction locations:** Enter Results submit (`admin-results-server.R`), Edit Tournament save and Delete Tournament (`admin-tournaments-server.R`), Submit Results and Match History submit (`public-submit-server.R`), Materialized view refresh (`shared-server.R`).
+
 Outside of transactions, `safe_execute()` remains the correct choice — it prevents one failed write from crashing the session.
+
+### Deferred Rating Recalculation (v1.5.0)
+
+Rating recalculation is the heaviest operation in the app. All call sites use `later::later()` to defer it so the UI updates immediately:
+
+```r
+later::later(function() {
+  ratings_ok <- recalculate_ratings_cache(db_pool)
+  if (!isTRUE(ratings_ok)) {
+    notify("Ratings failed to update.", type = "warning", duration = 8)
+  }
+}, delay = 0.5)
+```
+
+The only exception is the startup check in `shared-server.R` which runs synchronously.
 
 ### Lazy-Loaded Admin UI (v1.0+)
 
@@ -703,15 +703,14 @@ session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events"
 
 JS in `www/pill-toggle.js` handles click events and `Shiny.setInputValue()`.
 
-### Auto-Reconnection (v0.23+)
+### Prepared Statement Retry (v0.21.1+)
 
-`safe_query()` now detects stale connections and auto-reconnects:
+`safe_query`/`safe_execute` detect stale prepared statement errors from pool connection reuse and retry once with a fresh connection:
 
 ```r
-safe_query <- function(con, query, ...) {
-  # If connection invalid, reconnect via connect_db()
-  # Updates rv$db_con and retries the query
-}
+# Errors matching these patterns trigger a single retry:
+# "prepared statement", "bind message supplies", "needs to be bound",
+# "multiple queries.*same column", "invalid input syntax"
 ```
 
 ---

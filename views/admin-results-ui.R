@@ -166,7 +166,7 @@ admin_results_ui <- tagList(
                      icon = icon("forward")),
         div(
           class = "d-flex gap-2",
-          actionButton("admin_save_decklists", "Save Links", class = "btn-primary",
+          actionButton("admin_save_decklists", "Save Progress", class = "btn-primary",
                        icon = icon("floppy-disk")),
           actionButton("admin_done_decklists", "Done", class = "btn-success",
                        icon = icon("check"))

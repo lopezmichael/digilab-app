@@ -47,12 +47,12 @@ observe({
   rv$navigate_to_tournament_id <- NULL  # Clear to prevent re-triggering
 
   # Get tournament details
-  tournament <- dbGetQuery(db_pool, "
+  tournament <- safe_query(db_pool, "
     SELECT t.*, s.name as store_name
     FROM tournaments t
     LEFT JOIN stores s ON t.store_id = s.store_id
     WHERE t.tournament_id = $1
-  ", params = list(tournament_id))
+  ", params = list(tournament_id), default = data.frame())
 
   if (nrow(tournament) == 0) return()
 
@@ -128,7 +128,7 @@ output$admin_tournament_list <- renderReactable({
   query <- paste0(query, " GROUP BY t.tournament_id, s.name, t.event_date, t.event_type, t.format, t.player_count, t.rounds
                           ORDER BY t.event_date DESC")
 
-  data <- dbGetQuery(db_pool, query, params = if (length(query_params) > 0) query_params else NULL)
+  data <- safe_query(db_pool, query, params = if (length(query_params) > 0) query_params else NULL, default = data.frame())
 
   if (nrow(data) == 0) {
     return(reactable(data.frame(Message = "No tournaments found")))
@@ -190,12 +190,12 @@ observeEvent(input$admin_tournament_list_clicked, {
   if (is.null(tournament_id)) return()
 
   # Get tournament details
-  tournament <- dbGetQuery(db_pool, "
+  tournament <- safe_query(db_pool, "
     SELECT t.*, s.name as store_name
     FROM tournaments t
     LEFT JOIN stores s ON t.store_id = s.store_id
     WHERE t.tournament_id = $1
-  ", params = list(tournament_id))
+  ", params = list(tournament_id), default = data.frame())
 
   if (nrow(tournament) == 0) return()
 
@@ -230,18 +230,19 @@ output$tournament_stats_info <- renderUI({
   tid <- as.integer(input$editing_tournament_id)
 
   # Get results count
-  results_count <- dbGetQuery(db_pool, "
+  results_count_df <- safe_query(db_pool, "
     SELECT COUNT(*) as cnt FROM results WHERE tournament_id = $1
-  ", params = list(tid))$cnt
+  ", params = list(tid), default = data.frame(cnt = 0L))
+  results_count <- results_count_df$cnt
 
   # Get winner info
-  winner <- dbGetQuery(db_pool, "
+  winner <- safe_query(db_pool, "
     SELECT p.display_name, da.archetype_name
     FROM results r
     JOIN players p ON r.player_id = p.player_id
     LEFT JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
     WHERE r.tournament_id = $1 AND r.placement = 1
-  ", params = list(tid))
+  ", params = list(tid), default = data.frame())
 
   tagList(
     div(
@@ -283,7 +284,7 @@ observeEvent(input$update_tournament, {
   }
 
   tryCatch({
-    dbExecute(db_pool, "
+    safe_execute(db_pool, "
       UPDATE tournaments
       SET store_id = $1, event_date = $2, event_type = $3, format = $4,
           player_count = $5, rounds = $6, updated_at = CURRENT_TIMESTAMP, updated_by = $7
@@ -372,11 +373,19 @@ observeEvent(input$confirm_delete_tournament, {
 
   tournament_id <- as.integer(input$editing_tournament_id)
 
-  # Delete results first, then tournament.
-  safe_execute(db_pool, "DELETE FROM results WHERE tournament_id = $1",
-               params = list(tournament_id))
-  rows <- safe_execute(db_pool, "DELETE FROM tournaments WHERE tournament_id = $1",
-                       params = list(tournament_id))
+  # Transaction block: raw DBI calls intentional (retry would break atomicity)
+  conn <- pool::localCheckout(db_pool)
+  DBI::dbExecute(conn, "BEGIN")
+  rows <- tryCatch({
+    DBI::dbExecute(conn, "DELETE FROM results WHERE tournament_id = $1", params = list(tournament_id))
+    deleted <- DBI::dbExecute(conn, "DELETE FROM tournaments WHERE tournament_id = $1", params = list(tournament_id))
+    DBI::dbExecute(conn, "COMMIT")
+    deleted
+  }, error = function(e) {
+    tryCatch(DBI::dbExecute(conn, "ROLLBACK"), error = function(re) NULL)
+    notify(paste("Failed to delete tournament:", e$message), type = "error")
+    0L
+  })
 
   if (rows == 0) {
     notify("Failed to delete tournament. Try again.", type = "error")
@@ -398,6 +407,15 @@ observeEvent(input$confirm_delete_tournament, {
   # Trigger table refresh (admin + public tables)
   rv$tournament_refresh <- (rv$tournament_refresh %||% 0) + 1
   rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+
+  # Recalculate ratings in background (deferred so UI updates first)
+  later::later(function() {
+    ratings_ok <- recalculate_ratings_cache(db_pool)
+    if (!isTRUE(ratings_ok)) {
+      notify("Ratings failed to update. They will refresh on next app restart.",
+             type = "warning", duration = 8)
+    }
+  }, delay = 0.5)
 })
 
 # Show View/Edit Results button when tournament is selected
@@ -419,8 +437,8 @@ observeEvent(input$view_edit_results, {
   rv$edit_grid_tournament_id <- tournament_id
 
   # Get tournament's expected player count
-  tournament_info <- dbGetQuery(db_pool, "SELECT player_count FROM tournaments WHERE tournament_id = $1",
-                                params = list(tournament_id))
+  tournament_info <- safe_query(db_pool, "SELECT player_count FROM tournaments WHERE tournament_id = $1",
+                                params = list(tournament_id), default = data.frame())
   expected_players <- if (nrow(tournament_info) > 0 && !is.na(tournament_info$player_count[1])) {
     tournament_info$player_count[1]
   } else {
@@ -478,8 +496,8 @@ output$edit_grid_table <- renderUI({
   # Check if release event
   is_release <- FALSE
   if (!is.null(rv$edit_grid_tournament_id)) {
-    t_info <- dbGetQuery(db_pool, "SELECT event_type FROM tournaments WHERE tournament_id = $1",
-                         params = list(rv$edit_grid_tournament_id))
+    t_info <- safe_query(db_pool, "SELECT event_type FROM tournaments WHERE tournament_id = $1",
+                         params = list(rv$edit_grid_tournament_id), default = data.frame())
     if (nrow(t_info) > 0) is_release <- t_info$event_type[1] == "release_event"
   }
 
@@ -492,12 +510,12 @@ output$edit_grid_table <- renderUI({
 output$edit_grid_summary_bar <- renderUI({
   req(db_pool, rv$edit_grid_tournament_id)
 
-  tournament <- dbGetQuery(db_pool, "
+  tournament <- safe_query(db_pool, "
     SELECT t.*, s.name as store_name
     FROM tournaments t
     LEFT JOIN stores s ON t.store_id = s.store_id
     WHERE t.tournament_id = $1
-  ", params = list(rv$edit_grid_tournament_id))
+  ", params = list(rv$edit_grid_tournament_id), default = data.frame())
 
   if (nrow(tournament) == 0) return(NULL)
 
@@ -618,11 +636,11 @@ observeEvent(input$edit_player_blur, {
 
   member_num <- input[[paste0("edit_member_", row_num)]]
   # Get scene_id from tournament's store for scene-scoped matching
-  tournament_store <- dbGetQuery(db_pool, "
+  tournament_store <- safe_query(db_pool, "
     SELECT s.scene_id FROM tournaments t
     JOIN stores s ON t.store_id = s.store_id
     WHERE t.tournament_id = $1
-  ", params = list(rv$edit_tournament_id))
+  ", params = list(rv$edit_tournament_id), default = data.frame())
   scene_id <- if (nrow(tournament_store) > 0) tournament_store$scene_id[1] else NULL
   match_info <- match_player(name, db_pool, member_number = member_num, scene_id = scene_id)
   rv$edit_player_matches[[as.character(row_num)]] <- match_info
@@ -677,9 +695,9 @@ observeEvent(input$edit_paste_apply, {
   rv$edit_grid_data <- sync_grid_inputs(input, rv$edit_grid_data, rv$edit_record_format %||% "points", "edit_")
   grid <- rv$edit_grid_data
 
-  all_decks <- dbGetQuery(db_pool, "
+  all_decks <- safe_query(db_pool, "
     SELECT archetype_id, archetype_name FROM deck_archetypes WHERE is_active = TRUE
-  ")
+  ", default = data.frame())
 
   parsed <- parse_paste_data(paste_text, all_decks)
 
@@ -705,11 +723,11 @@ observeEvent(input$edit_paste_apply, {
   notify(sprintf("Filled %d rows from pasted data", fill_count), type = "message")
 
   # Get scene_id for scene-scoped player matching
-  tournament_store <- dbGetQuery(db_pool, "
+  tournament_store <- safe_query(db_pool, "
     SELECT s.scene_id FROM tournaments t
     JOIN stores s ON t.store_id = s.store_id
     WHERE t.tournament_id = $1
-  ", params = list(rv$edit_tournament_id))
+  ", params = list(rv$edit_tournament_id), default = data.frame())
   scene_id <- if (nrow(tournament_store) > 0) tournament_store$scene_id[1] else NULL
 
   for (idx in seq_len(fill_count)) {
@@ -772,15 +790,15 @@ observeEvent(input$edit_deck_request_submit, {
     trimws(input$editgrid_deck_request_card_id)
   } else NA_character_
 
-  existing <- dbGetQuery(db_pool, "
+  existing <- safe_query(db_pool, "
     SELECT request_id FROM deck_requests
     WHERE LOWER(deck_name) = LOWER($1) AND status = 'pending'
-  ", params = list(deck_name))
+  ", params = list(deck_name), default = data.frame())
 
   if (nrow(existing) > 0) {
     notify(sprintf("A pending request for '%s' already exists", deck_name), type = "warning")
   } else {
-    dbExecute(db_pool, "
+    safe_execute(db_pool, "
       INSERT INTO deck_requests (deck_name, primary_color, secondary_color, display_card_id, status)
       VALUES ($1, $2, $3, $4, 'pending')
     ", params = list(deck_name, primary_color, secondary_color, card_id))
@@ -843,7 +861,7 @@ observeEvent(input$edit_grid_save, {
     insert_count <- 0L
     delete_count <- 0L
 
-    # Get scene_id for scene-scoped player matching
+    # Get scene_id for scene-scoped player matching (before transaction)
     tournament_store <- safe_query(db_pool, "
       SELECT s.scene_id FROM tournaments t
       JOIN stores s ON t.store_id = s.store_id
@@ -851,134 +869,147 @@ observeEvent(input$edit_grid_save, {
     ", params = list(tournament_id), default = data.frame())
     scene_id <- if (nrow(tournament_store) > 0) tournament_store$scene_id[1] else NULL
 
-    # 1. DELETE: rows that were deleted via X button
-    for (rid in rv$edit_deleted_result_ids) {
-      safe_execute(db_pool, "DELETE FROM results WHERE result_id = $1", params = list(rid))
-      delete_count <- delete_count + 1L
-    }
+    # Transaction block: raw DBI calls intentional (retry would break atomicity)
+    conn <- pool::localCheckout(db_pool)
+    DBI::dbExecute(conn, "BEGIN")
 
-    # 2. DELETE: original rows that are now empty (user cleared the name)
-    empty_rows <- grid[nchar(trimws(grid$player_name)) == 0 & !is.na(grid$result_id), ]
-    for (idx in seq_len(nrow(empty_rows))) {
-      safe_execute(db_pool, "DELETE FROM results WHERE result_id = $1",
-                   params = list(empty_rows$result_id[idx]))
-      delete_count <- delete_count + 1L
-    }
-
-    # 3. UPDATE or INSERT filled rows
-    for (idx in seq_len(nrow(filled_rows))) {
-      row <- filled_rows[idx, ]
-      name <- trimws(row$player_name)
-
-      # Resolve player - prioritize existing result's player to preserve data
-      player_id <- NULL
-
-      # If this is an existing result, get the original player and update their name
-      if (!is.na(row$result_id)) {
-        original <- safe_query(db_pool, "
-          SELECT player_id FROM results WHERE result_id = $1
-        ", params = list(row$result_id), default = data.frame())
-        if (nrow(original) > 0) {
-          player_id <- original$player_id[1]
-          # Update the player's display_name if it changed
-          safe_execute(db_pool, "
-            UPDATE players SET display_name = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2 WHERE player_id = $3
-          ", params = list(name, current_admin_username(rv), player_id))
-        }
+    tryCatch({
+      # 1. DELETE: rows that were deleted via X button
+      for (rid in rv$edit_deleted_result_ids) {
+        DBI::dbExecute(conn, "DELETE FROM results WHERE result_id = $1", params = list(rid))
+        delete_count <- delete_count + 1L
       }
 
-      # If no existing result, use pre-matched player_id or match by name/member_number
-      member_num <- if (!is.na(row$member_number)) trimws(row$member_number) else ""
+      # 2. DELETE: original rows that are now empty (user cleared the name)
+      empty_rows <- grid[nchar(trimws(grid$player_name)) == 0 & !is.na(grid$result_id), ]
+      for (idx in seq_len(nrow(empty_rows))) {
+        DBI::dbExecute(conn, "DELETE FROM results WHERE result_id = $1",
+                     params = list(empty_rows$result_id[idx]))
+        delete_count <- delete_count + 1L
+      }
 
-      if (is.null(player_id)) {
-        if (!is.na(row$matched_player_id)) {
-          player_id <- row$matched_player_id
-        } else {
-          match_info <- match_player(name, db_pool, member_number = member_num, scene_id = scene_id)
-          if (match_info$status == "matched") {
-            player_id <- match_info$player_id
-          } else {
-            new_player <- safe_query(db_pool, "INSERT INTO players (display_name) VALUES ($1) RETURNING player_id",
-                         params = list(name), default = data.frame())
-            player_id <- new_player$player_id[1]
+      # 3. UPDATE or INSERT filled rows
+      for (idx in seq_len(nrow(filled_rows))) {
+        row <- filled_rows[idx, ]
+        name <- trimws(row$player_name)
+
+        # Resolve player - prioritize existing result's player to preserve data
+        player_id <- NULL
+
+        # If this is an existing result, get the original player and update their name
+        if (!is.na(row$result_id)) {
+          original <- DBI::dbGetQuery(conn, "
+            SELECT player_id FROM results WHERE result_id = $1
+          ", params = list(row$result_id))
+          if (nrow(original) > 0) {
+            player_id <- original$player_id[1]
+            # Update the player's display_name if it changed
+            DBI::dbExecute(conn, "
+              UPDATE players SET display_name = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2 WHERE player_id = $3
+            ", params = list(name, current_admin_username(rv), player_id))
           }
         }
-      }
 
-      # Update member_number if provided and player doesn't have one yet
-      if (nchar(member_num) > 0) {
-        safe_execute(db_pool, "
-          UPDATE players SET member_number = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
-          WHERE player_id = $3 AND (member_number IS NULL OR member_number = '')
-        ", params = list(member_num, current_admin_username(rv), player_id))
-      }
+        # If no existing result, use pre-matched player_id or match by name/member_number
+        member_num <- if (!is.na(row$member_number)) trimws(row$member_number) else ""
 
-      # Convert record and store points
-      if (record_format == "points") {
-        pts <- row$points
-        wins <- pts %/% 3L
-        ties <- pts %% 3L
-        losses <- max(0L, rounds - wins - ties)
-      } else {
-        wins <- row$wins
-        losses <- row$losses
-        ties <- row$ties
-        pts <- as.integer((wins * 3L) + ties)
-      }
+        if (is.null(player_id)) {
+          if (!is.na(row$matched_player_id)) {
+            player_id <- row$matched_player_id
+          } else {
+            match_info <- match_player(name, conn, member_number = member_num, scene_id = scene_id)
+            if (match_info$status == "matched") {
+              player_id <- match_info$player_id
+            } else {
+              new_player <- DBI::dbGetQuery(conn, "INSERT INTO players (display_name) VALUES ($1) RETURNING player_id",
+                           params = list(name))
+              player_id <- new_player$player_id[1]
+            }
+          }
+        }
 
-      # Resolve deck
-      pending_deck_request_id <- NA_integer_
-      if (is_release) {
-        archetype_id <- unknown_id
-      } else {
-        deck_input <- input[[paste0("edit_deck_", row$row_idx)]]
-        if (is.null(deck_input) || nchar(deck_input) == 0 || deck_input == "__REQUEST_NEW__") {
-          archetype_id <- unknown_id
-        } else if (grepl("^pending_", deck_input)) {
-          pending_deck_request_id <- as.integer(sub("^pending_", "", deck_input))
+        # Update member_number if provided and player doesn't have one yet
+        if (nchar(member_num) > 0) {
+          DBI::dbExecute(conn, "
+            UPDATE players SET member_number = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
+            WHERE player_id = $3 AND (member_number IS NULL OR member_number = '')
+          ", params = list(member_num, current_admin_username(rv), player_id))
+        }
+
+        # Convert record and store points
+        if (record_format == "points") {
+          pts <- row$points
+          wins <- pts %/% 3L
+          ties <- pts %% 3L
+          losses <- max(0L, rounds - wins - ties)
+        } else {
+          wins <- row$wins
+          losses <- row$losses
+          ties <- row$ties
+          pts <- as.integer((wins * 3L) + ties)
+        }
+
+        # Resolve deck
+        pending_deck_request_id <- NA_integer_
+        if (is_release) {
           archetype_id <- unknown_id
         } else {
-          archetype_id <- as.integer(deck_input)
+          deck_input <- input[[paste0("edit_deck_", row$row_idx)]]
+          if (is.null(deck_input) || nchar(deck_input) == 0 || deck_input == "__REQUEST_NEW__") {
+            archetype_id <- unknown_id
+          } else if (grepl("^pending_", deck_input)) {
+            pending_deck_request_id <- as.integer(sub("^pending_", "", deck_input))
+            archetype_id <- unknown_id
+          } else {
+            archetype_id <- as.integer(deck_input)
+          }
+        }
+
+        if (!is.na(row$result_id)) {
+          # UPDATE existing result
+          DBI::dbExecute(conn, "
+            UPDATE results
+            SET player_id = $1, archetype_id = $2, pending_deck_request_id = $3,
+                placement = $4, wins = $5, losses = $6, ties = $7, points = $8,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE result_id = $9
+          ", params = list(player_id, archetype_id, pending_deck_request_id,
+                           row$placement, wins, losses, ties, pts, row$result_id))
+          update_count <- update_count + 1L
+        } else {
+          # INSERT new result
+          DBI::dbExecute(conn, "
+            INSERT INTO results (tournament_id, player_id, archetype_id,
+                                 pending_deck_request_id, placement, wins, losses, ties, points)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          ", params = list(tournament_id, player_id, archetype_id,
+                           pending_deck_request_id, row$placement, wins, losses, ties, pts))
+          insert_count <- insert_count + 1L
         }
       }
 
-      if (!is.na(row$result_id)) {
-        # UPDATE existing result
-        safe_execute(db_pool, "
-          UPDATE results
-          SET player_id = $1, archetype_id = $2, pending_deck_request_id = $3,
-              placement = $4, wins = $5, losses = $6, ties = $7, points = $8,
-              updated_at = CURRENT_TIMESTAMP
-          WHERE result_id = $9
-        ", params = list(player_id, archetype_id, pending_deck_request_id,
-                         row$placement, wins, losses, ties, pts, row$result_id))
-        update_count <- update_count + 1L
-      } else {
-        # INSERT new result
-        safe_execute(db_pool, "
-          INSERT INTO results (tournament_id, player_id, archetype_id,
-                               pending_deck_request_id, placement, wins, losses, ties, points)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-        ", params = list(tournament_id, player_id, archetype_id,
-                         pending_deck_request_id, row$placement, wins, losses, ties, pts))
-        insert_count <- insert_count + 1L
-      }
-    }
+      # Update player count on tournament
+      DBI::dbExecute(conn, "
+        UPDATE tournaments SET player_count = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
+        WHERE tournament_id = $3
+      ", params = list(nrow(filled_rows), current_admin_username(rv), tournament_id))
 
-    # Update player count on tournament
-    safe_execute(db_pool, "
-      UPDATE tournaments SET player_count = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
-      WHERE tournament_id = $3
-    ", params = list(nrow(filled_rows), current_admin_username(rv), tournament_id))
+      DBI::dbExecute(conn, "COMMIT")
+    }, error = function(e) {
+      tryCatch(DBI::dbExecute(conn, "ROLLBACK"), error = function(re) NULL)
+      stop(e)
+    })
 
-    # Recalculate ratings
-    ratings_ok <- recalculate_ratings_cache(db_pool)
     rv$data_refresh <- (rv$data_refresh %||% 0) + 1
 
-    if (!isTRUE(ratings_ok)) {
-      notify("Results saved but ratings failed to update. They will refresh on next app restart.",
-             type = "warning", duration = 8)
-    }
+    # Recalculate ratings in background (deferred so UI updates first)
+    later::later(function() {
+      ratings_ok <- recalculate_ratings_cache(db_pool)
+      if (!isTRUE(ratings_ok)) {
+        notify("Results saved but ratings failed to update. They will refresh on next app restart.",
+               type = "warning", duration = 8)
+      }
+    }, delay = 0.5)
 
     # Build summary message
     parts <- c()

@@ -190,10 +190,10 @@ observeEvent(input$add_archetype, {
   }
 
   # Check for duplicate archetype name
-  existing <- dbGetQuery(db_pool, "
+  existing <- safe_query(db_pool, "
     SELECT archetype_id FROM deck_archetypes
     WHERE LOWER(archetype_name) = LOWER($1)
-  ", params = list(name))
+  ", params = list(name), default = data.frame(archetype_id = integer()))
 
   if (nrow(existing) > 0) {
     notify(
@@ -215,7 +215,7 @@ observeEvent(input$add_archetype, {
   }
 
   tryCatch({
-    dbExecute(db_pool, "
+    safe_execute(db_pool, "
       INSERT INTO deck_archetypes (archetype_name, display_card_id, primary_color, secondary_color, is_multi_color)
       VALUES ($1, $2, $3, $4, $5)
     ", params = list(name, card_id, primary_color, secondary_color, isTRUE(input$deck_multi_color)))
@@ -275,7 +275,7 @@ output$archetype_list <- renderReactable({
   rv$data_refresh
 
   # Sort by Card ID with NULLs first (decks needing review), then alphabetically
-  data <- dbGetQuery(db_pool, "
+  data <- safe_query(db_pool, "
     SELECT archetype_id, archetype_name as \"Deck\", primary_color, secondary_color, is_multi_color, display_card_id as \"Card ID\"
     FROM deck_archetypes
     WHERE is_active = TRUE
@@ -351,11 +351,11 @@ observeEvent(input$archetype_list_clicked, {
   if (is.null(archetype_id)) return()
 
   # Look up archetype directly by ID
-  arch <- dbGetQuery(db_pool, "
+  arch <- safe_query(db_pool, "
     SELECT archetype_id, archetype_name, primary_color, secondary_color, display_card_id, is_multi_color
     FROM deck_archetypes
     WHERE archetype_id = $1
-  ", params = list(as.integer(archetype_id)))
+  ", params = list(as.integer(archetype_id)), default = data.frame(archetype_id = integer(), archetype_name = character(), primary_color = character(), secondary_color = character(), display_card_id = character(), is_multi_color = logical()))
 
   if (nrow(arch) == 0) return()
 
@@ -397,7 +397,7 @@ observeEvent(input$update_archetype, {
   }
 
   tryCatch({
-    dbExecute(db_pool, "
+    safe_execute(db_pool, "
       UPDATE deck_archetypes
       SET archetype_name = $1, primary_color = $2, secondary_color = $3, display_card_id = $4, is_multi_color = $5,
           updated_at = CURRENT_TIMESTAMP, updated_by = $6
@@ -449,9 +449,9 @@ observe({
   req(input$editing_archetype_id, db_pool)
   archetype_id <- as.integer(input$editing_archetype_id)
 
-  count <- dbGetQuery(db_pool, "
+  count <- safe_query(db_pool, "
     SELECT COUNT(*) as cnt FROM results WHERE archetype_id = $1
-  ", params = list(archetype_id))$cnt
+  ", params = list(archetype_id), default = data.frame(cnt = 0L))$cnt
 
   rv$archetype_result_count <- count
   rv$can_delete_archetype <- count == 0
@@ -462,8 +462,8 @@ observeEvent(input$delete_archetype, {
   req(rv$is_superadmin, input$editing_archetype_id)
 
   archetype_id <- as.integer(input$editing_archetype_id)
-  arch <- dbGetQuery(db_pool, "SELECT archetype_name FROM deck_archetypes WHERE archetype_id = $1",
-                     params = list(archetype_id))
+  arch <- safe_query(db_pool, "SELECT archetype_name FROM deck_archetypes WHERE archetype_id = $1",
+                     params = list(archetype_id), default = data.frame(archetype_name = character()))
 
   if (rv$can_delete_archetype) {
     showModal(modalDialog(
@@ -492,9 +492,9 @@ observeEvent(input$confirm_delete_archetype, {
   archetype_id <- as.integer(input$editing_archetype_id)
 
   # Re-check for referential integrity before delete
-  count <- dbGetQuery(db_pool, "
+  count <- safe_query(db_pool, "
     SELECT COUNT(*) as cnt FROM results WHERE archetype_id = $1
-  ", params = list(archetype_id))$cnt
+  ", params = list(archetype_id), default = data.frame(cnt = 0L))$cnt
 
   if (count > 0) {
     removeModal()
@@ -503,7 +503,7 @@ observeEvent(input$confirm_delete_archetype, {
   }
 
   tryCatch({
-    dbExecute(db_pool, "DELETE FROM deck_archetypes WHERE archetype_id = $1",
+    safe_execute(db_pool, "DELETE FROM deck_archetypes WHERE archetype_id = $1",
               params = list(archetype_id))
     notify("Archetype deleted", type = "message")
 
@@ -553,7 +553,7 @@ output$deck_requests_section <- renderUI({
   input$confirm_reject_deck
 
   pending <- tryCatch({
-    dbGetQuery(db_pool, "
+    safe_query(db_pool, "
       SELECT request_id, deck_name, primary_color, secondary_color, display_card_id,
              submitted_at, status, suggested_archetype_name, decklist_json, source, result_id
       FROM deck_requests
@@ -688,8 +688,8 @@ observeEvent(input$deck_request_view_decklist, {
   req(db_pool, rv$is_superadmin)
   req_id <- input$deck_request_view_decklist
 
-  req_data <- dbGetQuery(db_pool, "SELECT deck_name, decklist_json, suggested_archetype_name FROM deck_requests WHERE request_id = $1",
-                         params = list(req_id))
+  req_data <- safe_query(db_pool, "SELECT deck_name, decklist_json, suggested_archetype_name FROM deck_requests WHERE request_id = $1",
+                         params = list(req_id), default = data.frame(deck_name = character(), decklist_json = character(), suggested_archetype_name = character()))
   if (nrow(req_data) == 0 || is.na(req_data$decklist_json[1])) return()
 
   # Parse the decklist JSON
@@ -752,7 +752,7 @@ observeEvent(input$deck_request_edit_click, {
   req(db_pool, rv$is_superadmin)
   req_id <- input$deck_request_edit_click
 
-  req_data <- dbGetQuery(db_pool, "SELECT * FROM deck_requests WHERE request_id = $1",
+  req_data <- safe_query(db_pool, "SELECT * FROM deck_requests WHERE request_id = $1",
                          params = list(req_id))
   if (nrow(req_data) == 0) return()
   req_data <- req_data[1, ]
@@ -766,11 +766,11 @@ observeEvent(input$deck_request_edit_click, {
   }
 
   # Check for existing decks to offer as alternatives
-  existing_decks <- dbGetQuery(db_pool, "
+  existing_decks <- safe_query(db_pool, "
     SELECT archetype_id, archetype_name FROM deck_archetypes
     WHERE is_active = TRUE
     ORDER BY archetype_name
-  ")
+  ", default = data.frame(archetype_id = integer(), archetype_name = character()))
   deck_choices <- c("Create New Archetype" = "", setNames(existing_decks$archetype_id, existing_decks$archetype_name))
 
   showModal(modalDialog(
@@ -849,7 +849,7 @@ observeEvent(input$deck_request_reject_click, {
   req(db_pool, rv$is_superadmin)
   req_id <- input$deck_request_reject_click
 
-  req_data <- dbGetQuery(db_pool, "SELECT * FROM deck_requests WHERE request_id = $1",
+  req_data <- safe_query(db_pool, "SELECT * FROM deck_requests WHERE request_id = $1",
                          params = list(req_id))
   if (nrow(req_data) == 0) return()
   req_data <- req_data[1, ]
@@ -857,17 +857,17 @@ observeEvent(input$deck_request_reject_click, {
   rv$rejecting_deck_request_id <- req_id
 
   # Get existing decks for dropdown
-  decks <- dbGetQuery(db_pool, "
+  decks <- safe_query(db_pool, "
     SELECT archetype_id, archetype_name FROM deck_archetypes
     WHERE is_active = TRUE
     ORDER BY archetype_name
-  ")
+  ", default = data.frame(archetype_id = integer(), archetype_name = character()))
   deck_choices <- setNames(decks$archetype_id, decks$archetype_name)
 
   # Count how many results use this pending request
-  result_count <- dbGetQuery(db_pool, "
+  result_count <- safe_query(db_pool, "
     SELECT COUNT(*) as cnt FROM results WHERE pending_deck_request_id = $1
-  ", params = list(req_id))$cnt
+  ", params = list(req_id), default = data.frame(cnt = 0L))$cnt
 
   showModal(modalDialog(
     title = "Reject Deck Request",
@@ -913,7 +913,7 @@ observeEvent(input$confirm_reject_deck, {
 
 # Helper function to approve a deck request (uses original values)
 approve_deck_request <- function(req_id, session, rv) {
-  req_data <- dbGetQuery(db_pool, "SELECT * FROM deck_requests WHERE request_id = $1",
+  req_data <- safe_query(db_pool, "SELECT * FROM deck_requests WHERE request_id = $1",
                          params = list(req_id))
   if (nrow(req_data) == 0) {
     notify("Request not found", type = "error")
@@ -934,8 +934,8 @@ approve_deck_request <- function(req_id, session, rv) {
 # Helper function to assign a deck request to an existing archetype
 assign_request_to_existing_archetype <- function(req_id, archetype_id, session, rv) {
   # Get archetype name for message
-  archetype_name <- dbGetQuery(db_pool, "SELECT archetype_name FROM deck_archetypes WHERE archetype_id = $1",
-                               params = list(archetype_id))$archetype_name[1]
+  archetype_name <- safe_query(db_pool, "SELECT archetype_name FROM deck_archetypes WHERE archetype_id = $1",
+                               params = list(archetype_id), default = data.frame(archetype_name = character()))$archetype_name[1]
 
   tryCatch({
     # Update the deck request
@@ -969,9 +969,9 @@ assign_request_to_existing_archetype <- function(req_id, archetype_id, session, 
 # Helper function to create deck and update request/results
 create_deck_from_request <- function(req_id, deck_name, primary_color, secondary_color, card_id, session, rv) {
   # Check if deck already exists
-  existing <- dbGetQuery(db_pool, "
+  existing <- safe_query(db_pool, "
     SELECT archetype_id FROM deck_archetypes WHERE LOWER(archetype_name) = LOWER($1)
-  ", params = list(deck_name))
+  ", params = list(deck_name), default = data.frame(archetype_id = integer()))
 
   if (nrow(existing) > 0) {
     notify(paste0("Deck '", deck_name, "' already exists"), type = "warning")
@@ -1030,17 +1030,17 @@ create_deck_from_request <- function(req_id, deck_name, primary_color, secondary
 # replacement_archetype_id: ID of deck to assign results to, or NULL for UNKNOWN
 reject_deck_request <- function(req_id, replacement_archetype_id, session, rv) {
   tryCatch({
-    req_data <- dbGetQuery(db_pool, "SELECT deck_name FROM deck_requests WHERE request_id = $1",
-                           params = list(req_id))
+    req_data <- safe_query(db_pool, "SELECT deck_name FROM deck_requests WHERE request_id = $1",
+                           params = list(req_id), default = data.frame(deck_name = character()))
 
-    dbExecute(db_pool, "
+    safe_execute(db_pool, "
       UPDATE deck_requests SET status = 'rejected', reviewed_at = CURRENT_TIMESTAMP WHERE request_id = $1
     ", params = list(req_id))
 
     # Determine replacement deck ID
     if (is.null(replacement_archetype_id)) {
       # Fall back to UNKNOWN
-      unknown_result <- dbGetQuery(db_pool, "SELECT archetype_id FROM deck_archetypes WHERE archetype_name = 'UNKNOWN'")
+      unknown_result <- safe_query(db_pool, "SELECT archetype_id FROM deck_archetypes WHERE archetype_name = 'UNKNOWN'", default = data.frame(archetype_id = integer()))
       if (nrow(unknown_result) > 0) {
         replacement_archetype_id <- unknown_result$archetype_id[1]
       }
@@ -1049,7 +1049,7 @@ reject_deck_request <- function(req_id, replacement_archetype_id, session, rv) {
     # Update any results that used this pending request
     updated_count <- 0
     if (!is.null(replacement_archetype_id)) {
-      updated_count <- dbExecute(db_pool, "
+      updated_count <- safe_execute(db_pool, "
         UPDATE results SET archetype_id = $1, pending_deck_request_id = NULL WHERE pending_deck_request_id = $2
       ", params = list(replacement_archetype_id, req_id))
     }
@@ -1058,8 +1058,8 @@ reject_deck_request <- function(req_id, replacement_archetype_id, session, rv) {
     msg <- sprintf("Rejected request for '%s'", req_data$deck_name[1])
     if (updated_count > 0) {
       # Get replacement deck name for message
-      replacement_name <- dbGetQuery(db_pool, "SELECT archetype_name FROM deck_archetypes WHERE archetype_id = $1",
-                                     params = list(replacement_archetype_id))$archetype_name[1]
+      replacement_name <- safe_query(db_pool, "SELECT archetype_name FROM deck_archetypes WHERE archetype_id = $1",
+                                     params = list(replacement_archetype_id), default = data.frame(archetype_name = character()))$archetype_name[1]
       msg <- paste0(msg, sprintf(" - %d result(s) reassigned to '%s'", as.integer(updated_count), replacement_name))
     }
     notify(msg, type = "message")
@@ -1077,7 +1077,7 @@ reject_deck_request <- function(req_id, replacement_archetype_id, session, rv) {
 
 # Helper function to get deck choices for merge dropdowns
 get_deck_choices <- function(con) {
-  decks <- dbGetQuery(con, "
+  decks <- safe_query(con, "
     SELECT archetype_id, archetype_name, primary_color,
            (SELECT COUNT(*) FROM results WHERE archetype_id = da.archetype_id) as result_count
     FROM deck_archetypes da
@@ -1134,18 +1134,18 @@ output$merge_deck_preview <- renderUI({
   }
 
   # Get deck info
-  source_deck <- dbGetQuery(db_pool, "SELECT archetype_name FROM deck_archetypes WHERE archetype_id = $1",
-                            params = list(source_id))
-  target_deck <- dbGetQuery(db_pool, "SELECT archetype_name FROM deck_archetypes WHERE archetype_id = $1",
-                            params = list(target_id))
+  source_deck <- safe_query(db_pool, "SELECT archetype_name FROM deck_archetypes WHERE archetype_id = $1",
+                            params = list(source_id), default = data.frame(archetype_name = character()))
+  target_deck <- safe_query(db_pool, "SELECT archetype_name FROM deck_archetypes WHERE archetype_id = $1",
+                            params = list(target_id), default = data.frame(archetype_name = character()))
 
   # Count results to be moved
-  source_results <- dbGetQuery(db_pool, "SELECT COUNT(*) as cnt FROM results WHERE archetype_id = $1",
-                               params = list(source_id))$cnt
+  source_results <- safe_query(db_pool, "SELECT COUNT(*) as cnt FROM results WHERE archetype_id = $1",
+                               params = list(source_id), default = data.frame(cnt = 0L))$cnt
 
   # Count limitless mappings to be updated
-  limitless_mappings <- dbGetQuery(db_pool, "SELECT COUNT(*) as cnt FROM limitless_deck_map WHERE archetype_id = $1",
-                                   params = list(source_id))$cnt
+  limitless_mappings <- safe_query(db_pool, "SELECT COUNT(*) as cnt FROM limitless_deck_map WHERE archetype_id = $1",
+                                   params = list(source_id), default = data.frame(cnt = 0L))$cnt
 
   div(
     div(class = "alert alert-warning",
@@ -1180,10 +1180,10 @@ observeEvent(input$confirm_merge_decks, {
   }
 
   # Get deck names for notification
-  source_name <- dbGetQuery(db_pool, "SELECT archetype_name FROM deck_archetypes WHERE archetype_id = $1",
-                            params = list(source_id))$archetype_name
-  target_name <- dbGetQuery(db_pool, "SELECT archetype_name FROM deck_archetypes WHERE archetype_id = $1",
-                            params = list(target_id))$archetype_name
+  source_name <- safe_query(db_pool, "SELECT archetype_name FROM deck_archetypes WHERE archetype_id = $1",
+                            params = list(source_id), default = data.frame(archetype_name = character()))$archetype_name
+  target_name <- safe_query(db_pool, "SELECT archetype_name FROM deck_archetypes WHERE archetype_id = $1",
+                            params = list(target_id), default = data.frame(archetype_name = character()))$archetype_name
 
   tryCatch({
     # 1. Move all results from source to target

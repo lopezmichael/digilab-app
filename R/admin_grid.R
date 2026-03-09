@@ -10,7 +10,7 @@
 # -----------------------------------------------------------------------------
 get_store_scene_id <- function(store_id, con) {
   if (is.null(store_id) || is.na(store_id)) return(NULL)
-  result <- DBI::dbGetQuery(con, "SELECT scene_id FROM stores WHERE store_id = $1", params = list(store_id))
+  result <- safe_query_impl(con, "SELECT scene_id FROM stores WHERE store_id = $1", params = list(store_id), default = data.frame(scene_id = NA))
   if (nrow(result) == 0 || is.na(result$scene_id[1])) return(NULL)
   result$scene_id[1]
 }
@@ -52,7 +52,7 @@ init_grid_data <- function(player_count) {
 # Points calculated as (wins * 3) + ties.
 # -----------------------------------------------------------------------------
 load_grid_from_results <- function(tournament_id, con) {
-  rows <- DBI::dbGetQuery(con, "
+  rows <- safe_query_impl(con, "
     SELECT r.result_id, r.placement, r.player_id, p.display_name,
            r.wins, r.losses, r.ties, r.points, r.archetype_id,
            p.member_number
@@ -484,12 +484,12 @@ parse_paste_data <- function(text, all_decks) {
 # Returns named character vector: Unknown, Request new, pending requests, active archetypes
 # -----------------------------------------------------------------------------
 build_deck_choices <- function(con) {
-  decks <- DBI::dbGetQuery(con, "
+  decks <- safe_query_impl(con, "
     SELECT archetype_id, archetype_name FROM deck_archetypes
     WHERE is_active = TRUE ORDER BY archetype_name
   ")
 
-  pending_requests <- DBI::dbGetQuery(con, "
+  pending_requests <- safe_query_impl(con, "
     SELECT request_id, deck_name FROM deck_requests
     WHERE status = 'pending' ORDER BY deck_name
   ")
@@ -525,7 +525,7 @@ build_deck_choices <- function(con) {
 match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
   # If member_number provided, try exact member_number match first (global)
   if (!is.null(member_number) && nchar(trimws(member_number)) > 0) {
-    member_match <- DBI::dbGetQuery(con, "
+    member_match <- safe_query_impl(con, "
       SELECT player_id, display_name, member_number
       FROM players WHERE member_number = $1 AND is_active IS NOT FALSE
       LIMIT 1
@@ -543,7 +543,7 @@ match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
   # Fall back to name match
   # If scene_id provided, scope to players who have competed in this scene
   if (!is.null(scene_id)) {
-    player <- DBI::dbGetQuery(con, "
+    player <- safe_query_impl(con, "
       SELECT DISTINCT p.player_id, p.display_name, p.member_number
       FROM players p
       JOIN results r ON p.player_id = r.player_id
@@ -556,7 +556,7 @@ match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
     ", params = list(name, scene_id))
   } else {
     # No scene_id - global name match (backward compatible)
-    player <- DBI::dbGetQuery(con, "
+    player <- safe_query_impl(con, "
       SELECT player_id, display_name, member_number
       FROM players WHERE LOWER(display_name) = LOWER($1) AND is_active IS NOT FALSE
       LIMIT 1

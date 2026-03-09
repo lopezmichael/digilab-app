@@ -4,6 +4,33 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-09: Safe Query Migration, Transaction Safety, Performance
+
+**Branch:** `feature/safe-query-migration`
+
+### Safe Query Migration
+Migrated 160 raw `dbGetQuery`/`dbExecute` calls to `safe_query`/`safe_execute` wrappers across all server files and key R/ utilities. Every DB call now has prepared statement retry logic and Sentry error reporting.
+
+Key architectural change: extracted `safe_query_impl`/`safe_execute_impl` to `R/safe_db.R` (global scope) so that `R/ratings.R` and `R/admin_grid.R` can use the same retry + error handling. Server-scoped `safe_query`/`safe_execute` in `shared-server.R` now delegate to these with session-level Sentry tags.
+
+### Transaction Safety
+Found that Enter Results and Edit Tournament had no transaction blocks — a failure mid-loop would leave partial data. Added `localCheckout` + BEGIN/COMMIT/ROLLBACK to 3 locations (Enter Results submit, Edit Tournament save, Delete Tournament). Pattern matches existing `public-submit-server.R` transactions.
+
+Key insight: `safe_query`/`safe_execute` must NOT be used inside transactions — their retry logic grabs a different connection, breaking the transaction. Use raw `DBI::dbGetQuery(conn, ...)` inside transaction blocks.
+
+### Performance: Deferred Rating Recalculation
+Rating recalculation (`recalculate_ratings_cache`) is the heaviest operation. Moved all 6 call sites to `later::later(delay = 0.5)` so the UI transitions immediately after DB commits. Added missing rating recalc on tournament delete and public submit flows.
+
+### Performance: Dashboard Preload
+Loading screen dismissal was happening before dashboard outputs rendered, causing a flash of empty content. Added 0.3s delay via `later::later()` so dashboard reactives evaluate behind the loading screen.
+
+### Bug Fixes
+- Welcome modal dismissal with same scene triggered unnecessary data refresh. `select_scene()` now skips `rv$data_refresh` when scene hasn't changed.
+- Delete tournament error path: `rows` undefined on tryCatch error, causing secondary crash.
+- Renamed "Save Links" → "Save Progress" on decklist entry step for clarity.
+
+---
+
 ## 2026-03-09: Bug Fixes (BUG 1-4, 6), Decklist Entry, URL Validation
 
 **Branch:** `feature/performance-caching`

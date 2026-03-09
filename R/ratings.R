@@ -26,14 +26,14 @@ calculate_ratings_single_pass <- function(db_con, from_date = NULL, record_histo
     if (!grepl("^\\d{4}-\\d{2}-\\d{2}$", from_date)) stop("Invalid from_date format")
 
     # Get most recent rating for each player BEFORE from_date
-    prior_ratings <- DBI::dbGetQuery(db_con, "
+    prior_ratings <- safe_query_impl(db_con, "
       SELECT DISTINCT ON (h.player_id)
              h.player_id, h.rating_after, h.events_played
       FROM player_rating_history h
       JOIN tournaments t ON h.tournament_id = t.tournament_id
       WHERE t.event_date < $1
       ORDER BY h.player_id, t.event_date DESC
-    ", params = list(from_date))
+    ", params = list(from_date), default = data.frame(player_id = integer(), rating_after = numeric(), events_played = integer()))
 
     for (i in seq_len(nrow(prior_ratings))) {
       pid <- as.character(prior_ratings$player_id[i])
@@ -43,7 +43,7 @@ calculate_ratings_single_pass <- function(db_con, from_date = NULL, record_histo
 
     # Delete history from from_date forward (we're recalculating)
     if (record_history) {
-      DBI::dbExecute(db_con, "
+      safe_execute_impl(db_con, "
         DELETE FROM player_rating_history
         WHERE tournament_id IN (
           SELECT tournament_id FROM tournaments WHERE event_date >= $1
@@ -55,7 +55,7 @@ calculate_ratings_single_pass <- function(db_con, from_date = NULL, record_histo
                     length(initial_ratings), from_date))
   } else if (record_history) {
     # Full rebuild - clear all history
-    DBI::dbExecute(db_con, "DELETE FROM player_rating_history")
+    safe_execute_impl(db_con, "DELETE FROM player_rating_history")
     message("[ratings] Full rebuild - cleared rating history")
   }
 
@@ -71,7 +71,7 @@ calculate_ratings_single_pass <- function(db_con, from_date = NULL, record_histo
   event_type_filter <- sprintf("AND (t.event_type IS NULL OR t.event_type NOT IN (%s))", unrated_sql)
 
   # Get tournament results to process
-  results <- DBI::dbGetQuery(db_con, sprintf("
+  results <- safe_query_impl(db_con, sprintf("
     SELECT r.tournament_id, r.player_id, r.placement,
            t.event_date, t.player_count, t.rounds,
            p.display_name
@@ -204,7 +204,7 @@ calculate_ratings_single_pass <- function(db_con, from_date = NULL, record_histo
                 r$rating_after, r$rating_change, r$events_played)
       }), collapse = ", ")
 
-      DBI::dbExecute(db_con, sprintf("
+      safe_execute_impl(db_con, sprintf("
         INSERT INTO player_rating_history
           (player_id, tournament_id, rating_before, rating_after, rating_change, events_played)
         VALUES %s
@@ -275,7 +275,7 @@ calculate_competitive_ratings <- function(db_con, format_filter = NULL, date_cut
   extra_conditions <- paste(conditions, collapse = " ")
 
   # Get all tournament results with player counts and dates
-  results <- DBI::dbGetQuery(db_con, sprintf("
+  results <- safe_query_impl(db_con, sprintf("
     SELECT r.tournament_id, r.player_id, r.placement,
            t.event_date, t.player_count, t.rounds,
            p.display_name
@@ -394,7 +394,7 @@ calculate_achievement_scores <- function(db_con) {
   # Get all results with tournament info
   # Achievement scores include ALL event types (only competitive rating excludes unrated)
   # Include archetype_name to filter out UNKNOWN for deck variety calculation
-  results <- DBI::dbGetQuery(db_con, "
+  results <- safe_query_impl(db_con, "
     SELECT r.player_id, r.tournament_id, r.placement, r.archetype_id,
            t.player_count, t.store_id, t.format, da.archetype_name
     FROM results r
@@ -479,7 +479,7 @@ calculate_achievement_scores <- function(db_con) {
 calculate_store_avg_player_rating <- function(db_con, player_ratings) {
 
   # Get player appearances per store (all time)
-  store_appearances <- DBI::dbGetQuery(db_con, "
+  store_appearances <- safe_query_impl(db_con, "
     SELECT t.store_id, r.player_id, COUNT(*) as appearances
     FROM results r
     JOIN tournaments t ON r.tournament_id = t.tournament_id
@@ -527,7 +527,7 @@ recalculate_ratings_cache <- function(db_con, from_date = NULL, use_legacy = FAL
     if (use_legacy) {
       player_ratings <- calculate_competitive_ratings(db_con)
       # Legacy doesn't track events_played in return, so we add it
-      events <- DBI::dbGetQuery(db_con, "
+      events <- safe_query_impl(db_con, "
         SELECT player_id, COUNT(DISTINCT tournament_id) as events_played
         FROM results GROUP BY player_id
       ")
@@ -548,8 +548,8 @@ recalculate_ratings_cache <- function(db_con, from_date = NULL, use_legacy = FAL
       player_cache$events_played[is.na(player_cache$events_played)] <- 0
 
       # Clear and repopulate player cache
-      DBI::dbExecute(db_con, "DELETE FROM player_ratings_cache")
-      DBI::dbExecute(db_con, sprintf("
+      safe_execute_impl(db_con, "DELETE FROM player_ratings_cache")
+      safe_execute_impl(db_con, sprintf("
         INSERT INTO player_ratings_cache (player_id, competitive_rating, achievement_score, events_played)
         VALUES %s
       ", paste(sprintf("(%d, %d, %d, %d)",
@@ -561,8 +561,8 @@ recalculate_ratings_cache <- function(db_con, from_date = NULL, use_legacy = FAL
 
     # Clear and repopulate store cache
     if (nrow(store_ratings) > 0) {
-      DBI::dbExecute(db_con, "DELETE FROM store_ratings_cache")
-      DBI::dbExecute(db_con, sprintf("
+      safe_execute_impl(db_con, "DELETE FROM store_ratings_cache")
+      safe_execute_impl(db_con, sprintf("
         INSERT INTO store_ratings_cache (store_id, avg_player_rating)
         VALUES %s
       ", paste(sprintf("(%d, %d)", store_ratings$store_id, store_ratings$avg_player_rating), collapse = ", ")))
@@ -601,7 +601,7 @@ generate_format_snapshot <- function(db_con, format_id, end_date) {
     snapshot$achievement_score[is.na(snapshot$achievement_score)] <- 0
 
     # Count events per player up to cutoff
-    events <- DBI::dbGetQuery(db_con,
+    events <- safe_query_impl(db_con,
       "SELECT r.player_id, COUNT(DISTINCT r.tournament_id) as events_played
        FROM results r
        JOIN tournaments t ON r.tournament_id = t.tournament_id
@@ -617,12 +617,12 @@ generate_format_snapshot <- function(db_con, format_id, end_date) {
     snapshot$player_rank <- seq_len(nrow(snapshot))
 
     # Delete existing snapshot for this format (idempotent)
-    DBI::dbExecute(db_con, "DELETE FROM rating_snapshots WHERE format_id = $1",
-                   params = list(format_id))
+    safe_execute_impl(db_con, "DELETE FROM rating_snapshots WHERE format_id = $1",
+                      params = list(format_id))
 
     # Insert snapshot
     if (nrow(snapshot) > 0) {
-      DBI::dbExecute(db_con, sprintf("
+      safe_execute_impl(db_con, sprintf("
         INSERT INTO rating_snapshots (player_id, format_id, competitive_rating,
                                        achievement_score, events_played, player_rank, snapshot_date)
         VALUES %s
@@ -649,7 +649,7 @@ generate_format_snapshot <- function(db_con, format_id, end_date) {
 #' @param db_con Database connection (pool or DBI)
 backfill_rating_snapshots <- function(db_con) {
   # Get formats ordered by release date
-  formats <- DBI::dbGetQuery(db_con, "
+  formats <- safe_query_impl(db_con, "
     SELECT format_id, set_name, release_date
     FROM formats
     WHERE release_date IS NOT NULL

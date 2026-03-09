@@ -171,7 +171,7 @@ admin_tournaments_ui <- tagList(
                      icon = icon("forward")),
         div(
           class = "d-flex gap-2",
-          actionButton("edit_decklist_save", "Save Links", class = "btn-primary",
+          actionButton("edit_decklist_save", "Save Progress", class = "btn-primary",
                        icon = icon("floppy-disk")),
           actionButton("edit_decklist_done", "Done", class = "btn-success",
                        icon = icon("check"))

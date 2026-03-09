@@ -5,7 +5,7 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.5.0] - 2026-03-09 - Performance & Caching
 
 ### Added
 - **Materialized views (PERF2)**: 5 pre-computed views (`mv_player_store_stats`, `mv_archetype_store_stats`, `mv_tournament_list`, `mv_store_summary`, `mv_dashboard_counts`) replace multi-table JOINs across all public tabs. Per-store grain design enables future country/state/single-store filtering without schema changes.
@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Decklist entry (BUG 6 restore)**: Post-submission Step 3 across all three result entry flows (Enter Results, Upload Results, Edit Tournaments) for adding decklist URLs. Shared `render_decklist_entry()` component with Skip/Save/Done controls.
 - **Decklist URL validation**: Domain allowlist restricts URLs to 7 approved deckbuilder sites (digimoncard.io, digimoncard.dev, digimoncard.app, digimonmeta.com, digitalgateopen.com, limitlesstcg.com, tcgstacked.com). Validates on save and sanitizes on display. `rel="noopener noreferrer"` on all decklist links.
 - **Shared `save_decklist_urls()` helper**: Single function in `R/admin_grid.R` handles validation, save, and skip-warning across all three entry flows.
+- **`R/safe_db.R` global wrappers**: Extracted `safe_query_impl`/`safe_execute_impl` to global scope so `R/ratings.R` and `R/admin_grid.R` get the same retry + Sentry error handling as server-scoped code. Server-scoped `safe_query`/`safe_execute` now delegate to these with session-level Sentry tags.
+- **Transaction blocks**: Enter Results submit, Edit Tournament save, and Delete Tournament now use `localCheckout` + BEGIN/COMMIT/ROLLBACK for atomicity. Prevents partial database state if a failure occurs mid-loop.
 
 ### Changed
 - **Dashboard metrics**: Core metrics (tournaments, players) now use `mv_tournament_list` with proper `COUNT(DISTINCT)` instead of pre-aggregated `mv_dashboard_counts` to avoid double-counting.
@@ -26,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tournaments tab**: Replaced LATERAL JOIN query with flat SELECT on `mv_tournament_list`.
 - **Stores tab**: Replaced stores+tournaments JOIN with `mv_store_summary`.
 - **Dashboard deck analytics**: Replaced 4-table JOIN + window function with `mv_archetype_store_stats`.
+- **Safe query migration**: Migrated 160 raw `dbGetQuery`/`dbExecute` calls to `safe_query`/`safe_execute` wrappers across all server and R/ utility files. Every DB call now has prepared statement retry logic and Sentry error reporting.
+- **Background rating recalculation**: All rating recalc calls now use `later::later(delay = 0.5)` so the UI transitions immediately after DB commits instead of blocking on the heavy Elo calculation.
+- **Dashboard preload**: Loading screen dismissal delayed 0.3s so dashboard outputs render behind the loading screen, eliminating the flash of empty content on first load.
+- **"Save Links" → "Save Progress"**: Renamed decklist save button across all 3 entry flows for clarity.
 
 ### Fixed
 - **Deck assignment mismatch (BUG 3)**: Submit handlers read deck input using `row$placement` instead of the grid row index. When rows were empty/skipped, the wrong deck was assigned (e.g., Chronicle showing as Pulsemon). Fixed in both Enter Results and Edit Results flows.
@@ -34,7 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Modal stacking on deck request (BUG 2)**: `observeEvent` inside `observe` + `lapply` created duplicate handlers on every grid change. One click could open multiple stacked modals. Replaced with fixed handler set created once at init.
 - **`get_format_choices` NULL crash**: Guard against missing columns when format query fails.
 - **Player CTE duplicate params**: PostgreSQL reuses `$1` across CTEs — removed duplicate filter params.
-- **Prepared statement collisions in edit grid**: Converted raw `dbGetQuery`/`dbExecute` calls in edit grid save loop and delete handler to `safe_query`/`safe_execute` with retry logic for stale prepared statement errors.
+- **Missing rating recalculation on tournament delete**: Deleting a tournament left stale player ratings until next app restart. Now recalculates after deletion.
+- **Missing rating recalculation on public submit**: Public Upload Results submissions never triggered rating recalculation. Now deferred via `later::later()`.
+- **Welcome modal unnecessary re-query**: Dismissing the welcome modal with "All Scenes" (the default) triggered a full data refresh even though nothing changed. Scene selection now skips refresh when the scene hasn't changed.
+- **Delete tournament error path**: `rows` variable was undefined if the transaction errored, causing a secondary crash. Fixed with proper `tryCatch` return value.
 
 ## [1.4.1] - 2026-03-08 - Audit Trail & Scene Guard
 

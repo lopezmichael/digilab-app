@@ -93,17 +93,19 @@ observeEvent(input$url_initial, {
   # 1b. Community filter (store-specific view)
   if (!is.null(params$community)) {
     # Look up store by slug
-    store <- dbGetQuery(db_pool,
+    store <- safe_query(db_pool,
       "SELECT store_id, scene_id FROM stores WHERE slug = $1 AND is_active = TRUE",
-      params = list(params$community))
+      params = list(params$community),
+      default = data.frame(store_id = integer(), scene_id = integer()))
 
     if (nrow(store) == 1) {
       rv$community_filter <- params$community
       # Also set scene to the store's scene if available
       if (!is.na(store$scene_id)) {
-        scene_result <- dbGetQuery(db_pool,
+        scene_result <- safe_query(db_pool,
           "SELECT slug FROM scenes WHERE scene_id = $1",
-          params = list(store$scene_id))
+          params = list(store$scene_id),
+          default = data.frame(slug = character()))
         if (nrow(scene_result) == 1 && !is.na(scene_result$slug)) {
           rv$current_scene <- scene_result$slug
         }
@@ -316,20 +318,21 @@ resolve_entity_slug <- function(entity_type, slug) {
   result <- switch(entity_type,
     "player" = {
       # Players use display_name (slugified for comparison)
-      players <- dbGetQuery(db_pool, "SELECT player_id, display_name FROM players WHERE is_active = TRUE")
+      players <- safe_query(db_pool, "SELECT player_id, display_name FROM players WHERE is_active = TRUE",
+                            default = data.frame(player_id = integer(), display_name = character()))
       match_idx <- which(sapply(players$display_name, slugify) == slug)
       if (length(match_idx) == 1) players$player_id[match_idx] else NULL
     },
     "deck" = {
       # Decks have a slug column
-      deck <- dbGetQuery(db_pool, "SELECT archetype_id FROM deck_archetypes WHERE slug = $1 AND is_active = TRUE",
-                         params = list(slug))
+      deck <- safe_query(db_pool, "SELECT archetype_id FROM deck_archetypes WHERE slug = $1 AND is_active = TRUE",
+                         params = list(slug), default = data.frame(archetype_id = integer()))
       if (nrow(deck) == 1) deck$archetype_id else NULL
     },
     "store" = {
       # Stores have a slug column
-      store <- dbGetQuery(db_pool, "SELECT store_id FROM stores WHERE slug = $1 AND is_active = TRUE",
-                          params = list(slug))
+      store <- safe_query(db_pool, "SELECT store_id FROM stores WHERE slug = $1 AND is_active = TRUE",
+                          params = list(slug), default = data.frame(store_id = integer()))
       if (nrow(store) == 1) store$store_id else NULL
     },
     "tournament" = {
