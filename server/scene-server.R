@@ -539,16 +539,16 @@ version_changelog_content <- function() {
   tagList(
     div(class = "version-changelog-items",
       div(class = "version-changelog-item",
+        bsicons::bs_icon("link-45deg", class = "text-info"),
+        span("Decklist URL entry with domain allowlist for popular deck builders")
+      ),
+      div(class = "version-changelog-item",
         bsicons::bs_icon("speedometer2", class = "text-success"),
         span("Faster page loads with optimized database queries and caching")
       ),
       div(class = "version-changelog-item",
         bsicons::bs_icon("shield-check", class = "text-primary"),
         span("Improved data reliability with automatic retry on transient errors")
-      ),
-      div(class = "version-changelog-item",
-        bsicons::bs_icon("link-45deg", class = "text-info"),
-        span("Decklist URL entry with domain allowlist for popular deck builders")
       ),
       div(class = "version-changelog-item",
         bsicons::bs_icon("arrow-repeat", class = "text-warning"),
