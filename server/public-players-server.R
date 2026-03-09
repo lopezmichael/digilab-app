@@ -216,7 +216,11 @@ output$player_standings <- renderReactable({
   result$achievement_score[is.na(result$achievement_score)] <- 0
 
   # Join with main decks
-  result <- merge(result, main_decks, by = "player_id", all.x = TRUE)
+  if (nrow(main_decks) > 0 && "player_id" %in% names(main_decks)) {
+    result <- merge(result, main_decks, by = "player_id", all.x = TRUE)
+  }
+  if (!"main_deck" %in% names(result)) result$main_deck <- NA
+  if (!"main_deck_color" %in% names(result)) result$main_deck_color <- NA
   result$main_deck[is.na(result$main_deck)] <- "-"
   result$main_deck_color[is.na(result$main_deck_color)] <- ""
 
@@ -460,7 +464,11 @@ output$mobile_players_cards <- renderUI({
   result$achievement_score[is.na(result$achievement_score)] <- 0
 
   # Join main decks
-  result <- merge(result, main_decks, by = "player_id", all.x = TRUE)
+  if (nrow(main_decks) > 0 && "player_id" %in% names(main_decks)) {
+    result <- merge(result, main_decks, by = "player_id", all.x = TRUE)
+  }
+  if (!"main_deck" %in% names(result)) result$main_deck <- NA
+  if (!"main_deck_color" %in% names(result)) result$main_deck_color <- NA
   result$main_deck[is.na(result$main_deck)] <- ""
   result$main_deck_color[is.na(result$main_deck_color)] <- ""
 
