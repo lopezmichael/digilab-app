@@ -68,8 +68,8 @@ output$total_stores_val <- renderText({
     start_idx = 1
   )
   result <- safe_query(db_pool, paste("
-    SELECT SUM(store_count)::int as n
-    FROM mv_dashboard_counts
+    SELECT COUNT(DISTINCT store_id)::int as n
+    FROM mv_tournament_list
     WHERE 1=1", filters$sql),
     params = filters$params, default = data.frame(n = 0))
   result$n
@@ -349,12 +349,16 @@ core_metrics <- reactive({
     start_idx = 1
   )
 
+  # Use mv_tournament_list for correct distinct counts (can't SUM pre-aggregated distincts)
   result <- safe_query(db_pool, paste("
-    SELECT SUM(tournament_count)::int as tournaments,
-           SUM(player_count)::int as players
-    FROM mv_dashboard_counts
-    WHERE 1=1", filters$sql
-  ), params = filters$params, default = data.frame(tournaments = 0, players = 0))
+    WITH filtered AS (
+      SELECT tournament_id FROM mv_tournament_list WHERE 1=1", filters$sql, "
+    )
+    SELECT
+      (SELECT COUNT(*)::int FROM filtered) as tournaments,
+      (SELECT COUNT(DISTINCT r.player_id)::int
+       FROM results r WHERE r.tournament_id IN (SELECT tournament_id FROM filtered)) as players
+  "), params = filters$params, default = data.frame(tournaments = 0, players = 0))
 
   if (nrow(result) > 0) as.list(result[1, ]) else list(tournaments = 0, players = 0)
 }) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$community_filter, rv$data_refresh)
