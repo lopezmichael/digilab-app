@@ -1548,6 +1548,25 @@ def main():
         classified_count = run_classify_decklists(cursor)
         conn.commit()
 
+    # Refresh materialized views after sync
+    if not args.dry_run and total_synced > 0:
+        print("\nRefreshing materialized views...")
+        mv_views = [
+            "mv_player_store_stats",
+            "mv_archetype_store_stats",
+            "mv_tournament_list",
+            "mv_store_summary",
+            "mv_dashboard_counts",
+        ]
+        for mv in mv_views:
+            try:
+                cursor.execute(f"REFRESH MATERIALIZED VIEW {mv}")
+                conn.commit()
+            except Exception as e:
+                print(f"  WARNING: Failed to refresh {mv}: {e}")
+                conn.rollback()
+        print("  Materialized views refreshed.")
+
     # Close connection
     cursor.close()
     conn.close()
