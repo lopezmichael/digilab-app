@@ -58,30 +58,30 @@ planned:
     tags: [gamification, feature]
     targetVersion: "v1.9.0"
 
-  # v2.0.0 — Regional Admin & Multi-Region
+  # v1.10.0 — Regional Admin & Multi-Region
   - id: regional-admin-tier
     title: "Regional Admin Tier"
     description: "New admin role between Super Admin and Scene Admin for country or state-level oversight with cross-scene management."
     tags: [admin, scaling]
-    targetVersion: "v2.0.0"
+    targetVersion: "v1.10.0"
 
   - id: admin-audit-log
     title: "Admin Audit Log"
     description: "Track who changed what and when across all admin actions with before/after snapshots and optional undo."
     tags: [admin, security]
-    targetVersion: "v2.0.0"
+    targetVersion: "v1.10.0"
 
   - id: tournament-tiers
     title: "Tournament Tiers"
     description: "Add tier classification to tournaments (local, regional, national, international) for filtering and ranking context."
     tags: [feature, data]
-    targetVersion: "v2.0.0"
+    targetVersion: "v1.10.0"
 
   - id: cross-scene-badges
     title: "Cross-Scene Player Badges"
     description: "Show which scenes a player has competed in within their player modal, with home scene inference."
     tags: [feature, community]
-    targetVersion: "v2.0.0"
+    targetVersion: "v1.10.0"
 
   # Infrastructure / Hardening (no target version)
   - id: login-rate-limiting
@@ -512,7 +512,7 @@ No features currently in progress.
 |---------|-------------|
 | **Achievement Badges** | Auto-calculated player achievements — streaks, deck mastery, scene milestones |
 
-### v2.0.0 — Regional Admin & Multi-Region
+### v1.10.0 — Regional Admin & Multi-Region
 | Feature | Description |
 |---------|-------------|
 | **Regional Admin Tier** | Country/state-level admin role with cross-scene management |
@@ -760,7 +760,7 @@ Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
 
 ---
 
-## v2.0.0 — Regional Admin & Multi-Region
+## v1.10.0 — Regional Admin & Multi-Region
 
 ### Regional Admin Tier
 | ID | Type | Description |
