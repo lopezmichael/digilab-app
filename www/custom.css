@@ -3210,28 +3210,55 @@ a:hover, .nav-link:hover {
 
 .announcement-modal .modal-content,
 .version-modal .modal-content {
-  border: 1px solid rgba(0, 200, 255, 0.3);
-  background: linear-gradient(180deg, #FFFFFF 0%, #F0F7FF 100%);
+  border: 1px solid rgba(0, 150, 200, 0.35);
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(15, 76, 129, 0.15),
               0 0 40px rgba(0, 200, 255, 0.1);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(15, 76, 129, 0.04) 0px, transparent 1px, transparent 30px),
+    repeating-linear-gradient(90deg, rgba(15, 76, 129, 0.04) 0px, transparent 1px, transparent 30px),
+    linear-gradient(180deg, #FFFFFF 0%, #F0F7FF 100%);
 }
 
 [data-bs-theme="dark"] .announcement-modal .modal-content,
 [data-bs-theme="dark"] .version-modal .modal-content {
-  background: linear-gradient(180deg, #0A1929 0%, #0D2137 100%);
   border-color: rgba(0, 200, 255, 0.4);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5),
               0 0 60px rgba(0, 200, 255, 0.15);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.04) 0px, transparent 1px, transparent 30px),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0px, transparent 1px, transparent 30px),
+    linear-gradient(180deg, #0A1929 0%, #0D2137 100%);
 }
 
 .announcement-modal .modal-footer,
 .version-modal .modal-footer {
   border-top: none;
-  justify-content: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
   padding: 0 1.75rem 1.5rem;
 }
+.modal-footer .social-row {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+}
+.modal-footer .dismiss-link {
+  font-size: 0.82rem;
+  color: #7a8a9e;
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  transition: color 0.15s;
+}
+.modal-footer .dismiss-link:hover { color: #4A5568; }
+[data-bs-theme="dark"] .modal-footer .dismiss-link { color: rgba(255, 255, 255, 0.4); }
+[data-bs-theme="dark"] .modal-footer .dismiss-link:hover { color: rgba(255, 255, 255, 0.65); }
 
 /* --- Announcement Modal --- */
 .announcement-modal-content,
@@ -3332,41 +3359,35 @@ a:hover, .nav-link:hover {
   color: #F7941D;
 }
 
-/* --- Version Modal: Social Buttons --- */
-.version-social-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-.version-modal-content .btn-social {
+/* --- Modal Social Buttons (version + announcement) --- */
+.btn-social {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.5rem 1.1rem;
+  padding: 0.45rem 0.9rem;
   border-radius: 8px;
   font-weight: 600;
-  font-size: 0.88rem;
+  font-size: 0.8rem;
   text-decoration: none;
   transition: transform 0.15s, box-shadow 0.15s;
   border: none;
 }
-.version-modal-content .btn-social svg { flex-shrink: 0; }
-.version-modal-content .btn-discord {
+.btn-social svg { flex-shrink: 0; }
+.btn-discord {
   background: #5865F2;
   color: #ffffff;
 }
-.version-modal-content .btn-discord:hover {
+.btn-discord:hover {
   background: #4752c4;
   color: #ffffff;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(88, 101, 242, 0.4);
 }
-.version-modal-content .btn-kofi {
+.btn-kofi {
   background: #FF5E5B;
   color: #ffffff;
 }
-.version-modal-content .btn-kofi:hover {
+.btn-kofi:hover {
   background: #e54542;
   color: #ffffff;
   transform: translateY(-1px);
