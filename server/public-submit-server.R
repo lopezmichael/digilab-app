@@ -287,80 +287,54 @@ complete_ocr_processing <- function(combined, total_players, total_rounds, parse
   # Add deck column
   combined$deck_id <- NA_integer_
 
-  # Pre-match players against database
+  # Pre-match players against database using identity-aware match_player()
   combined$matched_player_id <- NA_integer_
-  combined$match_status <- "new"  # "matched", "possible", "new"
+  combined$match_status <- "new"  # "matched", "new_similar", "new"
   combined$matched_player_name <- NA_character_
 
+  # Get scene_id for identity-aware matching
+  scene_id <- get_store_scene_id(as.integer(input$submit_store), db_pool)
+
   for (i in seq_len(nrow(combined))) {
-      member_num <- combined$member_number[i]
-      username <- combined$username[i]
+    member_num <- combined$member_number[i]
+    username <- combined$username[i]
+    if (is.null(username) || is.na(username) || nchar(trimws(username)) == 0) next
 
-      # Check if this is a GUEST ID (not a real member number - used for manually added players)
-      is_guest_id <- !is.null(member_num) && !is.na(member_num) &&
-                     grepl("^GUEST\\d+$", member_num, ignore.case = TRUE)
-
-      # First try to match by member number (skip if GUEST ID - those aren't real)
-      if (!is_guest_id && !is.null(member_num) && !is.na(member_num) && nchar(member_num) > 0) {
-        player_by_member <- safe_query(db_pool, "
-          SELECT player_id, display_name FROM players
-          WHERE member_number = $1
-          LIMIT 1
-        ", params = list(member_num))
-
-        if (nrow(player_by_member) > 0) {
-          combined$matched_player_id[i] <- player_by_member$player_id[1]
-          combined$matched_player_name[i] <- player_by_member$display_name[1]
-          combined$match_status[i] <- "matched"
-          next
-        }
-      }
-
-      # GUEST IDs aren't real member numbers — try to find this player by username
-      if (is_guest_id) {
-        combined$member_number[i] <- ""
-
-        # Look up by username to find their real member number
-        if (!is.null(username) && !is.na(username) && nchar(username) > 0) {
-          guest_lookup <- safe_query(db_pool, "
-            SELECT player_id, display_name, member_number FROM players
-            WHERE LOWER(display_name) = LOWER($1)
-            LIMIT 1
-          ", params = list(username))
-
-          if (nrow(guest_lookup) > 0) {
-            combined$matched_player_id[i] <- guest_lookup$player_id[1]
-            combined$matched_player_name[i] <- guest_lookup$display_name[1]
-
-            # If the DB has their real member number, pre-fill it
-            if (!is.na(guest_lookup$member_number[1]) && nchar(guest_lookup$member_number[1]) > 0) {
-              combined$member_number[i] <- guest_lookup$member_number[1]
-              combined$match_status[i] <- "matched"
-              message("[SUBMIT] GUEST '", username, "' matched to player with member number: ", guest_lookup$member_number[1])
-            } else {
-              combined$match_status[i] <- "matched"
-              message("[SUBMIT] GUEST '", username, "' matched to existing player (no member number)")
-            }
-            next
-          }
-        }
-      }
-
-      # Try to match by username
-      if (!is.null(username) && !is.na(username) && nchar(username) > 0) {
-        player_by_name <- safe_query(db_pool, "
-          SELECT player_id, display_name, member_number FROM players
-          WHERE LOWER(display_name) = LOWER($1)
-          LIMIT 1
-        ", params = list(username))
-
-        if (nrow(player_by_name) > 0) {
-          combined$matched_player_id[i] <- player_by_name$player_id[1]
-          combined$matched_player_name[i] <- player_by_name$display_name[1]
-          combined$match_status[i] <- "possible"
-        }
-      }
+    # Strip GUEST IDs before matching (match_player handles this too, but we
+    # also need to clear it from the combined data frame for display)
+    is_guest_id <- !is.null(member_num) && !is.na(member_num) &&
+                   grepl("^GUEST\\d+$", member_num, ignore.case = TRUE)
+    if (is_guest_id) {
+      combined$member_number[i] <- ""
+      member_num <- ""
     }
+
+    match_info <- match_player(username, db_pool, member_number = member_num, scene_id = scene_id)
+
+    if (match_info$status == "matched") {
+      combined$matched_player_id[i] <- match_info$player_id
+      combined$match_status[i] <- "matched"
+      # Look up display name and pre-fill member number from DB
+      player_info <- safe_query(db_pool, "
+        SELECT display_name, member_number FROM players WHERE player_id = $1
+      ", params = list(match_info$player_id), default = data.frame())
+      if (nrow(player_info) > 0) {
+        combined$matched_player_name[i] <- player_info$display_name[1]
+        # Pre-fill real member number for GUEST players
+        if (is_guest_id && !is.na(player_info$member_number[1]) && nchar(player_info$member_number[1]) > 0) {
+          combined$member_number[i] <- player_info$member_number[1]
+        }
+      }
+    } else if (match_info$status == "ambiguous") {
+      # Multiple exact matches — use first candidate, mark as matched
+      combined$matched_player_id[i] <- match_info$candidates$player_id[1]
+      combined$matched_player_name[i] <- match_info$candidates$display_name[1]
+      combined$match_status[i] <- "matched"
+    } else {
+      # "new" or "new_similar" — pass through as-is
+      combined$match_status[i] <- match_info$status
+    }
+  }
 
   rv$submit_ocr_results <- combined
   rv$submit_parsed_count <- parsed_count
@@ -374,13 +348,23 @@ complete_ocr_processing <- function(combined, total_players, total_rounds, parse
   # Build player matches list for shared grid badges
   matches_list <- list()
   for (i in seq_len(nrow(combined))) {
-    if (combined$match_status[i] %in% c("matched", "possible")) {
+    username <- combined$username[i]
+    if (is.null(username) || is.na(username) || nchar(trimws(username)) == 0) next
+
+    member_num <- combined$member_number[i]
+    scene_id_for_match <- scene_id  # reuse from above
+
+    if (combined$match_status[i] == "matched") {
       matches_list[[as.character(i)]] <- list(
         status = "matched",
         player_id = combined$matched_player_id[i],
-        member_number = if (!is.na(combined$member_number[i])) combined$member_number[i] else ""
+        member_number = if (!is.na(member_num)) member_num else ""
       )
-    } else if (nchar(trimws(combined$username[i])) > 0) {
+    } else if (combined$match_status[i] == "new_similar") {
+      # Re-run match_player to get the fuzzy candidates for the badge
+      re_match <- match_player(username, db_pool, member_number = member_num, scene_id = scene_id_for_match)
+      matches_list[[as.character(i)]] <- re_match
+    } else {
       matches_list[[as.character(i)]] <- list(status = "new")
     }
   }
@@ -755,7 +739,7 @@ output$submit_match_summary <- renderUI({
   results <- rv$submit_ocr_results
 
   matched_count <- sum(results$match_status == "matched", na.rm = TRUE)
-  possible_count <- sum(results$match_status == "possible", na.rm = TRUE)
+  similar_count <- sum(results$match_status == "new_similar", na.rm = TRUE)
   new_count <- sum(results$match_status == "new", na.rm = TRUE)
 
   div(
@@ -766,11 +750,11 @@ output$submit_match_summary <- renderUI({
       span(class = "badge-count", matched_count),
       span(class = "badge-label", "Matched")
     ),
-    div(
+    if (similar_count > 0) div(
       class = "match-badge match-badge--possible",
-      bsicons::bs_icon("question-circle-fill"),
-      span(class = "badge-count", possible_count),
-      span(class = "badge-label", "Possible")
+      bsicons::bs_icon("person-exclamation"),
+      span(class = "badge-count", similar_count),
+      span(class = "badge-label", "Similar")
     ),
     div(
       class = "match-badge match-badge--new",
@@ -930,6 +914,123 @@ observeEvent(input$submit_player_blur, {
   }
 })
 
+# =============================================================================
+# Submit Grid: "Did you mean?" Similar Player Modal (PID5)
+# =============================================================================
+
+observeEvent(input$submit_similar_player_row, {
+  row_num <- input$submit_similar_player_row
+  req(row_num, rv$submit_player_matches)
+
+  match_info <- rv$submit_player_matches[[as.character(row_num)]]
+  req(match_info, match_info$status == "new_similar")
+
+  candidates <- match_info$candidates
+
+  # Enrich candidates with event count and scene info
+  enriched <- safe_query(db_pool, "
+    SELECT p.player_id, p.display_name, p.member_number, p.identity_status,
+           sc.display_name as home_scene_name,
+           COUNT(DISTINCT r.tournament_id) as events_played,
+           prc.competitive_rating as rating
+    FROM players p
+    LEFT JOIN scenes sc ON p.home_scene_id = sc.scene_id
+    LEFT JOIN results r ON p.player_id = r.player_id
+    LEFT JOIN player_ratings_cache prc ON p.player_id = prc.player_id
+    WHERE p.player_id = ANY($1::int[])
+    GROUP BY p.player_id, p.display_name, p.member_number, p.identity_status,
+             sc.display_name, prc.competitive_rating
+    ORDER BY COUNT(DISTINCT r.tournament_id) DESC
+  ", params = list(paste0("{", paste(candidates$player_id, collapse = ","), "}")),
+  default = candidates)
+
+  sim_lookup <- setNames(candidates$sim, as.character(candidates$player_id))
+
+  candidate_choices <- lapply(seq_len(nrow(enriched)), function(i) {
+    c <- enriched[i, ]
+    sim_pct <- round((sim_lookup[[as.character(c$player_id)]] %||% 0) * 100)
+    member_text <- if (!is.na(c$member_number) && nchar(c$member_number) > 0) paste0(" \u2014 #", c$member_number) else ""
+    scene_text <- if (!is.null(c$home_scene_name) && !is.na(c$home_scene_name)) paste0(" \u2014 ", c$home_scene_name) else ""
+    events_text <- if (!is.null(c$events_played) && !is.na(c$events_played)) paste0(c$events_played, " events") else "0 events"
+    rating_text <- if (!is.null(c$rating) && !is.na(c$rating)) paste0("Rating: ", c$rating) else ""
+
+    div(class = "disambiguate-candidate",
+      tags$label(class = "d-flex align-items-start gap-2 p-2 rounded border mb-2",
+        style = "cursor: pointer;",
+        tags$input(type = "radio", name = "submit_similar_choice",
+                   value = as.character(c$player_id), class = "mt-1"),
+        div(
+          div(tags$strong(c$display_name),
+              span(class = "badge bg-secondary ms-2", paste0(sim_pct, "% match")),
+              span(class = "text-muted small", member_text)),
+          div(class = "small text-muted",
+            paste(c(events_text, rating_text, scene_text), collapse = " | ")
+          )
+        )
+      )
+    )
+  })
+
+  player_name <- rv$submit_grid_data$player_name[row_num]
+
+  showModal(modalDialog(
+    title = tagList(bsicons::bs_icon("person-exclamation"), " Did you mean?"),
+    p(class = "text-muted", sprintf(
+      "\"%s\" wasn't found, but these similar players exist:", player_name)),
+    div(id = "submit_similar_choices", candidate_choices),
+    hr(),
+    div(class = "d-flex align-items-center gap-2",
+      tags$input(type = "radio", name = "submit_similar_choice", value = "new",
+                 id = "submit_similar_new", checked = "checked"),
+      tags$label(`for` = "submit_similar_new",
+        tags$strong(sprintf("Create new player \"%s\"", player_name)))
+    ),
+    tags$script(HTML("
+      $('#submit_similar_confirm').on('click', function() {
+        var selected = $('input[name=submit_similar_choice]:checked').val();
+        if (selected) {
+          Shiny.setInputValue('submit_similar_confirm', {
+            row: ", row_num, ",
+            player_id: selected
+          }, {priority: 'event'});
+        }
+      });
+    ")),
+    footer = tagList(
+      modalButton("Cancel"),
+      actionButton("submit_similar_confirm", "Confirm", class = "btn-primary")
+    )
+  ))
+})
+
+observeEvent(input$submit_similar_confirm, {
+  info <- input$submit_similar_confirm
+  row_num <- info$row
+  selected_id <- info$player_id
+
+  req(row_num, selected_id)
+
+  if (selected_id == "new") {
+    rv$submit_grid_data$match_status[row_num] <- "new"
+    rv$submit_grid_data$matched_player_id[row_num] <- NA_integer_
+    rv$submit_grid_data$matched_member_number[row_num] <- NA_character_
+    rv$submit_player_matches[[as.character(row_num)]] <- list(status = "new")
+  } else {
+    pid <- as.integer(selected_id)
+    player_info <- safe_query(db_pool, "SELECT member_number FROM players WHERE player_id = $1",
+                              params = list(pid), default = data.frame(member_number = NA_character_))
+    rv$submit_grid_data$match_status[row_num] <- "matched"
+    rv$submit_grid_data$matched_player_id[row_num] <- pid
+    rv$submit_grid_data$matched_member_number[row_num] <- player_info$member_number[1]
+    rv$submit_player_matches[[as.character(row_num)]] <- list(
+      status = "matched",
+      player_id = pid,
+      member_number = player_info$member_number[1]
+    )
+  }
+
+  removeModal()
+})
 
 # Track which row triggered the deck request modal
 rv$deck_request_row <- NULL
