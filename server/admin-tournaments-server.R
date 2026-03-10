@@ -719,7 +719,7 @@ observeEvent(input$edit_disambiguate_row, {
       tags$label(`for` = "edit_disambiguate_new", "None of these \u2014 create a new player")
     ),
     tags$script(HTML("
-      $('#edit_disambiguate_confirm').on('click', function() {
+      $('#edit_disambiguate_confirm_btn').on('click', function() {
         var selected = $('input[name=edit_disambiguate_choice]:checked').val();
         if (selected) {
           Shiny.setInputValue('edit_disambiguate_confirm', {
@@ -731,7 +731,7 @@ observeEvent(input$edit_disambiguate_row, {
     ")),
     footer = tagList(
       modalButton("Cancel"),
-      actionButton("edit_disambiguate_confirm", "Confirm", class = "btn-primary")
+      actionButton("edit_disambiguate_confirm_btn", "Confirm", class = "btn-primary")
     )
   ))
 })
@@ -839,7 +839,7 @@ observeEvent(input$edit_similar_player_row, {
         tags$strong(sprintf("Create new player \"%s\"", player_name)))
     ),
     tags$script(HTML("
-      $('#edit_similar_confirm').on('click', function() {
+      $('#edit_similar_confirm_btn').on('click', function() {
         var selected = $('input[name=edit_similar_choice]:checked').val();
         if (selected) {
           Shiny.setInputValue('edit_similar_confirm', {
@@ -851,7 +851,7 @@ observeEvent(input$edit_similar_player_row, {
     ")),
     footer = tagList(
       modalButton("Cancel"),
-      actionButton("edit_similar_confirm", "Confirm", class = "btn-primary")
+      actionButton("edit_similar_confirm_btn", "Confirm", class = "btn-primary")
     )
   ))
 })

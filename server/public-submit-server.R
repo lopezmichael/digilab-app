@@ -986,7 +986,7 @@ observeEvent(input$submit_similar_player_row, {
         tags$strong(sprintf("Create new player \"%s\"", player_name)))
     ),
     tags$script(HTML("
-      $('#submit_similar_confirm').on('click', function() {
+      $('#submit_similar_confirm_btn').on('click', function() {
         var selected = $('input[name=submit_similar_choice]:checked').val();
         if (selected) {
           Shiny.setInputValue('submit_similar_confirm', {
@@ -998,7 +998,7 @@ observeEvent(input$submit_similar_player_row, {
     ")),
     footer = tagList(
       modalButton("Cancel"),
-      actionButton("submit_similar_confirm", "Confirm", class = "btn-primary")
+      actionButton("submit_similar_confirm_btn", "Confirm", class = "btn-primary")
     )
   ))
 })
