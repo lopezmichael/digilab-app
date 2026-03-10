@@ -594,7 +594,7 @@ build_deck_choices <- function(con) {
 # -----------------------------------------------------------------------------
 match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
   # Step 1: Bandai ID match (global, definitive) — skip GUEST IDs
-  if (!is.null(member_number) && nchar(trimws(member_number)) > 0) {
+  if (!is.null(member_number) && !is.na(member_number) && nchar(trimws(member_number)) > 0) {
     mn <- trimws(member_number)
     if (!grepl("^GUEST", mn, ignore.case = TRUE)) {
       member_match <- safe_query_impl(con, "
