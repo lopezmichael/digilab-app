@@ -167,9 +167,9 @@ CREATE INDEX IF NOT EXISTS idx_players_identity_status ON players(identity_statu
 CREATE INDEX IF NOT EXISTS idx_players_home_scene ON players(home_scene_id);
 CREATE INDEX IF NOT EXISTS idx_players_member_number ON players(member_number) WHERE member_number IS NOT NULL AND member_number != '';
 
--- Unique constraint on member_number (partial — only non-NULL, non-empty values)
-ALTER TABLE players ADD CONSTRAINT unique_member_number
-  UNIQUE (member_number) WHERE member_number IS NOT NULL AND member_number != '';
+-- Unique index on member_number (partial — only non-NULL, non-empty values)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_players_unique_member_number
+  ON players (member_number) WHERE member_number IS NOT NULL AND member_number != '';
 
 -- =============================================================================
 -- DECK ARCHETYPES TABLE

@@ -43,7 +43,17 @@ FROM (
 ) sub
 WHERE p.player_id = sub.player_id AND sub.rn = 1 AND p.home_scene_id IS NULL;
 
--- 7. Unique constraint on member_number (partial — only non-NULL, non-empty)
--- NOTE: Run the audit script first to resolve any duplicate member_numbers!
-ALTER TABLE players ADD CONSTRAINT unique_member_number
-  UNIQUE (member_number) WHERE member_number IS NOT NULL AND member_number != '';
+-- 7. Clear member_number from inactive (soft-deleted) players that duplicate active ones
+UPDATE players SET member_number = NULL
+WHERE is_active = FALSE
+  AND member_number IS NOT NULL AND member_number != ''
+  AND member_number IN (
+    SELECT member_number FROM players
+    WHERE member_number IS NOT NULL AND member_number != ''
+    GROUP BY member_number HAVING COUNT(*) > 1
+  );
+
+-- 8. Unique index on member_number (partial — only non-NULL, non-empty)
+-- NOTE: Must use CREATE UNIQUE INDEX (not ALTER TABLE ADD CONSTRAINT) for filtered uniqueness
+CREATE UNIQUE INDEX IF NOT EXISTS idx_players_unique_member_number
+  ON players (member_number) WHERE member_number IS NOT NULL AND member_number != '';

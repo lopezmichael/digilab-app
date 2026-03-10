@@ -340,9 +340,20 @@ run("Backfill: Limitless players → verified", "
     AND identity_status = 'unverified'
 ")
 
-run("Unique constraint on member_number (partial)", "
-  ALTER TABLE players ADD CONSTRAINT unique_member_number
-  UNIQUE (member_number) WHERE member_number IS NOT NULL AND member_number != ''
+run("Clear member_number from inactive duplicates", "
+  UPDATE players SET member_number = NULL
+  WHERE is_active = FALSE
+    AND member_number IS NOT NULL AND member_number != ''
+    AND member_number IN (
+      SELECT member_number FROM players
+      WHERE member_number IS NOT NULL AND member_number != ''
+      GROUP BY member_number HAVING COUNT(*) > 1
+    )
+")
+
+run("Unique index on member_number (partial)", "
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_players_unique_member_number
+  ON players (member_number) WHERE member_number IS NOT NULL AND member_number != ''
 ")
 
 # =============================================================================
