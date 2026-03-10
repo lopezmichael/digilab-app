@@ -561,24 +561,24 @@ version_changelog_content <- function() {
   tagList(
     div(class = "version-changelog-items",
       div(class = "version-changelog-item",
-        bsicons::bs_icon("link-45deg", class = "text-info"),
-        span("Decklist URL entry with domain allowlist for popular deck builders")
+        bsicons::bs_icon("person-check", class = "text-success"),
+        span("Smarter player matching — Bandai ID verified players match globally, others stay scene-scoped")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("speedometer2", class = "text-success"),
-        span("Faster page loads with optimized database queries and caching")
+        bsicons::bs_icon("people", class = "text-info"),
+        span("Fuzzy duplicate detection warns you when a new player looks similar to an existing one")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("shield-check", class = "text-primary"),
-        span("Improved data reliability with automatic retry on transient errors")
+        bsicons::bs_icon("question-circle", class = "text-warning"),
+        span("Disambiguation UI lets you pick the right player when multiple matches are found")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("arrow-repeat", class = "text-warning"),
-        span("Rating updates now run in the background for snappier navigation")
+        bsicons::bs_icon("funnel", class = "text-primary"),
+        span("Scene filter on store dropdowns — less clutter when entering tournament results")
       ),
       div(class = "version-changelog-item",
-        bsicons::bs_icon("database-check", class = "text-success"),
-        span("Transaction safety ensures tournament data stays consistent")
+        bsicons::bs_icon("bell", class = "text-info"),
+        span("Merge suggestions in admin notification bar for Limitless-to-local player matches")
       )
     )
   )
