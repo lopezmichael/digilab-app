@@ -6579,6 +6579,18 @@ div.player-match-indicator.possible {
   color: #2563eb !important;
 }
 
+/* Ambiguous player status - AMBER */
+.player-match-indicator.ambiguous,
+div.player-match-indicator.ambiguous {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #d97706 !important;
+}
+
+.player-match-indicator.ambiguous .bi,
+.player-match-indicator.ambiguous .match-label {
+  color: #d97706 !important;
+}
+
 /* New player status - GRAY */
 .player-match-indicator.new,
 div.player-match-indicator.new {
@@ -6721,6 +6733,17 @@ div.player-match-indicator.new {
 [data-bs-theme="dark"] .player-match-indicator.possible .match-label,
 [data-bs-theme="dark"] .player-match-indicator.possible .match-name {
   color: #60a5fa !important;
+}
+
+[data-bs-theme="dark"] .player-match-indicator.ambiguous,
+[data-bs-theme="dark"] div.player-match-indicator.ambiguous {
+  background: rgba(245, 158, 11, 0.2) !important;
+  color: #fbbf24 !important;
+}
+
+[data-bs-theme="dark"] .player-match-indicator.ambiguous .bi,
+[data-bs-theme="dark"] .player-match-indicator.ambiguous .match-label {
+  color: #fbbf24 !important;
 }
 
 [data-bs-theme="dark"] .player-match-indicator.new,

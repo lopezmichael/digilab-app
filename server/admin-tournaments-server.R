@@ -643,6 +643,9 @@ observeEvent(input$edit_player_blur, {
   if (match_info$status == "matched") {
     rv$edit_grid_data$matched_player_id[row_num] <- match_info$player_id
     rv$edit_grid_data$matched_member_number[row_num] <- match_info$member_number
+  } else if (match_info$status == "ambiguous") {
+    rv$edit_grid_data$matched_player_id[row_num] <- match_info$candidates$player_id[1]
+    rv$edit_grid_data$matched_member_number[row_num] <- match_info$candidates$member_number[1]
   } else {
     rv$edit_grid_data$matched_player_id[row_num] <- NA_integer_
     rv$edit_grid_data$matched_member_number[row_num] <- NA_character_
@@ -733,6 +736,9 @@ observeEvent(input$edit_paste_apply, {
       if (match_info$status == "matched") {
         grid$matched_player_id[idx] <- match_info$player_id
         grid$matched_member_number[idx] <- match_info$member_number
+      } else if (match_info$status == "ambiguous") {
+        grid$matched_player_id[idx] <- match_info$candidates$player_id[1]
+        grid$matched_member_number[idx] <- match_info$candidates$member_number[1]
       }
     }
   }
@@ -913,20 +919,25 @@ observeEvent(input$edit_grid_save, {
             player_id <- row$matched_player_id
           } else {
             match_info <- match_player(name, conn, member_number = member_num, scene_id = scene_id)
-            if (match_info$status == "matched") {
-              player_id <- match_info$player_id
+            if (match_info$status == "matched" || match_info$status == "ambiguous") {
+              player_id <- if (match_info$status == "matched") match_info$player_id else match_info$candidates$player_id[1]
             } else {
-              new_player <- DBI::dbGetQuery(conn, "INSERT INTO players (display_name) VALUES ($1) RETURNING player_id",
-                           params = list(name))
+              has_real_id <- nchar(member_num) > 0 && !grepl("^GUEST", member_num, ignore.case = TRUE)
+              identity_status <- if (has_real_id) "verified" else "unverified"
+              clean_member <- if (has_real_id) member_num else NULL
+              new_player <- DBI::dbGetQuery(conn,
+                "INSERT INTO players (display_name, member_number, identity_status, home_scene_id) VALUES ($1, $2, $3, $4) RETURNING player_id",
+                params = list(name, clean_member, identity_status, scene_id))
               player_id <- new_player$player_id[1]
             }
           }
         }
 
-        # Update member_number if provided and player doesn't have one yet
-        if (nchar(member_num) > 0) {
+        # Update member_number if provided and player doesn't have one yet; promote to verified
+        if (nchar(member_num) > 0 && !grepl("^GUEST", member_num, ignore.case = TRUE)) {
           DBI::dbExecute(conn, "
-            UPDATE players SET member_number = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
+            UPDATE players SET member_number = $1, identity_status = 'verified',
+                   updated_at = CURRENT_TIMESTAMP, updated_by = $2
             WHERE player_id = $3 AND (member_number IS NULL OR member_number = '')
           ", params = list(member_num, current_admin_username(rv), player_id))
         }

@@ -203,6 +203,11 @@ render_grid_ui <- function(grid_data, record_format, is_release, deck_choices,
         div(class = "player-match-indicator matched",
             bsicons::bs_icon("check-circle-fill"),
             span(class = "match-label", paste0("Matched ", member_text)))
+      } else if (match_info$status == "ambiguous") {
+        n_candidates <- if (!is.null(match_info$candidates)) nrow(match_info$candidates) else 0
+        div(class = "player-match-indicator ambiguous",
+            bsicons::bs_icon("exclamation-triangle-fill"),
+            span(class = "match-label", paste0(n_candidates, " matches — needs Bandai ID")))
       } else if (match_info$status == "new") {
         div(class = "player-match-indicator new",
             bsicons::bs_icon("person-plus-fill"),
@@ -563,67 +568,87 @@ build_deck_choices <- function(con) {
 }
 
 # -----------------------------------------------------------------------------
-# match_player: Match by member_number first (if provided), then by name
-# Filters out inactive (soft-deleted) players in both queries.
+# match_player: Identity-aware player matching with disambiguation.
 #
-# scene_id: Optional. When provided, name-only matching is scoped to players
-#   who have previously competed in this scene. This prevents cross-scene
-#   name collisions (e.g., "Matt" in DFW vs "Matt" in Houston).
-#   Bandai ID matching remains global (same ID = same player everywhere).
+# Matching cascade:
+#   1. Bandai member number (global, definitive) — skip GUEST IDs
+#   2. Name match (scene-scoped):
+#      a. Verified players who've competed in this scene
+#      b. Unverified players whose home_scene matches
+#   3. If multiple candidates → return "ambiguous" with candidate list
+#   4. No match → return "new"
 #
-# Returns list(status="matched", player_id=X, member_number=Y) or
-#         list(status="new")
+# Returns:
+#   list(status="matched", player_id=X, member_number=Y)
+#   list(status="ambiguous", candidates=data.frame(...))
+#   list(status="new")
 # -----------------------------------------------------------------------------
 match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
-  # If member_number provided, try exact member_number match first (global)
+  # Step 1: Bandai ID match (global, definitive) — skip GUEST IDs
   if (!is.null(member_number) && nchar(trimws(member_number)) > 0) {
-    member_match <- safe_query_impl(con, "
-      SELECT player_id, display_name, member_number
-      FROM players WHERE member_number = $1 AND is_active IS NOT FALSE
-      LIMIT 1
-    ", params = list(trimws(member_number)))
+    mn <- trimws(member_number)
+    if (!grepl("^GUEST", mn, ignore.case = TRUE)) {
+      member_match <- safe_query_impl(con, "
+        SELECT player_id, display_name, member_number
+        FROM players WHERE member_number = $1 AND is_active IS NOT FALSE
+        LIMIT 1
+      ", params = list(mn))
 
-    if (nrow(member_match) > 0) {
-      return(list(
-        status = "matched",
-        player_id = member_match$player_id,
-        member_number = member_match$member_number
-      ))
+      if (nrow(member_match) > 0) {
+        return(list(
+          status = "matched",
+          player_id = member_match$player_id,
+          member_number = member_match$member_number
+        ))
+      }
     }
   }
 
-  # Fall back to name match
-  # If scene_id provided, scope to players who have competed in this scene
+  # Step 2: Name match — identity-status-aware
   if (!is.null(scene_id)) {
-    player <- safe_query_impl(con, "
-      SELECT DISTINCT p.player_id, p.display_name, p.member_number
+    # Scene-scoped: verified players who've competed here + unverified players homed here
+    candidates <- safe_query_impl(con, "
+      SELECT DISTINCT p.player_id, p.display_name, p.member_number,
+             p.identity_status, p.home_scene_id
       FROM players p
-      JOIN results r ON p.player_id = r.player_id
-      JOIN tournaments t ON r.tournament_id = t.tournament_id
-      JOIN stores s ON t.store_id = s.store_id
+      LEFT JOIN results r ON p.player_id = r.player_id
+      LEFT JOIN tournaments t ON r.tournament_id = t.tournament_id
+      LEFT JOIN stores s ON t.store_id = s.store_id
       WHERE LOWER(p.display_name) = LOWER($1)
         AND p.is_active IS NOT FALSE
-        AND s.scene_id = $2
-      LIMIT 1
+        AND (
+          (p.identity_status = 'verified' AND s.scene_id = $2)
+          OR
+          (p.identity_status = 'unverified' AND p.home_scene_id = $2)
+        )
     ", params = list(name, scene_id))
   } else {
-    # No scene_id - global name match (backward compatible)
-    player <- safe_query_impl(con, "
-      SELECT player_id, display_name, member_number
-      FROM players WHERE LOWER(display_name) = LOWER($1) AND is_active IS NOT FALSE
-      LIMIT 1
+    # No scene context — only match verified players globally
+    candidates <- safe_query_impl(con, "
+      SELECT player_id, display_name, member_number,
+             identity_status, home_scene_id
+      FROM players
+      WHERE LOWER(display_name) = LOWER($1)
+        AND is_active IS NOT FALSE
+        AND identity_status = 'verified'
     ", params = list(name))
   }
 
-  if (nrow(player) > 0) {
-    list(
+  if (nrow(candidates) == 1) {
+    return(list(
       status = "matched",
-      player_id = player$player_id,
-      member_number = player$member_number
-    )
-  } else {
-    list(status = "new")
+      player_id = candidates$player_id[1],
+      member_number = candidates$member_number[1]
+    ))
+  } else if (nrow(candidates) > 1) {
+    return(list(
+      status = "ambiguous",
+      candidates = candidates
+    ))
   }
+
+  # Step 3: No match
+  list(status = "new")
 }
 
 # -----------------------------------------------------------------------------

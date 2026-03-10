@@ -294,9 +294,10 @@ def resolve_player(cursor, limitless_username, display_name, player_cache):
         return row[0]
 
     # Create new player (let PostgreSQL generate player_id via IDENTITY)
+    # Limitless username is a reliable identifier — mark as verified
     cursor.execute("""
-        INSERT INTO players (display_name, limitless_username, is_active)
-        VALUES (%s, %s, TRUE)
+        INSERT INTO players (display_name, limitless_username, is_active, identity_status)
+        VALUES (%s, %s, TRUE, 'verified')
         RETURNING player_id
     """, (display_name, limitless_username))
     new_id = cursor.fetchone()[0]

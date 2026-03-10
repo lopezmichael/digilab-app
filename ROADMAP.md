@@ -84,6 +84,12 @@ planned:
     targetVersion: "v1.10.0"
 
   # v1.6.0 additions
+  - id: player-identity-disambiguation
+    title: "Player Identity & Disambiguation"
+    description: "Verification model for player identity — Bandai ID = verified (global matching), no ID = unverified (scene-locked). Disambiguation UI for ambiguous name matches, fuzzy duplicate detection, unique member_number constraint, and unverified player reports for scene admins."
+    tags: [data, admin, scaling]
+    targetVersion: "v1.6.0"
+
   - id: postmessage-origin-fix
     title: "postMessage Origin Validation Tightening"
     description: "scene-selector.js sends postMessage with wildcard '*' origin. Tighten to 'https://app.digilab.cards'. The receiver side already validates origin, so risk is minimal — this is defense-in-depth."
@@ -482,6 +488,7 @@ No features currently in progress.
 |---------|-------------|
 | **Results & Upload Tab Redesign** | Paired redesign of Enter Results and Upload Results with mobile optimization and data quality checks |
 | **Mobile Admin Tabs** | Mobile layouts for all scene admin and super admin tabs |
+| **Player Identity & Disambiguation** | Verification model — Bandai ID = verified (global), no ID = unverified (scene-locked). Disambiguation UI, fuzzy duplicate detection, unique constraint |
 | **postMessage Origin Fix** | Tighten wildcard origin to app.digilab.cards (defense-in-depth) |
 
 ### v1.7.0 — Tournament Data & Ingestion
@@ -688,6 +695,19 @@ Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
 | RU2 | FEATURE | Mobile-optimized result entry with touch-friendly grids |
 | RU3 | VALIDATION | Tournament data quality checks — future dates, store required, player count confirmation |
 
+### Player Identity & Disambiguation
+
+Design doc: `docs/plans/2026-03-09-player-identity-disambiguation-design.md`
+
+| ID | Type | Description |
+|----|------|-------------|
+| PID1 | SCHEMA | `identity_status` + `home_scene_id` columns, unique `member_number` constraint, backfill migration |
+| PID2 | FEATURE | Redesigned `match_player()` — scene-locked unverified, global verified, ambiguous status for multiple matches |
+| PID3 | FEATURE | Player creation with verification — GUEST ID stripping, auto-set identity_status + home_scene_id |
+| PID4 | UX | Disambiguation UI in admin grid — yellow warning for ambiguous matches, picker modal with player details |
+| PID5 | UX | Fuzzy duplicate detection on new player creation using pg_trgm — "Did you mean?" prompt |
+| PID6 | UX | Unverified player report for scene admins — table with "Add Bandai ID" action to promote players |
+
 ### Mobile Admin Tabs
 | ID | Type | Description |
 |----|------|-------------|
@@ -793,7 +813,6 @@ Items for future consideration, not scheduled:
 | DC4 | INTEGRATION | Link Discord users to DigiLab accounts | Enables bot-based workflows |
 | INF1 | DEVEX | Sentry MCP integration | Claude Code workflow for proactive error monitoring |
 | INF2 | DEVEX | Sentry error collection workflow | Process for identifying and addressing production errors |
-| PD1 | IMPROVEMENT | Cross-scene player disambiguation | Stronger safeguards against name collisions — e.g., admin confirmation when matching a player who has never played in the current scene, member number required for ambiguous names, or merge review UI |
 | PD2 | FEATURE | Multi-scene admin role | Junction table for admin→scene assignment, new "regional admin" role between scene_admin and super_admin. Enables one account to manage multiple scenes (e.g., BBoyHung for Aachen + Heerlen). Workaround: create a second account per scene. |
 
 ---

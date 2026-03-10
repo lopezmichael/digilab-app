@@ -1327,36 +1327,42 @@ observeEvent(input$submit_tournament, {
       # Determine player_id
       player_id <- NULL
 
+      # Determine identity status for member number
+      has_real_id <- !is.na(member_number) && nchar(member_number) > 0 &&
+                     !grepl("^GUEST", member_number, ignore.case = TRUE)
+      clean_member <- if (has_real_id) member_number else NA
+
       if (!is.na(row$matched_player_id) && row$match_status %in% c("matched", "possible")) {
         player_id <- row$matched_player_id
-        if (!is.na(member_number)) {
+        # Promote to verified if gaining a real Bandai ID
+        if (has_real_id) {
           DBI::dbExecute(conn, "
-            UPDATE players SET member_number = $1
-            WHERE player_id = $2 AND member_number IS NULL
-          ", params = list(member_number, player_id))
+            UPDATE players SET member_number = $1, identity_status = 'verified'
+            WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
+          ", params = list(clean_member, player_id))
         }
       } else {
         player <- DBI::dbGetQuery(conn, "
           SELECT player_id FROM players
           WHERE (member_number IS NOT NULL AND member_number = $1) OR LOWER(display_name) = LOWER($2)
           LIMIT 1
-        ", params = list(member_number, username))
+        ", params = list(clean_member, username))
 
         if (nrow(player) == 0) {
-          # Create new player (PostgreSQL auto-generates player_id)
+          identity_status <- if (has_real_id) "verified" else "unverified"
           new_player <- DBI::dbGetQuery(conn, "
-            INSERT INTO players (display_name, member_number)
-            VALUES ($1, $2)
+            INSERT INTO players (display_name, member_number, identity_status, home_scene_id)
+            VALUES ($1, $2, $3, $4)
             RETURNING player_id
-          ", params = list(username, member_number))
+          ", params = list(username, clean_member, identity_status, scene_id))
           player_id <- new_player$player_id[1]
         } else {
           player_id <- player$player_id[1]
-          if (!is.na(member_number)) {
+          if (has_real_id) {
             DBI::dbExecute(conn, "
-              UPDATE players SET member_number = $1
-              WHERE player_id = $2 AND member_number IS NULL
-            ", params = list(member_number, player_id))
+              UPDATE players SET member_number = $1, identity_status = 'verified'
+              WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
+            ", params = list(clean_member, player_id))
           }
         }
       }
@@ -1899,26 +1905,40 @@ observeEvent(input$match_submit, {
     # Begin transaction for atomic match history insert
     DBI::dbExecute(conn, "BEGIN")
 
+    # Get scene_id for the tournament's store
+    match_scene <- DBI::dbGetQuery(conn, "
+      SELECT s.scene_id FROM tournaments t JOIN stores s ON t.store_id = s.store_id
+      WHERE t.tournament_id = $1
+    ", params = list(tournament_id))
+    match_scene_id <- if (nrow(match_scene) > 0) match_scene$scene_id[1] else NULL
+
     # Find or create submitting player
+    submitter_has_real_id <- nchar(submitter_member) > 0 &&
+                             !grepl("^GUEST", submitter_member, ignore.case = TRUE)
+    clean_submitter_member <- if (submitter_has_real_id) submitter_member else NA_character_
+
     player <- DBI::dbGetQuery(conn, "
       SELECT player_id FROM players
       WHERE (member_number IS NOT NULL AND member_number = $1) OR LOWER(display_name) = LOWER($2)
       LIMIT 1
-    ", params = list(submitter_member, submitter_username))
+    ", params = list(clean_submitter_member, submitter_username))
 
     if (nrow(player) == 0) {
+      identity_status <- if (submitter_has_real_id) "verified" else "unverified"
       new_player <- DBI::dbGetQuery(conn, "
-        INSERT INTO players (display_name, member_number)
-        VALUES ($1, $2)
+        INSERT INTO players (display_name, member_number, identity_status, home_scene_id)
+        VALUES ($1, $2, $3, $4)
         RETURNING player_id
-      ", params = list(submitter_username, submitter_member))
+      ", params = list(submitter_username, clean_submitter_member, identity_status, match_scene_id))
       player_id <- new_player$player_id[1]
     } else {
       player_id <- player$player_id[1]
-      DBI::dbExecute(conn, "
-        UPDATE players SET member_number = $1
-        WHERE player_id = $2 AND member_number IS NULL
-      ", params = list(submitter_member, player_id))
+      if (submitter_has_real_id) {
+        DBI::dbExecute(conn, "
+          UPDATE players SET member_number = $1, identity_status = 'verified'
+          WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
+        ", params = list(clean_submitter_member, player_id))
+      }
     }
 
     # Insert each match - read from editable inputs
@@ -1957,26 +1977,31 @@ observeEvent(input$match_submit, {
         as.integer(row$match_points)
       }
 
+      opp_has_real_id <- !is.na(opponent_member) && nchar(opponent_member) > 0 &&
+                         !grepl("^GUEST", opponent_member, ignore.case = TRUE)
+      clean_opp_member <- if (opp_has_real_id) opponent_member else NA_character_
+
       opponent <- DBI::dbGetQuery(conn, "
         SELECT player_id FROM players
         WHERE (member_number IS NOT NULL AND member_number = $1) OR LOWER(display_name) = LOWER($2)
         LIMIT 1
-      ", params = list(opponent_member, opponent_username))
+      ", params = list(clean_opp_member, opponent_username))
 
       if (nrow(opponent) == 0) {
+        opp_identity <- if (opp_has_real_id) "verified" else "unverified"
         new_opponent <- DBI::dbGetQuery(conn, "
-          INSERT INTO players (display_name, member_number)
-          VALUES ($1, $2)
+          INSERT INTO players (display_name, member_number, identity_status, home_scene_id)
+          VALUES ($1, $2, $3, $4)
           RETURNING player_id
-        ", params = list(opponent_username, opponent_member))
+        ", params = list(opponent_username, clean_opp_member, opp_identity, match_scene_id))
         opponent_id <- new_opponent$player_id[1]
       } else {
         opponent_id <- opponent$player_id[1]
-        if (!is.na(opponent_member)) {
+        if (opp_has_real_id) {
           DBI::dbExecute(conn, "
-            UPDATE players SET member_number = $1
-            WHERE player_id = $2 AND member_number IS NULL
-          ", params = list(opponent_member, opponent_id))
+            UPDATE players SET member_number = $1, identity_status = 'verified'
+            WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
+          ", params = list(clean_opp_member, opponent_id))
         }
       }
 

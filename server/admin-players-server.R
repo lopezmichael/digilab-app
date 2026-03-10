@@ -489,13 +489,19 @@ observeEvent(input$confirm_merge_players, {
       WHERE player_id = $2 AND (limitless_username IS NULL OR limitless_username = '')
     ", params = list(source_id, target_id, current_admin_username(rv)))
 
-    # Copy member_number from source to target (if target doesn't have one)
+    # Copy member_number from source to target (if target doesn't have one) + promote to verified
     safe_execute(db_pool, "
       UPDATE players
-      SET member_number = (
-        SELECT member_number FROM players WHERE player_id = $1
-      ), updated_at = CURRENT_TIMESTAMP, updated_by = $3
-      WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
+      SET member_number = COALESCE(
+            NULLIF(member_number, ''),
+            (SELECT member_number FROM players WHERE player_id = $1)
+          ),
+          identity_status = CASE
+            WHEN COALESCE(NULLIF(member_number, ''), (SELECT member_number FROM players WHERE player_id = $1)) IS NOT NULL
+            THEN 'verified' ELSE identity_status
+          END,
+          updated_at = CURRENT_TIMESTAMP, updated_by = $3
+      WHERE player_id = $2
     ", params = list(source_id, target_id, current_admin_username(rv)))
 
     # Soft-delete source player instead of hard DELETE
