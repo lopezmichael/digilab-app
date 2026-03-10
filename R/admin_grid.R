@@ -210,6 +210,13 @@ render_grid_ui <- function(grid_data, record_format, is_release, deck_choices,
             onclick = sprintf("Shiny.setInputValue('%sdisambiguate_row', %d, {priority: 'event'})", prefix, i),
             bsicons::bs_icon("exclamation-triangle-fill"),
             span(class = "match-label", paste0(n_candidates, " matches — pick one")))
+      } else if (match_info$status == "new_similar") {
+        n_similar <- if (!is.null(match_info$candidates)) nrow(match_info$candidates) else 0
+        div(class = "player-match-indicator new-similar",
+            style = "cursor: pointer;",
+            onclick = sprintf("Shiny.setInputValue('%ssimilar_player_row', %d, {priority: 'event'})", prefix, i),
+            bsicons::bs_icon("person-exclamation"),
+            span(class = "match-label", paste0("New — ", n_similar, " similar")))
       } else if (match_info$status == "new") {
         div(class = "player-match-indicator new",
             bsicons::bs_icon("person-plus-fill"),
@@ -649,7 +656,27 @@ match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
     ))
   }
 
-  # Step 3: No match
+  # Step 3: No exact match — check for fuzzy name matches (pg_trgm)
+  if (nchar(trimws(name)) >= 3) {
+    fuzzy <- safe_query_impl(con, "
+      SELECT p.player_id, p.display_name, p.member_number,
+             p.identity_status, p.home_scene_id,
+             similarity(LOWER(p.display_name), LOWER($1)) AS sim
+      FROM players p
+      WHERE similarity(LOWER(p.display_name), LOWER($1)) > 0.4
+        AND p.is_active IS NOT FALSE
+      ORDER BY sim DESC
+      LIMIT 5
+    ", params = list(name))
+
+    if (nrow(fuzzy) > 0) {
+      return(list(
+        status = "new_similar",
+        candidates = fuzzy
+      ))
+    }
+  }
+
   list(status = "new")
 }
 

@@ -766,6 +766,125 @@ observeEvent(input$edit_disambiguate_confirm, {
   removeModal()
 })
 
+# =============================================================================
+# Edit Grid: "Did you mean?" Similar Player Modal (PID5)
+# =============================================================================
+
+observeEvent(input$edit_similar_player_row, {
+  row_num <- input$edit_similar_player_row
+  req(row_num, rv$edit_player_matches)
+
+  match_info <- rv$edit_player_matches[[as.character(row_num)]]
+  req(match_info, match_info$status == "new_similar")
+
+  candidates <- match_info$candidates
+
+  enriched <- safe_query(db_pool, "
+    SELECT p.player_id, p.display_name, p.member_number, p.identity_status,
+           sc.display_name as home_scene_name,
+           COUNT(DISTINCT r.tournament_id) as events_played,
+           MAX(t.event_date) as last_event,
+           prc.competitive_rating as rating
+    FROM players p
+    LEFT JOIN scenes sc ON p.home_scene_id = sc.scene_id
+    LEFT JOIN results r ON p.player_id = r.player_id
+    LEFT JOIN tournaments t ON r.tournament_id = t.tournament_id
+    LEFT JOIN player_ratings_cache prc ON p.player_id = prc.player_id
+    WHERE p.player_id = ANY($1::int[])
+    GROUP BY p.player_id, p.display_name, p.member_number, p.identity_status,
+             sc.display_name, prc.competitive_rating
+    ORDER BY COUNT(DISTINCT r.tournament_id) DESC
+  ", params = list(paste0("{", paste(candidates$player_id, collapse = ","), "}")),
+  default = candidates)
+
+  sim_lookup <- setNames(candidates$sim, as.character(candidates$player_id))
+
+  candidate_choices <- lapply(seq_len(nrow(enriched)), function(i) {
+    c <- enriched[i, ]
+    sim_pct <- round((sim_lookup[[as.character(c$player_id)]] %||% 0) * 100)
+    member_text <- if (!is.na(c$member_number) && nchar(c$member_number) > 0) paste0(" \u2014 #", c$member_number) else ""
+    scene_text <- if (!is.null(c$home_scene_name) && !is.na(c$home_scene_name)) paste0(" \u2014 ", c$home_scene_name) else ""
+    events_text <- if (!is.null(c$events_played) && !is.na(c$events_played)) paste0(c$events_played, " events") else "0 events"
+    rating_text <- if (!is.null(c$rating) && !is.na(c$rating)) paste0("Rating: ", c$rating) else ""
+
+    div(class = "disambiguate-candidate",
+      tags$label(class = "d-flex align-items-start gap-2 p-2 rounded border mb-2",
+        style = "cursor: pointer;",
+        tags$input(type = "radio", name = "edit_similar_choice",
+                   value = as.character(c$player_id), class = "mt-1"),
+        div(
+          div(tags$strong(c$display_name),
+              span(class = "badge bg-secondary ms-2", paste0(sim_pct, "% match")),
+              span(class = "text-muted small", member_text)),
+          div(class = "small text-muted",
+            paste(c(events_text, rating_text, scene_text), collapse = " | ")
+          )
+        )
+      )
+    )
+  })
+
+  player_name <- rv$edit_grid_data$player_name[row_num]
+
+  showModal(modalDialog(
+    title = tagList(bsicons::bs_icon("person-exclamation"), " Did you mean?"),
+    p(class = "text-muted", sprintf(
+      "\"%s\" wasn't found, but these similar players exist:", player_name)),
+    div(id = "edit_similar_choices", candidate_choices),
+    hr(),
+    div(class = "d-flex align-items-center gap-2",
+      tags$input(type = "radio", name = "edit_similar_choice", value = "new",
+                 id = "edit_similar_new", checked = "checked"),
+      tags$label(`for` = "edit_similar_new",
+        tags$strong(sprintf("Create new player \"%s\"", player_name)))
+    ),
+    tags$script(HTML("
+      $('#edit_similar_confirm').on('click', function() {
+        var selected = $('input[name=edit_similar_choice]:checked').val();
+        if (selected) {
+          Shiny.setInputValue('edit_similar_confirm', {
+            row: ", row_num, ",
+            player_id: selected
+          }, {priority: 'event'});
+        }
+      });
+    ")),
+    footer = tagList(
+      modalButton("Cancel"),
+      actionButton("edit_similar_confirm", "Confirm", class = "btn-primary")
+    )
+  ))
+})
+
+observeEvent(input$edit_similar_confirm, {
+  info <- input$edit_similar_confirm
+  row_num <- info$row
+  selected_id <- info$player_id
+
+  req(row_num, selected_id)
+
+  if (selected_id == "new") {
+    rv$edit_grid_data$match_status[row_num] <- "new"
+    rv$edit_grid_data$matched_player_id[row_num] <- NA_integer_
+    rv$edit_grid_data$matched_member_number[row_num] <- NA_character_
+    rv$edit_player_matches[[as.character(row_num)]] <- list(status = "new")
+  } else {
+    pid <- as.integer(selected_id)
+    player_info <- safe_query(db_pool, "SELECT member_number FROM players WHERE player_id = $1",
+                              params = list(pid), default = data.frame(member_number = NA_character_))
+    rv$edit_grid_data$match_status[row_num] <- "matched"
+    rv$edit_grid_data$matched_player_id[row_num] <- pid
+    rv$edit_grid_data$matched_member_number[row_num] <- player_info$member_number[1]
+    rv$edit_player_matches[[as.character(row_num)]] <- list(
+      status = "matched",
+      player_id = pid,
+      member_number = player_info$member_number[1]
+    )
+  }
+
+  removeModal()
+})
+
 # Paste from spreadsheet modal
 observeEvent(input$edit_paste_btn, {
   showModal(modalDialog(
