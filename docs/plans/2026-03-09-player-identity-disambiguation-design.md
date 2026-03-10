@@ -310,6 +310,34 @@ If fuzzy matches found, show a "Did you mean?" prompt before creating:
 - "A similar player exists: **Matthew Smith** (DFW, 12 events). Create a new player anyway?"
 - This catches "Matt Smith" vs "Matthew Smith" and typo scenarios
 
+### PID5b: Suggested Merges (Limitless → Local)
+
+Surface auto-detected merge candidates in the admin Players tab. A Limitless-only player
+(has `limitless_username`, no `member_number`) that exact-name-matches a verified local player
+is a strong merge candidate.
+
+**Query:**
+```sql
+SELECT l.player_id as limitless_pid, l.display_name, l.limitless_username,
+       loc.player_id as local_pid, loc.member_number
+FROM players l
+JOIN players loc ON LOWER(l.display_name) = LOWER(loc.display_name)
+  AND l.player_id != loc.player_id
+WHERE l.limitless_username IS NOT NULL AND l.limitless_username != ''
+  AND (l.member_number IS NULL OR l.member_number = '')
+  AND loc.member_number IS NOT NULL AND loc.member_number != ''
+  AND l.is_active IS NOT FALSE AND loc.is_active IS NOT FALSE
+```
+
+**UI:** Card-based suggestions in the Players tab (similar to deck_requests pattern):
+- "**Klammeh** (Online, 1 event) may be the same as **Klammeh** (DFW, 13 events, #0000262582)"
+- Buttons: **Merge** (combines into local player, copies limitless_username) / **Dismiss**
+- Dismissed suggestions stored so they don't reappear
+
+**Why not auto-merge:** Even with zero ambiguity today, common names like "Chris" could
+match wrong as the player pool grows. The cost of a wrong merge (combined rating histories,
+hard to undo) exceeds the cost of an admin clicking Merge. Volume is tiny (~1-2/month).
+
 ---
 
 ## Phase 3: Data Quality Tools (PID6)
@@ -333,6 +361,7 @@ New section in the admin Players tab showing unverified players in the admin's s
 | 1 | PID3 | Player creation with verification | Small | Low |
 | 2 | PID4 | Disambiguation UI | Medium | Low (UI only, no data model change) |
 | 2 | PID5 | Fuzzy duplicate detection | Small | Low |
+| 2 | PID5b | Suggested Limitless→Local merges | Small | Low |
 | 3 | PID6 | Unverified player report | Small | Low |
 
 **Recommended approach:** Ship Phase 1 first as a data integrity improvement (no UI changes needed). Phase 2 adds the admin UX. Phase 3 is a quality-of-life tool.

@@ -706,6 +706,7 @@ Design doc: `docs/plans/2026-03-09-player-identity-disambiguation-design.md`
 | PID3 | FEATURE | Player creation with verification — GUEST ID stripping, auto-set identity_status + home_scene_id |
 | PID4 | UX | Disambiguation UI in admin grid — yellow warning for ambiguous matches, picker modal with player details |
 | PID5 | UX | Fuzzy duplicate detection on new player creation using pg_trgm — "Did you mean?" prompt |
+| PID5b | UX | Suggested Limitless→Local merges — card-based merge candidates in Players tab with Merge/Dismiss |
 | PID6 | UX | Unverified player report for scene admins — table with "Add Bandai ID" action to promote players |
 
 ### Mobile Admin Tabs
