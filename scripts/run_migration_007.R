@@ -24,7 +24,7 @@ con <- dbConnect(
 run <- function(desc, sql) {
   tryCatch({
     result <- dbExecute(con, sql)
-    message(sprintf("  OK: %s (%d rows affected)", desc, result))
+    message(sprintf("  OK: %s (%s rows affected)", desc, result))
   }, error = function(e) {
     message(sprintf("  ERROR: %s\n         %s", desc, e$message))
   })
@@ -33,7 +33,7 @@ run <- function(desc, sql) {
 query <- function(desc, sql) {
   tryCatch({
     result <- dbGetQuery(con, sql)
-    message(sprintf("  %s: %d rows", desc, nrow(result)))
+    message(sprintf("  %s: %s rows", desc, nrow(result)))
     result
   }, error = function(e) {
     message(sprintf("  ERROR: %s\n         %s", desc, e$message))
@@ -75,8 +75,9 @@ no_identifier <- query("Players with NO identifier (no member#, no limitless)", 
     AND is_active IS NOT FALSE
 ")
 
-message(sprintf("\n  Summary: %d total | %d with Bandai ID | %d GUEST | %d Limitless | %d no identifier\n",
-  total_players$n, has_member_num$n, has_guest_id$n, has_limitless$n, no_identifier$n))
+message(sprintf("\n  Summary: %s total | %s with Bandai ID | %s GUEST | %s Limitless | %s no identifier\n",
+  as.integer(total_players$n), as.integer(has_member_num$n), as.integer(has_guest_id$n),
+  as.integer(has_limitless$n), as.integer(no_identifier$n)))
 
 # --- 1b. Duplicate member numbers (BLOCKING — must resolve before unique constraint) ---
 message("--- Duplicate Member Numbers (MUST RESOLVE) ---")
@@ -115,10 +116,10 @@ guest_players <- query("Players with GUEST IDs", "
 ")
 if (nrow(guest_players) > 0) {
   for (i in seq_len(nrow(guest_players))) {
-    message(sprintf("  [%d] %s — %s",
+    message(sprintf("  [%s] %s — %s",
       guest_players$player_id[i], guest_players$display_name[i], guest_players$member_number[i]))
   }
-  if (has_guest_id$n > 20) message(sprintf("  ... and %d more", has_guest_id$n - 20))
+  if (has_guest_id$n > 20) message(sprintf("  ... and %s more", has_guest_id$n - 20))
   message("")
 }
 
@@ -151,17 +152,17 @@ cross_scene <- query("Names appearing in multiple scenes", "
   ORDER BY a.display_name, a.player_id
 ")
 if (nrow(cross_scene) > 0) {
-  message(sprintf("\n  Found %d cross-scene name collision pairs:", nrow(cross_scene)))
+  message(sprintf("\n  Found %s cross-scene name collision pairs:", nrow(cross_scene)))
   for (i in seq_len(min(nrow(cross_scene), 30))) {
     r <- cross_scene[i, ]
     m1 <- if (!is.na(r$member_1) && nchar(r$member_1) > 0) r$member_1 else "NO ID"
     m2 <- if (!is.na(r$member_2) && nchar(r$member_2) > 0) r$member_2 else "NO ID"
-    message(sprintf("  \"%s\": [%d] %s (%d events, %s) vs [%d] %s (%d events, %s)",
+    message(sprintf("  \"%s\": [%s] %s (%s events, %s) vs [%s] %s (%s events, %s)",
       r$display_name,
       r$player_id_1, r$scene_1, r$events_1, m1,
       r$player_id_2, r$scene_2, r$events_2, m2))
   }
-  if (nrow(cross_scene) > 30) message(sprintf("  ... and %d more pairs", nrow(cross_scene) - 30))
+  if (nrow(cross_scene) > 30) message(sprintf("  ... and %s more pairs", nrow(cross_scene) - 30))
 } else {
   message("  No cross-scene name collisions found")
 }
@@ -192,17 +193,17 @@ same_scene <- query("Same name, same scene, different player_ids", "
   ORDER BY a.scene_name, a.display_name
 ")
 if (nrow(same_scene) > 0) {
-  message(sprintf("\n  Found %d same-scene collision pairs (may need merge):", nrow(same_scene)))
+  message(sprintf("\n  Found %s same-scene collision pairs (may need merge):", nrow(same_scene)))
   for (i in seq_len(min(nrow(same_scene), 30))) {
     r <- same_scene[i, ]
     m1 <- if (!is.na(r$member_1) && nchar(r$member_1) > 0) r$member_1 else "NO ID"
     m2 <- if (!is.na(r$member_2) && nchar(r$member_2) > 0) r$member_2 else "NO ID"
-    message(sprintf("  [%s] \"%s\": pid %d (%d events, %s) vs pid %d (%d events, %s)",
+    message(sprintf("  [%s] \"%s\": pid %s (%s events, %s) vs pid %s (%s events, %s)",
       r$scene_name, r$display_name,
       r$pid_1, r$events_1, m1,
       r$pid_2, r$events_2, m2))
   }
-  if (nrow(same_scene) > 30) message(sprintf("  ... and %d more pairs", nrow(same_scene) - 30))
+  if (nrow(same_scene) > 30) message(sprintf("  ... and %s more pairs", nrow(same_scene) - 30))
 } else {
   message("  No same-scene name collisions found")
 }
@@ -234,15 +235,15 @@ online_local <- query("Players in both online and local scenes", "
   ORDER BY o.display_name
 ")
 if (nrow(online_local) > 0) {
-  message(sprintf("\n  Found %d online/local pairs with same name but different player_ids:", nrow(online_local)))
+  message(sprintf("\n  Found %s online/local pairs with same name but different player_ids:", nrow(online_local)))
   for (i in seq_len(min(nrow(online_local), 30))) {
     r <- online_local[i, ]
     om <- if (!is.na(r$online_member) && nchar(r$online_member) > 0) r$online_member else "NO ID"
     lm <- if (!is.na(r$local_member) && nchar(r$local_member) > 0) r$local_member else "NO ID"
-    message(sprintf("  \"%s\": online pid %d (%s) vs local pid %d (%s)",
+    message(sprintf("  \"%s\": online pid %s (%s) vs local pid %s (%s)",
       r$online_name, r$online_pid, om, r$local_pid, lm))
   }
-  if (nrow(online_local) > 30) message(sprintf("  ... and %d more pairs", nrow(online_local) - 30))
+  if (nrow(online_local) > 30) message(sprintf("  ... and %s more pairs", nrow(online_local) - 30))
 } else {
   message("  No online/local name overlaps found")
 }
@@ -254,11 +255,11 @@ message("\n========================================")
 message("AUDIT SUMMARY")
 message("========================================")
 blocking <- nrow(dup_members) > 0
-message(sprintf("  Duplicate member numbers (BLOCKING): %d", nrow(dup_members)))
-message(sprintf("  GUEST IDs to strip: %d", has_guest_id$n))
-message(sprintf("  Cross-scene collisions: %d pairs", nrow(cross_scene)))
-message(sprintf("  Same-scene collisions: %d pairs", nrow(same_scene)))
-message(sprintf("  Online/local overlaps: %d pairs", nrow(online_local)))
+message(sprintf("  Duplicate member numbers (BLOCKING): %s", as.integer(nrow(dup_members))))
+message(sprintf("  GUEST IDs to strip: %s", as.integer(has_guest_id$n)))
+message(sprintf("  Cross-scene collisions: %s pairs", nrow(cross_scene)))
+message(sprintf("  Same-scene collisions: %s pairs", nrow(same_scene)))
+message(sprintf("  Online/local overlaps: %s pairs", nrow(online_local)))
 
 if (blocking) {
   message("\n  *** BLOCKING ISSUES: Resolve duplicate member numbers before running Phase 2 ***")
