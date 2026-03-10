@@ -40,11 +40,13 @@ admin_results_ui <- tagList(
         card_header("Tournament Details"),
         card_body(
           class = "tournament-details-form",
-          # Row 1: Store + Date
+          # Row 1: Scene + Store + Date
           div(
             class = "row g-3 mb-3",
-            div(class = "col-12 col-md-8",
-                selectInput("tournament_store", "Store", choices = NULL)),
+            div(class = "col-12 col-md-4",
+                selectInput("tournament_scene", "Scene", choices = c("Loading..." = ""))),
+            div(class = "col-12 col-md-4",
+                selectInput("tournament_store", "Store", choices = c("Select scene first..." = ""))),
             div(class = "col-12 col-md-4",
                 div(
                   class = "date-required",

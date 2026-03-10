@@ -48,6 +48,23 @@ get_pending_request_counts <- function(pool, scene_id, is_superadmin) {
     type_counts$deck_request <- 0
   }
 
+  # Suggested player merges (Limitless → Local)
+  if (is_superadmin) {
+    merge_count <- safe_query(pool, "
+      SELECT COUNT(*) as n
+      FROM players l
+      JOIN players loc ON LOWER(l.display_name) = LOWER(loc.display_name)
+        AND l.player_id != loc.player_id
+      WHERE l.limitless_username IS NOT NULL AND l.limitless_username != ''
+        AND (l.member_number IS NULL OR l.member_number = '')
+        AND loc.member_number IS NOT NULL AND loc.member_number != ''
+        AND l.is_active IS NOT FALSE AND loc.is_active IS NOT FALSE
+    ", default = data.frame(n = 0))
+    type_counts$suggested_merge <- merge_count$n[1]
+  } else {
+    type_counts$suggested_merge <- 0
+  }
+
   # Stores missing schedules
   if (is_superadmin) {
     missing <- safe_query(pool, "
@@ -230,6 +247,14 @@ output$admin_notification_bar <- renderUI({
     ))
   }
 
+  if ((counts$suggested_merge %||% 0) > 0 && rv$is_superadmin) {
+    items <- c(items, list(
+      actionLink("notif_merges", paste0(counts$suggested_merge, " merge ",
+        if (counts$suggested_merge == 1) "suggestion" else "suggestions"),
+        class = "notif-link")
+    ))
+  }
+
   if ((counts$missing_schedule %||% 0) > 0) {
     items <- c(items, list(
       actionLink("notif_missing_schedules", paste0(counts$missing_schedule, " missing ",
@@ -375,6 +400,11 @@ observeEvent(input$notif_data_errors, {
 observeEvent(input$notif_decks, {
   nav_select("main_content", "admin_decks")
   session$sendCustomMessage("updateSidebarNav", "nav_admin_decks")
+})
+
+observeEvent(input$notif_merges, {
+  nav_select("main_content", "admin_players")
+  session$sendCustomMessage("updateSidebarNav", "nav_admin_players")
 })
 
 observeEvent(input$notif_missing_schedules, {

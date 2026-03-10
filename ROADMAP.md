@@ -1,114 +1,113 @@
 ---
-currentVersion: "1.5.0"
-lastUpdated: "2026-03-09"
+currentVersion: "1.6.0"
+lastUpdated: "2026-03-10"
 
 inProgress: []
 
 planned:
 
-  # v1.6.0 — Results Redesign & Data Entry
+  # v1.7.0 — Results Redesign & Data Entry
   - id: results-upload-redesign
     title: "Results & Upload Tab Redesign"
     description: "Paired redesign of Enter Results and Upload Results tabs. Touch-friendly grids, camera upload flow, mobile optimization, tournament data quality checks."
     tags: [admin, ux, mobile]
-    targetVersion: "v1.6.0"
+    targetVersion: "v1.7.0"
 
   - id: mobile-admin-tabs
     title: "Mobile Admin Tabs"
     description: "Mobile layouts for scene admin tabs (Edit Stores, Edit Tournaments, Edit Players) and super admin tabs (Edit Scenes, Edit Admins, Edit Decks)."
     tags: [mobile, admin]
-    targetVersion: "v1.6.0"
+    targetVersion: "v1.7.0"
 
-  # v1.7.0 — Tournament Data & Ingestion
+  - id: postmessage-origin-fix
+    title: "postMessage Origin Validation Tightening"
+    description: "scene-selector.js sends postMessage with wildcard '*' origin. Tighten to 'https://app.digilab.cards'. The receiver side already validates origin, so risk is minimal — this is defense-in-depth."
+    tags: [security, fix]
+    targetVersion: "v1.7.0"
+
+  # v1.8.0 — Tournament Data & Ingestion
   - id: decklist-entry-expansion
     title: "Decklist Entry Expansion"
     description: "Tier 2: Deck builder integration, text paste import, and richer decklist display beyond URL links."
     tags: [feature, data]
-    targetVersion: "v1.7.0"
+    targetVersion: "v1.8.0"
 
   - id: ocr-improvements
     title: "OCR Upload Improvements"
     description: "Bug fixes and process improvements for screenshot-based OCR uploads including better error handling and accuracy."
     tags: [feature, data]
-    targetVersion: "v1.7.0"
+    targetVersion: "v1.8.0"
 
   - id: round-by-round
     title: "Round-by-Round Enhancements"
     description: "Improved UX for match history uploads, better database handling, and player-facing visibility for round-by-round data."
     tags: [feature, data]
-    targetVersion: "v1.7.0"
+    targetVersion: "v1.8.0"
 
-  # v1.8.0 — UX Polish & Store Improvements
+  # v1.9.0 — UX Polish & Store Improvements
   - id: modal-improvements
     title: "Modal Improvements"
     description: "Enhanced player, store, and deck modals with rating sparklines, global vs local rank, deck history, and other data-rich additions."
     tags: [ux, feature]
-    targetVersion: "v1.8.0"
+    targetVersion: "v1.9.0"
 
   - id: scene-selector-redesign
     title: "Scene Selector Redesign"
     description: "Rethink the scene selection UX to handle growth beyond a single dropdown — grouped, searchable, or hierarchical selection."
     tags: [ux, scaling]
-    targetVersion: "v1.8.0"
+    targetVersion: "v1.9.0"
 
-  # v1.9.0 — Achievement Badges & Gamification
+  # v1.10.0 — Achievement Badges & Gamification
   - id: achievement-badges
     title: "Achievement Badges"
     description: "Auto-calculated player achievements displayed in player modals — tournament streaks, deck mastery, and scene milestones."
     tags: [gamification, feature]
-    targetVersion: "v1.9.0"
+    targetVersion: "v1.10.0"
 
-  # v1.10.0 — Regional Admin & Multi-Region
+  # v1.11.0 — Regional Admin & Multi-Region
   - id: regional-admin-tier
     title: "Regional Admin Tier"
     description: "New admin role between Super Admin and Scene Admin for country or state-level oversight with cross-scene management."
     tags: [admin, scaling]
-    targetVersion: "v1.10.0"
+    targetVersion: "v1.11.0"
 
   - id: admin-audit-log
     title: "Admin Audit Log"
     description: "Track who changed what and when across all admin actions with before/after snapshots and optional undo."
     tags: [admin, security]
-    targetVersion: "v1.10.0"
+    targetVersion: "v1.11.0"
 
   - id: tournament-tiers
     title: "Tournament Tiers"
     description: "Add tier classification to tournaments (local, regional, national, international) for filtering and ranking context."
     tags: [feature, data]
-    targetVersion: "v1.10.0"
+    targetVersion: "v1.11.0"
 
   - id: cross-scene-badges
     title: "Cross-Scene Player Badges"
     description: "Show which scenes a player has competed in within their player modal, with home scene inference."
     tags: [feature, community]
-    targetVersion: "v1.10.0"
+    targetVersion: "v1.11.0"
 
-  # v1.6.0 additions
-  - id: postmessage-origin-fix
-    title: "postMessage Origin Validation Tightening"
-    description: "scene-selector.js sends postMessage with wildcard '*' origin. Tighten to 'https://app.digilab.cards'. The receiver side already validates origin, so risk is minimal — this is defense-in-depth."
-    tags: [security, fix]
-    targetVersion: "v1.6.0"
-
-  # v1.8.0 additions
+  # v1.9.0 additions
   - id: accessibility-pass
     title: "Accessibility Pass"
     description: "WCAG compliance audit covering color contrast, screen reader labels, keyboard navigation, and ARIA attributes."
     tags: [ux]
-    targetVersion: "v1.8.0"
+    targetVersion: "v1.9.0"
 
-  # v1.10.0 additions
+  # v1.11.0 additions
   - id: login-rate-limiting
     title: "Login Rate Limiting & Brute Force Protection"
     description: "Add per-username failed attempt tracking with exponential backoff and temporary lockout after 5 failures. Current admin login has no rate limiting — low risk given small user base and unlisted login page, but good hardening for scale."
     tags: [security, admin]
-    targetVersion: "v1.10.0"
+    targetVersion: "v1.11.0"
 
   - id: automated-testing
     title: "Automated Testing & CI"
     description: "Integration test suite for app loading, key queries, OCR parser accuracy, and regression prevention in CI."
     tags: [scaling]
-    targetVersion: "v1.10.0"
+    targetVersion: "v1.11.0"
 
   # Future
   - id: mascot-branding
@@ -118,6 +117,21 @@ planned:
     targetVersion: "Future"
 
 completed:
+  # v1.6.0 — Player Identity & Disambiguation
+  - id: player-identity-disambiguation
+    title: "Player Identity & Disambiguation"
+    description: "Verification model (identity_status + home_scene_id), redesigned match_player() cascade (Bandai ID → scene-scoped name → fuzzy pg_trgm → new), disambiguation UI for ambiguous matches, fuzzy duplicate detection with 'Did you mean?' prompts, suggested Limitless→Local merges, unique member_number constraint."
+    tags: [data, admin, scaling]
+    date: "2026-03"
+    version: "v1.6.0"
+
+  - id: scene-filtered-store-dropdowns
+    title: "Scene-Filtered Store Dropdowns & UX Fixes"
+    description: "Scene filter on store dropdowns in Enter Results and Upload Results (defaults to current scene). Merge suggestion count in admin notification bar. Version modal dismiss button layout fix. Scene dropdown race condition fix in Edit Stores."
+    tags: [ux, admin, fix]
+    date: "2026-03"
+    version: "v1.6.0"
+
   # v1.5.0 — Performance & Caching
   - id: safe-query-migration
     title: "Safe Query Migration & Transaction Safety"
@@ -461,8 +475,8 @@ completed:
 
 # DigiLab Roadmap
 
-**Current Version:** v1.5.0
-**Last Updated:** 2026-03-09
+**Current Version:** v1.6.0
+**Last Updated:** 2026-03-10
 
 > This file is the source of truth for the [public roadmap](https://digilab.cards/roadmap).
 > A GitHub Action syncs the YAML frontmatter to the website on every push to main.
@@ -477,33 +491,33 @@ No features currently in progress.
 
 ## Planned
 
-### v1.6.0 — Results Redesign & Data Entry
+### v1.7.0 — Results Redesign & Data Entry
 | Feature | Description |
 |---------|-------------|
 | **Results & Upload Tab Redesign** | Paired redesign of Enter Results and Upload Results with mobile optimization and data quality checks |
 | **Mobile Admin Tabs** | Mobile layouts for all scene admin and super admin tabs |
 | **postMessage Origin Fix** | Tighten wildcard origin to app.digilab.cards (defense-in-depth) |
 
-### v1.7.0 — Tournament Data & Ingestion
+### v1.8.0 — Tournament Data & Ingestion
 | Feature | Description |
 |---------|-------------|
-| **Decklist Entry & Backfill** | Add decklists during result entry or backfill from Edit Tournaments |
+| **Decklist Entry Expansion** | Tier 2: Deck builder integration, text paste import, richer decklist display |
 | **OCR Improvements** | Bug fixes and accuracy improvements for screenshot uploads |
 | **Round-by-Round Enhancements** | Better UX, database handling, and player visibility |
 
-### v1.8.0 — UX Polish & Store Improvements
+### v1.9.0 — UX Polish & Store Improvements
 | Feature | Description |
 |---------|-------------|
 | **Modal Improvements** | Rating sparklines, global vs local rank, deck history in player/store/deck modals |
 | **Scene Selector Redesign** | Scalable scene selection beyond a single dropdown |
 | **Accessibility Pass** | WCAG audit — color contrast, screen readers, keyboard navigation |
 
-### v1.9.0 — Achievement Badges & Gamification
+### v1.10.0 — Achievement Badges & Gamification
 | Feature | Description |
 |---------|-------------|
 | **Achievement Badges** | Auto-calculated player achievements — streaks, deck mastery, scene milestones |
 
-### v1.10.0 — Regional Admin & Multi-Region
+### v1.11.0 — Regional Admin & Multi-Region
 | Feature | Description |
 |---------|-------------|
 | **Regional Admin Tier** | Country/state-level admin role with cross-scene management |
@@ -524,6 +538,8 @@ No features currently in progress.
 
 | Version | Feature | Shipped |
 |---------|---------|---------|
+| v1.6.0 | Player Identity & Disambiguation | 2026-03 |
+| v1.6.0 | Scene-Filtered Store Dropdowns & UX Fixes | 2026-03 |
 | v1.5.0 | Safe Query Migration & Transaction Safety | 2026-03 |
 | v1.5.0 | Performance Optimizations (PERF1-6) | 2026-03 |
 | v1.5.0 | Decklist Entry (URL Links) | 2026-03 |
@@ -679,7 +695,34 @@ Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
 
 ---
 
-## v1.6.0 — Results Redesign & Data Entry
+## v1.6.0 — Player Identity & Disambiguation (COMPLETE)
+
+### Player Identity & Disambiguation
+
+Design doc: `docs/plans/2026-03-09-player-identity-disambiguation-design.md`
+
+| ID | Type | Status | Description |
+|----|------|--------|-------------|
+| PID1 | SCHEMA | **DONE** | `identity_status` + `home_scene_id` columns, unique `member_number` constraint, backfill migration |
+| PID2 | FEATURE | **DONE** | Redesigned `match_player()` — scene-locked unverified, global verified, ambiguous status for multiple matches |
+| PID3 | FEATURE | **DONE** | Player creation with verification — GUEST ID stripping, auto-set identity_status + home_scene_id |
+| PID4 | UX | **DONE** | Disambiguation UI in admin grid — yellow warning for ambiguous matches, picker modal with player details |
+| PID5 | UX | **DONE** | Fuzzy duplicate detection on new player creation using pg_trgm — "Did you mean?" prompt |
+| PID5b | UX | **DONE** | Suggested Limitless→Local merges — card-based merge candidates in Players tab with Merge/Dismiss |
+| PID6 | UX | | Unverified player report for scene admins — table with "Add Bandai ID" action to promote players |
+
+### Scene-Filtered Store Dropdowns & UX Fixes
+
+| ID | Type | Status | Description |
+|----|------|--------|-------------|
+| SF1 | UX | **DONE** | Scene dropdown on Enter Results and Upload Results filters store list, defaults to current scene |
+| SF2 | UX | **DONE** | Merge suggestion count in admin notification bar with click-to-navigate |
+| SF3 | FIX | **DONE** | Version modal dismiss button layout — always below social buttons, centered |
+| SF4 | FIX | **DONE** | Scene dropdown race condition in Edit Stores — fetch choices + selected together |
+
+---
+
+## v1.7.0 — Results Redesign & Data Entry
 
 ### Results & Upload Tab Redesign
 | ID | Type | Description |
@@ -696,7 +739,7 @@ Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
 
 ---
 
-## v1.7.0 — Tournament Data & Ingestion
+## v1.8.0 — Tournament Data & Ingestion
 
 ### Decklist Entry & Backfill
 | ID | Type | Description |
@@ -719,7 +762,7 @@ Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
 
 ---
 
-## v1.8.0 — UX Polish & Store Improvements
+## v1.9.0 — UX Polish & Store Improvements
 
 ### Modal Improvements
 | ID | Type | Description |
@@ -737,7 +780,7 @@ Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
 
 ---
 
-## v1.9.0 — Achievement Badges & Gamification
+## v1.10.0 — Achievement Badges & Gamification
 
 | ID | Type | Description |
 |----|------|-------------|
@@ -749,7 +792,7 @@ Design doc: `docs/plans/2026-03-06-v1.4-admin-improvements-design.md`
 
 ---
 
-## v1.10.0 — Regional Admin & Multi-Region
+## v1.11.0 — Regional Admin & Multi-Region
 
 ### Regional Admin Tier
 | ID | Type | Description |
@@ -793,7 +836,6 @@ Items for future consideration, not scheduled:
 | DC4 | INTEGRATION | Link Discord users to DigiLab accounts | Enables bot-based workflows |
 | INF1 | DEVEX | Sentry MCP integration | Claude Code workflow for proactive error monitoring |
 | INF2 | DEVEX | Sentry error collection workflow | Process for identifying and addressing production errors |
-| PD1 | IMPROVEMENT | Cross-scene player disambiguation | Stronger safeguards against name collisions — e.g., admin confirmation when matching a player who has never played in the current scene, member number required for ambiguous names, or merge review UI |
 | PD2 | FEATURE | Multi-scene admin role | Junction table for admin→scene assignment, new "regional admin" role between scene_admin and super_admin. Enables one account to manage multiple scenes (e.g., BBoyHung for Aachen + Heerlen). Workaround: create a second account per scene. |
 
 ---

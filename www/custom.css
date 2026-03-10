@@ -3235,18 +3235,27 @@ a:hover, .nav-link:hover {
 .announcement-modal .modal-footer,
 .version-modal .modal-footer {
   border-top: none;
+  padding: 0 1.75rem 1.5rem;
+}
+.version-modal-footer {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
-  padding: 0 1.75rem 1.5rem;
+  width: 100%;
 }
-.modal-footer .social-row {
+.version-modal-footer .social-row {
   display: flex;
   justify-content: center;
   gap: 0.75rem;
 }
-.modal-footer .dismiss-link {
+.version-modal-footer .dismiss-row {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.modal-footer .dismiss-link,
+.version-modal-footer .dismiss-link {
   font-size: 0.82rem;
   color: #7a8a9e;
   text-decoration: none;
@@ -3256,9 +3265,12 @@ a:hover, .nav-link:hover {
   padding: 0;
   transition: color 0.15s;
 }
-.modal-footer .dismiss-link:hover { color: #4A5568; }
-[data-bs-theme="dark"] .modal-footer .dismiss-link { color: rgba(255, 255, 255, 0.4); }
-[data-bs-theme="dark"] .modal-footer .dismiss-link:hover { color: rgba(255, 255, 255, 0.65); }
+.modal-footer .dismiss-link:hover,
+.version-modal-footer .dismiss-link:hover { color: #4A5568; }
+[data-bs-theme="dark"] .modal-footer .dismiss-link,
+[data-bs-theme="dark"] .version-modal-footer .dismiss-link { color: rgba(255, 255, 255, 0.4); }
+[data-bs-theme="dark"] .modal-footer .dismiss-link:hover,
+[data-bs-theme="dark"] .version-modal-footer .dismiss-link:hover { color: rgba(255, 255, 255, 0.65); }
 
 /* --- Announcement Modal --- */
 .announcement-modal-content,
@@ -6579,6 +6591,31 @@ div.player-match-indicator.possible {
   color: #2563eb !important;
 }
 
+/* Ambiguous player status - AMBER */
+.player-match-indicator.ambiguous,
+div.player-match-indicator.ambiguous {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #d97706 !important;
+}
+
+.player-match-indicator.ambiguous .bi,
+.player-match-indicator.ambiguous .match-label {
+  color: #d97706 !important;
+}
+
+/* New player with similar matches - CYAN/TEAL */
+.player-match-indicator.new-similar,
+div.player-match-indicator.new-similar {
+  background: rgba(6, 182, 212, 0.15) !important;
+  color: #0891b2 !important;
+  cursor: pointer;
+}
+
+.player-match-indicator.new-similar .bi,
+.player-match-indicator.new-similar .match-label {
+  color: #0891b2 !important;
+}
+
 /* New player status - GRAY */
 .player-match-indicator.new,
 div.player-match-indicator.new {
@@ -6600,6 +6637,28 @@ div.player-match-indicator.new {
 
 .player-match-indicator .reject-btn:hover {
   opacity: 1;
+}
+
+.disambiguate-candidate label:hover {
+  background: rgba(245, 158, 11, 0.1);
+}
+[data-bs-theme="dark"] .disambiguate-candidate label:hover {
+  background: rgba(245, 158, 11, 0.15);
+}
+
+/* Suggested merge cards (admin players tab) */
+.suggested-merge-card {
+  background: rgba(245, 158, 11, 0.05);
+  transition: background 0.15s;
+}
+.suggested-merge-card:hover {
+  background: rgba(245, 158, 11, 0.1);
+}
+[data-bs-theme="dark"] .suggested-merge-card {
+  background: rgba(245, 158, 11, 0.08);
+}
+[data-bs-theme="dark"] .suggested-merge-card:hover {
+  background: rgba(245, 158, 11, 0.15);
 }
 
 /* Row status styling */
@@ -6721,6 +6780,28 @@ div.player-match-indicator.new {
 [data-bs-theme="dark"] .player-match-indicator.possible .match-label,
 [data-bs-theme="dark"] .player-match-indicator.possible .match-name {
   color: #60a5fa !important;
+}
+
+[data-bs-theme="dark"] .player-match-indicator.ambiguous,
+[data-bs-theme="dark"] div.player-match-indicator.ambiguous {
+  background: rgba(245, 158, 11, 0.2) !important;
+  color: #fbbf24 !important;
+}
+
+[data-bs-theme="dark"] .player-match-indicator.ambiguous .bi,
+[data-bs-theme="dark"] .player-match-indicator.ambiguous .match-label {
+  color: #fbbf24 !important;
+}
+
+[data-bs-theme="dark"] .player-match-indicator.new-similar,
+[data-bs-theme="dark"] div.player-match-indicator.new-similar {
+  background: rgba(34, 211, 238, 0.15) !important;
+  color: #22d3ee !important;
+}
+
+[data-bs-theme="dark"] .player-match-indicator.new-similar .bi,
+[data-bs-theme="dark"] .player-match-indicator.new-similar .match-label {
+  color: #22d3ee !important;
 }
 
 [data-bs-theme="dark"] .player-match-indicator.new,

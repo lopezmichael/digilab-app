@@ -2,6 +2,155 @@
 # Admin: Edit Players Server Logic
 # =============================================================================
 
+# =============================================================================
+# Suggested Merges: Limitless → Local
+# =============================================================================
+
+output$suggested_merges_section <- renderUI({
+  rv$data_refresh  # React to data changes
+  req(rv$is_admin)
+
+  candidates <- safe_query(db_pool, "
+    SELECT l.player_id as limitless_pid, l.display_name as limitless_name, l.limitless_username,
+           loc.player_id as local_pid, loc.display_name as local_name, loc.member_number,
+           COALESCE(le.events, 0) as local_events, COALESCE(oe.events, 0) as online_events,
+           sc.display_name as local_scene
+    FROM players l
+    JOIN players loc ON LOWER(l.display_name) = LOWER(loc.display_name)
+      AND l.player_id != loc.player_id
+    LEFT JOIN (
+      SELECT r.player_id, COUNT(DISTINCT r.tournament_id) as events
+      FROM results r JOIN tournaments t ON r.tournament_id = t.tournament_id
+      JOIN stores s ON t.store_id = s.store_id WHERE s.is_online = FALSE
+      GROUP BY r.player_id
+    ) le ON loc.player_id = le.player_id
+    LEFT JOIN (
+      SELECT r.player_id, COUNT(DISTINCT r.tournament_id) as events
+      FROM results r JOIN tournaments t ON r.tournament_id = t.tournament_id
+      JOIN stores s ON t.store_id = s.store_id WHERE s.is_online = TRUE
+      GROUP BY r.player_id
+    ) oe ON l.player_id = oe.player_id
+    LEFT JOIN scenes sc ON loc.home_scene_id = sc.scene_id
+    WHERE l.limitless_username IS NOT NULL AND l.limitless_username != ''
+      AND (l.member_number IS NULL OR l.member_number = '')
+      AND loc.member_number IS NOT NULL AND loc.member_number != ''
+      AND l.is_active IS NOT FALSE AND loc.is_active IS NOT FALSE
+    ORDER BY le.events DESC NULLS LAST
+  ", default = data.frame())
+
+  if (nrow(candidates) == 0) return(NULL)
+
+  cards <- lapply(seq_len(nrow(candidates)), function(i) {
+    c <- candidates[i, ]
+    div(class = "suggested-merge-card d-flex justify-content-between align-items-center p-3 mb-2 border rounded",
+      div(
+        div(class = "d-flex align-items-center gap-2",
+          bsicons::bs_icon("link-45deg", class = "text-warning"),
+          tags$strong(c$limitless_name)
+        ),
+        div(class = "small text-muted mt-1",
+          sprintf("Online (%s events, @%s) → Local (%s events, #%s%s)",
+            c$online_events, c$limitless_username, c$local_events, c$member_number,
+            if (!is.na(c$local_scene)) paste0(", ", c$local_scene) else "")
+        )
+      ),
+      div(class = "d-flex gap-2",
+        actionButton(
+          paste0("merge_suggested_", i),
+          "Merge", class = "btn-sm btn-outline-success",
+          onclick = sprintf("Shiny.setInputValue('suggested_merge_action', {index: %d, source: %d, target: %d, action: 'merge'}, {priority: 'event'})", i, c$limitless_pid, c$local_pid)
+        ),
+        actionButton(
+          paste0("dismiss_suggested_", i),
+          "Dismiss", class = "btn-sm btn-outline-secondary",
+          onclick = sprintf("Shiny.setInputValue('suggested_merge_action', {index: %d, source: %d, target: %d, action: 'dismiss'}, {priority: 'event'})", i, c$limitless_pid, c$local_pid)
+        )
+      )
+    )
+  })
+
+  div(class = "mb-3",
+    div(class = "d-flex align-items-center gap-2 mb-2",
+      bsicons::bs_icon("lightbulb", class = "text-warning"),
+      tags$strong("Suggested Merges"),
+      span(class = "badge bg-warning text-dark", nrow(candidates))
+    ),
+    div(class = "info-hint-box mb-2",
+      bsicons::bs_icon("info-circle", class = "info-hint-icon"),
+      "These online (Limitless) players match a local player by name. Merging combines their tournament history."
+    ),
+    cards
+  )
+})
+
+# Handle suggested merge actions
+observeEvent(input$suggested_merge_action, {
+  info <- input$suggested_merge_action
+  req(info$action, info$source, info$target)
+
+  source_id <- as.integer(info$source)
+  target_id <- as.integer(info$target)
+
+  if (info$action == "dismiss") {
+    notify("Suggestion dismissed. It will reappear on next page load.", type = "message")
+    return()
+  }
+
+  if (info$action == "merge") {
+    tryCatch({
+      # Check for conflicting results
+      conflicts <- safe_query(db_pool, "
+        SELECT a.tournament_id FROM results a
+        JOIN results b ON a.tournament_id = b.tournament_id
+        WHERE a.player_id = $1 AND b.player_id = $2
+      ", params = list(source_id, target_id), default = data.frame())
+
+      if (nrow(conflicts) > 0) {
+        safe_execute(db_pool, "
+          DELETE FROM results WHERE player_id = $1
+          AND tournament_id IN (SELECT tournament_id FROM results WHERE player_id = $2)
+        ", params = list(source_id, target_id))
+      }
+
+      # Move results
+      safe_execute(db_pool, "UPDATE results SET player_id = $1 WHERE player_id = $2",
+                   params = list(target_id, source_id))
+
+      # Move matches
+      safe_execute(db_pool, "UPDATE matches SET player_id = $1 WHERE player_id = $2",
+                   params = list(target_id, source_id))
+      safe_execute(db_pool, "UPDATE matches SET opponent_id = $1 WHERE opponent_id = $2",
+                   params = list(target_id, source_id))
+
+      # Copy limitless_username to target
+      safe_execute(db_pool, "
+        UPDATE players
+        SET limitless_username = (SELECT limitless_username FROM players WHERE player_id = $1),
+            identity_status = 'verified',
+            updated_at = CURRENT_TIMESTAMP, updated_by = $2
+        WHERE player_id = $3 AND (limitless_username IS NULL OR limitless_username = '')
+      ", params = list(source_id, current_admin_username(rv), target_id))
+
+      # Soft-delete source + clear member_number to avoid unique index conflict
+      safe_execute(db_pool, "
+        UPDATE players SET is_active = FALSE, member_number = NULL,
+               updated_at = CURRENT_TIMESTAMP, updated_by = $1
+        WHERE player_id = $2
+      ", params = list(current_admin_username(rv), source_id))
+
+      notify("Players merged successfully!", type = "message")
+      rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+
+    }, error = function(e) {
+      notify(paste("Merge failed:", e$message), type = "error")
+    })
+  }
+})
+
+# =============================================================================
+# Player List & Editing
+# =============================================================================
+
 # Debounce admin search input (300ms)
 player_search_debounced <- reactive(input$player_search) |> debounce(300)
 
@@ -489,13 +638,19 @@ observeEvent(input$confirm_merge_players, {
       WHERE player_id = $2 AND (limitless_username IS NULL OR limitless_username = '')
     ", params = list(source_id, target_id, current_admin_username(rv)))
 
-    # Copy member_number from source to target (if target doesn't have one)
+    # Copy member_number from source to target (if target doesn't have one) + promote to verified
     safe_execute(db_pool, "
       UPDATE players
-      SET member_number = (
-        SELECT member_number FROM players WHERE player_id = $1
-      ), updated_at = CURRENT_TIMESTAMP, updated_by = $3
-      WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
+      SET member_number = COALESCE(
+            NULLIF(member_number, ''),
+            (SELECT member_number FROM players WHERE player_id = $1)
+          ),
+          identity_status = CASE
+            WHEN COALESCE(NULLIF(member_number, ''), (SELECT member_number FROM players WHERE player_id = $1)) IS NOT NULL
+            THEN 'verified' ELSE identity_status
+          END,
+          updated_at = CURRENT_TIMESTAMP, updated_by = $3
+      WHERE player_id = $2
     ", params = list(source_id, target_id, current_admin_username(rv)))
 
     # Soft-delete source player instead of hard DELETE

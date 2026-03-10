@@ -534,10 +534,251 @@ observeEvent(input$admin_player_blur, {
   if (match_info$status == "matched") {
     rv$admin_grid_data$matched_player_id[row_num] <- match_info$player_id
     rv$admin_grid_data$matched_member_number[row_num] <- match_info$member_number
+  } else if (match_info$status == "ambiguous") {
+    # Store first candidate as tentative match; UI will show warning for disambiguation
+    rv$admin_grid_data$matched_player_id[row_num] <- match_info$candidates$player_id[1]
+    rv$admin_grid_data$matched_member_number[row_num] <- match_info$candidates$member_number[1]
   } else {
     rv$admin_grid_data$matched_player_id[row_num] <- NA_integer_
     rv$admin_grid_data$matched_member_number[row_num] <- NA_character_
   }
+})
+
+# =============================================================================
+# Admin Grid: Disambiguation Picker Modal
+# =============================================================================
+
+observeEvent(input$admin_disambiguate_row, {
+  row_num <- input$admin_disambiguate_row
+  req(row_num, rv$admin_player_matches)
+
+  match_info <- rv$admin_player_matches[[as.character(row_num)]]
+  req(match_info, match_info$status == "ambiguous")
+
+  candidates <- match_info$candidates
+
+  # Enrich candidates with event count and last tournament info
+  enriched <- safe_query(db_pool, "
+    SELECT p.player_id, p.display_name, p.member_number, p.identity_status,
+           sc.display_name as home_scene_name,
+           COUNT(DISTINCT r.tournament_id) as events_played,
+           MAX(t.event_date) as last_event,
+           prc.competitive_rating as rating
+    FROM players p
+    LEFT JOIN scenes sc ON p.home_scene_id = sc.scene_id
+    LEFT JOIN results r ON p.player_id = r.player_id
+    LEFT JOIN tournaments t ON r.tournament_id = t.tournament_id
+    LEFT JOIN player_ratings_cache prc ON p.player_id = prc.player_id
+    WHERE p.player_id = ANY($1::int[])
+    GROUP BY p.player_id, p.display_name, p.member_number, p.identity_status,
+             sc.display_name, prc.competitive_rating
+    ORDER BY COUNT(DISTINCT r.tournament_id) DESC
+  ", params = list(paste0("{", paste(candidates$player_id, collapse = ","), "}")),
+  default = candidates)
+
+  # Build radio buttons for each candidate
+  candidate_choices <- lapply(seq_len(nrow(enriched)), function(i) {
+    c <- enriched[i, ]
+    member_text <- if (!is.na(c$member_number) && nchar(c$member_number) > 0) paste0(" \u2014 #", c$member_number) else ""
+    scene_text <- if (!is.null(c$home_scene_name) && !is.na(c$home_scene_name)) paste0(" \u2014 ", c$home_scene_name) else ""
+    events_text <- if (!is.null(c$events_played) && !is.na(c$events_played)) paste0(c$events_played, " events") else "0 events"
+    rating_text <- if (!is.null(c$rating) && !is.na(c$rating)) paste0("Rating: ", c$rating) else ""
+    last_text <- if (!is.null(c$last_event) && !is.na(c$last_event)) paste0("Last: ", c$last_event) else ""
+
+    div(class = "disambiguate-candidate",
+      tags$label(class = "d-flex align-items-start gap-2 p-2 rounded border mb-2",
+        style = "cursor: pointer;",
+        tags$input(type = "radio", name = "disambiguate_choice",
+                   value = as.character(c$player_id), class = "mt-1"),
+        div(
+          div(tags$strong(c$display_name), span(class = "text-muted small", member_text)),
+          div(class = "small text-muted",
+            paste(c(events_text, rating_text, last_text, scene_text), collapse = " | ")
+          )
+        )
+      )
+    )
+  })
+
+  showModal(modalDialog(
+    title = tagList(bsicons::bs_icon("people-fill"), " Select Player"),
+    p(class = "text-muted", sprintf("Multiple players match \"%s\". Select the correct one:",
+      rv$admin_grid_data$player_name[row_num])),
+    div(id = "disambiguate_choices", candidate_choices),
+    hr(),
+    div(class = "d-flex align-items-center gap-2",
+      tags$input(type = "radio", name = "disambiguate_choice", value = "new", id = "disambiguate_new"),
+      tags$label(`for` = "disambiguate_new", "None of these \u2014 create a new player")
+    ),
+    tags$script(HTML("
+      $('#disambiguate_confirm').on('click', function() {
+        var selected = $('input[name=disambiguate_choice]:checked').val();
+        if (selected) {
+          Shiny.setInputValue('admin_disambiguate_confirm', {
+            row: ", row_num, ",
+            player_id: selected
+          }, {priority: 'event'});
+        }
+      });
+    ")),
+    footer = tagList(
+      modalButton("Cancel"),
+      actionButton("disambiguate_confirm", "Confirm", class = "btn-primary")
+    )
+  ))
+})
+
+# Handle disambiguation confirmation
+observeEvent(input$admin_disambiguate_confirm, {
+  info <- input$admin_disambiguate_confirm
+  row_num <- info$row
+  selected_id <- info$player_id
+
+  req(row_num, selected_id)
+
+  if (selected_id == "new") {
+    # Mark as new player
+    rv$admin_grid_data$match_status[row_num] <- "new"
+    rv$admin_grid_data$matched_player_id[row_num] <- NA_integer_
+    rv$admin_grid_data$matched_member_number[row_num] <- NA_character_
+    rv$admin_player_matches[[as.character(row_num)]] <- list(status = "new")
+  } else {
+    pid <- as.integer(selected_id)
+    # Look up member number
+    player_info <- safe_query(db_pool, "SELECT member_number FROM players WHERE player_id = $1",
+                              params = list(pid), default = data.frame(member_number = NA_character_))
+    rv$admin_grid_data$match_status[row_num] <- "matched"
+    rv$admin_grid_data$matched_player_id[row_num] <- pid
+    rv$admin_grid_data$matched_member_number[row_num] <- player_info$member_number[1]
+    rv$admin_player_matches[[as.character(row_num)]] <- list(
+      status = "matched",
+      player_id = pid,
+      member_number = player_info$member_number[1]
+    )
+  }
+
+  removeModal()
+})
+
+# =============================================================================
+# Admin Grid: "Did you mean?" Similar Player Modal (PID5)
+# =============================================================================
+
+observeEvent(input$admin_similar_player_row, {
+  row_num <- input$admin_similar_player_row
+  req(row_num, rv$admin_player_matches)
+
+  match_info <- rv$admin_player_matches[[as.character(row_num)]]
+  req(match_info, match_info$status == "new_similar")
+
+  candidates <- match_info$candidates
+
+  # Enrich candidates with event count and last tournament info
+  enriched <- safe_query(db_pool, "
+    SELECT p.player_id, p.display_name, p.member_number, p.identity_status,
+           sc.display_name as home_scene_name,
+           COUNT(DISTINCT r.tournament_id) as events_played,
+           MAX(t.event_date) as last_event,
+           prc.competitive_rating as rating
+    FROM players p
+    LEFT JOIN scenes sc ON p.home_scene_id = sc.scene_id
+    LEFT JOIN results r ON p.player_id = r.player_id
+    LEFT JOIN tournaments t ON r.tournament_id = t.tournament_id
+    LEFT JOIN player_ratings_cache prc ON p.player_id = prc.player_id
+    WHERE p.player_id = ANY($1::int[])
+    GROUP BY p.player_id, p.display_name, p.member_number, p.identity_status,
+             sc.display_name, prc.competitive_rating
+    ORDER BY COUNT(DISTINCT r.tournament_id) DESC
+  ", params = list(paste0("{", paste(candidates$player_id, collapse = ","), "}")),
+  default = candidates)
+
+  # Include similarity scores from the fuzzy match
+  sim_lookup <- setNames(candidates$sim, as.character(candidates$player_id))
+
+  candidate_choices <- lapply(seq_len(nrow(enriched)), function(i) {
+    c <- enriched[i, ]
+    sim_pct <- round((sim_lookup[[as.character(c$player_id)]] %||% 0) * 100)
+    member_text <- if (!is.na(c$member_number) && nchar(c$member_number) > 0) paste0(" \u2014 #", c$member_number) else ""
+    scene_text <- if (!is.null(c$home_scene_name) && !is.na(c$home_scene_name)) paste0(" \u2014 ", c$home_scene_name) else ""
+    events_text <- if (!is.null(c$events_played) && !is.na(c$events_played)) paste0(c$events_played, " events") else "0 events"
+    rating_text <- if (!is.null(c$rating) && !is.na(c$rating)) paste0("Rating: ", c$rating) else ""
+
+    div(class = "disambiguate-candidate",
+      tags$label(class = "d-flex align-items-start gap-2 p-2 rounded border mb-2",
+        style = "cursor: pointer;",
+        tags$input(type = "radio", name = "similar_choice",
+                   value = as.character(c$player_id), class = "mt-1"),
+        div(
+          div(tags$strong(c$display_name),
+              span(class = "badge bg-secondary ms-2", paste0(sim_pct, "% match")),
+              span(class = "text-muted small", member_text)),
+          div(class = "small text-muted",
+            paste(c(events_text, rating_text, scene_text), collapse = " | ")
+          )
+        )
+      )
+    )
+  })
+
+  player_name <- rv$admin_grid_data$player_name[row_num]
+
+  showModal(modalDialog(
+    title = tagList(bsicons::bs_icon("person-exclamation"), " Did you mean?"),
+    p(class = "text-muted", sprintf(
+      "\"%s\" wasn't found, but these similar players exist:", player_name)),
+    div(id = "similar_choices", candidate_choices),
+    hr(),
+    div(class = "d-flex align-items-center gap-2",
+      tags$input(type = "radio", name = "similar_choice", value = "new",
+                 id = "similar_new", checked = "checked"),
+      tags$label(`for` = "similar_new",
+        tags$strong(sprintf("Create new player \"%s\"", player_name)))
+    ),
+    tags$script(HTML("
+      $('#similar_confirm').on('click', function() {
+        var selected = $('input[name=similar_choice]:checked').val();
+        if (selected) {
+          Shiny.setInputValue('admin_similar_confirm', {
+            row: ", row_num, ",
+            player_id: selected
+          }, {priority: 'event'});
+        }
+      });
+    ")),
+    footer = tagList(
+      modalButton("Cancel"),
+      actionButton("similar_confirm", "Confirm", class = "btn-primary")
+    )
+  ))
+})
+
+observeEvent(input$admin_similar_confirm, {
+  info <- input$admin_similar_confirm
+  row_num <- info$row
+  selected_id <- info$player_id
+
+  req(row_num, selected_id)
+
+  if (selected_id == "new") {
+    rv$admin_grid_data$match_status[row_num] <- "new"
+    rv$admin_grid_data$matched_player_id[row_num] <- NA_integer_
+    rv$admin_grid_data$matched_member_number[row_num] <- NA_character_
+    rv$admin_player_matches[[as.character(row_num)]] <- list(status = "new")
+  } else {
+    pid <- as.integer(selected_id)
+    player_info <- safe_query(db_pool, "SELECT member_number FROM players WHERE player_id = $1",
+                              params = list(pid), default = data.frame(member_number = NA_character_))
+    rv$admin_grid_data$match_status[row_num] <- "matched"
+    rv$admin_grid_data$matched_player_id[row_num] <- pid
+    rv$admin_grid_data$matched_member_number[row_num] <- player_info$member_number[1]
+    rv$admin_player_matches[[as.character(row_num)]] <- list(
+      status = "matched",
+      player_id = pid,
+      member_number = player_info$member_number[1]
+    )
+  }
+
+  removeModal()
 })
 
 # =============================================================================
@@ -629,6 +870,9 @@ observeEvent(input$paste_apply, {
     if (match_info$status == "matched") {
       grid$matched_player_id[idx] <- match_info$player_id
       grid$matched_member_number[idx] <- match_info$member_number
+    } else if (match_info$status == "ambiguous") {
+      grid$matched_player_id[idx] <- match_info$candidates$player_id[1]
+      grid$matched_member_number[idx] <- match_info$candidates$member_number[1]
     } else {
       grid$matched_player_id[idx] <- NA_integer_
       grid$matched_member_number[idx] <- NA_character_
@@ -870,19 +1114,27 @@ observeEvent(input$admin_submit_results, {
           player_id <- row$matched_player_id
         } else {
           match_info <- match_player(name, conn, member_number = member_num, scene_id = scene_id)
-          if (match_info$status == "matched") {
-            player_id <- match_info$player_id
+          if (match_info$status == "matched" || match_info$status == "ambiguous") {
+            # For ambiguous, use pre-resolved matched_player_id; if still ambiguous at submit, use first candidate
+            player_id <- if (match_info$status == "matched") match_info$player_id else match_info$candidates$player_id[1]
           } else {
-            new_player <- DBI::dbGetQuery(conn, "INSERT INTO players (display_name) VALUES ($1) RETURNING player_id",
-                      params = list(name))
+            # Determine identity status for new player
+            has_real_id <- nchar(member_num) > 0 && !grepl("^GUEST", member_num, ignore.case = TRUE)
+            identity_status <- if (has_real_id) "verified" else "unverified"
+            clean_member <- if (has_real_id) member_num else NULL
+            new_player <- DBI::dbGetQuery(conn,
+              "INSERT INTO players (display_name, member_number, identity_status, home_scene_id) VALUES ($1, $2, $3, $4) RETURNING player_id",
+              params = list(name, clean_member, identity_status, scene_id))
             player_id <- new_player$player_id[1]
           }
         }
 
         # Update member_number if provided and player doesn't have one yet
-        if (nchar(member_num) > 0) {
+        # Also promote to verified if gaining a real Bandai ID
+        if (nchar(member_num) > 0 && !grepl("^GUEST", member_num, ignore.case = TRUE)) {
           DBI::dbExecute(conn, "
-            UPDATE players SET member_number = $1, updated_at = CURRENT_TIMESTAMP, updated_by = $2
+            UPDATE players SET member_number = $1, identity_status = 'verified',
+                   updated_at = CURRENT_TIMESTAMP, updated_by = $2
             WHERE player_id = $3 AND (member_number IS NULL OR member_number = '')
           ", params = list(member_num, current_admin_username(rv), player_id))
         }

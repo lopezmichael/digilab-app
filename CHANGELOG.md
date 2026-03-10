@@ -5,6 +5,27 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-03-10 - Player Identity & Disambiguation
+
+### Added
+- **Player identity model**: `identity_status` ('verified'/'unverified') + `home_scene_id` columns on players table. Bandai ID holders are verified (global matching), others are unverified (scene-locked matching). Unique constraint on `member_number`.
+- **Redesigned `match_player()` cascade**: Bandai ID exact match → scene-scoped name match → fuzzy pg_trgm similarity detection → new player. Used by all three result entry flows (Enter Results, Upload Results, Edit Tournaments).
+- **Disambiguation UI**: Yellow "Ambiguous" badge when multiple players match a name. Click opens picker modal with player details (scene, store history, Bandai ID) to select the correct match.
+- **Fuzzy duplicate detection**: Cyan "New — N similar" badge when creating a new player whose name is similar to existing players (pg_trgm >0.4). "Did you mean?" modal lets you select an existing player or proceed with creation.
+- **Suggested Limitless→Local merges**: Card-based merge candidates in Players tab showing Limitless-only players alongside similar local players. One-click Merge or Dismiss actions.
+- **Scene-filtered store dropdowns**: Enter Results and Upload Results now have a scene dropdown that filters the store list. Defaults to the currently selected scene from the header.
+- **Merge suggestions in notification bar**: Admin notification widget shows count of suggested player merges with click-to-navigate.
+
+### Fixed
+- **Scene dropdown blank in Edit Stores**: Race condition where `updateSelectInput(selected=...)` fired before choices loaded. Now fetches choices and sets both choices + selected together in the edit handler.
+- **Public submit flow not using `match_player()`**: Rewired entire matching loop to use the new identity-aware cascade instead of custom Bandai ID/GUEST/name matching.
+- **NA member numbers crashing `match_player()`**: CSV parser passes `NA_character_` for empty cells; added `!is.na()` guard before `nchar(trimws())`.
+- **Button ID collisions in modals**: `actionButton` IDs conflicting with `setInputValue` names caused `$ operator is invalid for atomic vectors` errors. Renamed button IDs to be distinct from input names.
+- **Ambiguous status not handled in submit blur handler**: Unhandled ambiguous matches left player_id as NA, causing duplicates on save.
+
+### Changed
+- **Version modal footer**: Dismiss button now always renders in its own row below the Discord/Ko-fi social buttons, centered.
+
 ## [1.5.2] - 2026-03-09
 
 ### Fixed

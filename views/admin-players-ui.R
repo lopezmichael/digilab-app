@@ -24,6 +24,7 @@ admin_players_ui <- tagList(
     )
   ),
   uiOutput("admin_players_scene_indicator"),
+  uiOutput("suggested_merges_section"),
   div(
     class = "admin-panel",
     layout_columns(

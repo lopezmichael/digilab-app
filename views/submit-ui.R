@@ -70,10 +70,13 @@ submit_ui <- tagList(
                 class = "mb-4 submit-form-inputs",
                 tags$label(class = "form-label fw-semibold text-muted small", "TOURNAMENT DETAILS"),
                 layout_columns(
-                  col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
+                  col_widths = breakpoints(sm = c(12, 12, 12), md = c(4, 4, 4)),
+                  selectInput("submit_scene", "Scene",
+                              choices = c("Loading..." = ""),
+                              selectize = FALSE),
                   div(
                     selectInput("submit_store", "Store",
-                                choices = c("Loading..." = ""),
+                                choices = c("Select scene first..." = ""),
                                 selectize = FALSE),
                     actionLink("submit_request_store", "Store not listed? Request it",
                                class = "small text-primary")

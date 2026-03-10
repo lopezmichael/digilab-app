@@ -191,19 +191,65 @@ observe({
                     choices = choices, selected = current %||% "current")
 })
 
-# --- Refresh tournament_store dropdown on data changes ---
-# Separated from add/update/delete handlers to prevent catalog race conditions.
-# The SELECT runs in the next reactive cycle, after writes complete.
+# --- Populate scene dropdown for Enter Results (default to current scene) ---
 observe({
   rv$data_refresh
   req(db_pool, rv$is_admin)
-  store_choices <- get_store_choices(db_pool, include_none = TRUE)
-  # If store choices came back empty (likely prepared stmt collision), retry
-  if (length(store_choices) <= 1) {
-    invalidateLater(500)
+
+  scenes <- safe_query(db_pool, "
+    SELECT scene_id, display_name FROM scenes
+    WHERE scene_type = 'metro' AND is_active = TRUE
+    ORDER BY display_name
+  ", default = data.frame())
+  if (nrow(scenes) == 0) return()
+
+  choices <- c(setNames(scenes$scene_id, scenes$display_name),
+               "Online / Webcam" = "online")
+
+  # Default to current scene
+  current <- rv$current_scene
+  selected <- ""
+  if (!is.null(current) && current != "all") {
+    scene_row <- safe_query(db_pool, "SELECT scene_id FROM scenes WHERE slug = $1",
+                            params = list(current), default = data.frame())
+    if (nrow(scene_row) > 0 && as.character(scene_row$scene_id[1]) %in% choices) {
+      selected <- as.character(scene_row$scene_id[1])
+    } else if (current == "online") {
+      selected <- "online"
+    }
   }
+
+  updateSelectInput(session, "tournament_scene",
+                    choices = c("Select scene..." = "", choices),
+                    selected = selected)
+})
+
+# --- Refresh tournament_store dropdown filtered by selected scene ---
+observeEvent(input$tournament_scene, {
+  scene_val <- input$tournament_scene
+  if (is.null(scene_val) || scene_val == "") {
+    updateSelectInput(session, "tournament_store",
+                      choices = c("Select scene first..." = ""))
+    return()
+  }
+
+  if (scene_val == "online") {
+    stores <- safe_query(db_pool, "
+      SELECT store_id, name FROM stores
+      WHERE is_active = TRUE AND is_online = TRUE
+      ORDER BY name
+    ", default = data.frame())
+  } else {
+    stores <- safe_query(db_pool, "
+      SELECT store_id, name FROM stores
+      WHERE is_active = TRUE AND scene_id = $1
+      ORDER BY name
+    ", params = list(as.integer(scene_val)), default = data.frame())
+  }
+
+  choices <- if (nrow(stores) > 0) setNames(stores$store_id, stores$name) else character()
   updateSelectInput(session, "tournament_store",
-                    choices = store_choices)
+                    choices = c("Select a store..." = "", choices))
 })
 
 # Add store
@@ -588,7 +634,15 @@ observeEvent(input$admin_store_list__reactable__selected, {
   updateTextInput(session, "store_state", value = if (is.na(store$state)) "" else store$state)
   updateTextInput(session, "store_zip", value = if (is.na(store$zip_code)) "" else store$zip_code)
   updateTextInput(session, "store_website", value = if (is.na(store$website)) "" else store$website)
-  updateSelectInput(session, "store_scene", selected = if (is.na(store$scene_id)) "" else as.character(store$scene_id))
+  # Set scene choices + selection together to avoid race condition where
+  # choices haven't loaded yet and selected value gets silently dropped
+  scene_rows <- safe_query(db_pool,
+    "SELECT scene_id, display_name FROM scenes WHERE is_active = TRUE ORDER BY scene_type, display_name",
+    default = data.frame(scene_id = integer(), display_name = character()))
+  scene_choices <- if (nrow(scene_rows) > 0) setNames(as.character(scene_rows$scene_id), scene_rows$display_name) else character()
+  updateSelectInput(session, "store_scene",
+                    choices = c("Select scene..." = "", scene_choices),
+                    selected = if (is.na(store$scene_id)) "" else as.character(store$scene_id))
 
   # Clear pending schedules when entering edit mode (we use database schedules instead)
   rv$pending_schedules <- list()
