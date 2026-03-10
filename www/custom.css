@@ -3332,6 +3332,47 @@ a:hover, .nav-link:hover {
   color: #F7941D;
 }
 
+/* --- Version Modal: Social Buttons --- */
+.version-social-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.version-modal-content .btn-social {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  text-decoration: none;
+  transition: transform 0.15s, box-shadow 0.15s;
+  border: none;
+}
+.version-modal-content .btn-social svg { flex-shrink: 0; }
+.version-modal-content .btn-discord {
+  background: #5865F2;
+  color: #ffffff;
+}
+.version-modal-content .btn-discord:hover {
+  background: #4752c4;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(88, 101, 242, 0.4);
+}
+.version-modal-content .btn-kofi {
+  background: #FF5E5B;
+  color: #ffffff;
+}
+.version-modal-content .btn-kofi:hover {
+  background: #e54542;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 94, 91, 0.4);
+}
+
 /* =============================================================================
    PLACEMENT COLORS (Gold, Silver, Bronze)
    ============================================================================= */

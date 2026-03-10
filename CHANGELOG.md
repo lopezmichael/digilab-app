@@ -5,6 +5,15 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2026-03-09
+
+### Fixed
+- **Empty admin dropdowns**: Stores, scenes, and format dropdowns in admin tabs (Enter Results, Edit Tournaments, Edit Stores, Edit Users) would show empty due to RPostgres prepared statement collisions. Root cause: `safe_query` retry logic (1 retry) was insufficient under concurrent load. Fixed with 3 retries + exponential backoff (50→100→200ms) and a final dedicated connection checkout that bypasses pool contention entirely. Dropdown observers now also self-heal via `invalidateLater(500)` if results come back unexpectedly empty.
+- **Broader error detection**: Added "statement does not exist" to retryable error patterns (covers `unnamed prepared statement does not exist` from Sentry).
+
+### Changed
+- **Version modal**: Discord link replaced with styled Discord and Ko-fi buttons matching the digilab.cards about page.
+
 ## [1.5.1] - 2026-03-09
 
 ### Fixed
