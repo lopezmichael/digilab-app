@@ -38,24 +38,33 @@ get_scene_choices <- function(db_con, continent = "all") {
   # Start with "All Scenes" option
   choices <- list("All Scenes" = "all")
 
-  # Query scenes filtered by continent
-  if (continent == "all") {
+  # Check if continent column exists (migration may not have run yet)
+  has_continent <- tryCatch({
+    safe_query(db_con, "SELECT continent FROM scenes LIMIT 0",
+               default = NULL)
+    TRUE
+  }, error = function(e) FALSE)
+
+  # Query scenes — filter by continent only if column exists and not "all"
+  if (!has_continent || continent == "all") {
     scenes <- safe_query(db_con,
-      "SELECT slug, display_name, scene_type, country FROM scenes
+      "SELECT slug, display_name, scene_type, country, parent_scene_id FROM scenes
        WHERE is_active = TRUE AND scene_type IN ('metro', 'country')
        ORDER BY country, display_name",
       default = data.frame(slug = character(), display_name = character(),
-                           scene_type = character(), country = character())
+                           scene_type = character(), country = character(),
+                           parent_scene_id = integer())
     )
   } else {
     scenes <- safe_query(db_con,
-      "SELECT slug, display_name, scene_type, country FROM scenes
+      "SELECT slug, display_name, scene_type, country, parent_scene_id FROM scenes
        WHERE is_active = TRUE AND scene_type IN ('metro', 'country')
          AND continent = $1
        ORDER BY country, display_name",
       params = list(continent),
       default = data.frame(slug = character(), display_name = character(),
-                           scene_type = character(), country = character())
+                           scene_type = character(), country = character(),
+                           parent_scene_id = integer())
     )
   }
 
@@ -75,6 +84,12 @@ get_scene_choices <- function(db_con, continent = "all") {
     # Add "All of Country" if parent scene exists and 2+ metros
     if (nrow(country_scene) > 0 && nrow(metro_scenes) >= 2) {
       group_choices[[paste0("All of ", cty)]] <- country_scene$slug[1]
+    }
+
+    # Single metro in a country — add directly (no optgroup nesting)
+    if (nrow(metro_scenes) == 1 && nrow(country_scene) == 0) {
+      choices[[metro_scenes$display_name[1]]] <- metro_scenes$slug[1]
+      next
     }
 
     # Add individual metros

@@ -375,6 +375,14 @@ body {
   gap: 0.35rem;
 }
 
+.continent-selector-wrapper select {
+  padding-left: 0.4rem !important;
+  padding-right: 1.3rem !important;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
 .continent-icon {
   font-size: 1.1rem;
   color: rgba(255, 255, 255, 0.85);

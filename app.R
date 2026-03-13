@@ -769,7 +769,7 @@ ui <- page_fillable(
                       "ONL" = "online"
                     ),
                     selected = "all",
-                    width = "90px",
+                    width = "72px",
                     selectize = FALSE)
       ),
       selectInput("scene_selector", NULL,
