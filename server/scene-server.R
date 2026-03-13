@@ -38,11 +38,12 @@ get_scene_choices <- function(db_con, continent = "all") {
   # Start with "All Scenes" option
   choices <- list("All Scenes" = "all")
 
-  # Check if continent column exists (migration may not have run yet)
+  # Check if continent column exists AND has data (migration may not have run yet)
   has_continent <- tryCatch({
-    safe_query(db_con, "SELECT continent FROM scenes LIMIT 0",
-               default = NULL)
-    TRUE
+    result <- safe_query(db_con,
+      "SELECT COUNT(*) as n FROM scenes WHERE continent IS NOT NULL",
+      default = data.frame(n = 0))
+    result$n[1] > 0
   }, error = function(e) FALSE)
 
   # Query scenes — filter by continent only if column exists and not "all"
