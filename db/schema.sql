@@ -1,8 +1,8 @@
 -- DigiLab - Digimon TCG Tournament Tracker
 -- Database Schema for PostgreSQL (Neon)
--- Version: 1.4.0
+-- Version: 1.7.0
 -- Created: January 2026
--- Updated: 2026-03-06 - Added admin_requests, announcements, audit columns, schedule qualifiers
+-- Updated: 2026-03-12 - Added continent column, admin_user_scenes junction table
 
 -- =============================================================================
 -- EXTENSIONS
@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS scenes (
     discord_thread_id TEXT,           -- Discord #scene-coordination thread ID for webhook routing
     country TEXT,                     -- Auto-populated from reverse geocode
     state_region TEXT,                -- Auto-populated from reverse geocode
+    continent TEXT,                  -- Continent code for cascading selector (e.g., 'north_america')
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -432,6 +433,23 @@ CREATE TABLE IF NOT EXISTS admin_users (
 );
 
 CREATE INDEX IF NOT EXISTS idx_admin_users_username ON admin_users(username);
+
+-- =============================================================================
+-- ADMIN USER SCENES TABLE (Junction Table)
+-- Many-to-many relationship between admins and scenes
+-- Replaces 1:1 scene_id on admin_users for multi-scene assignments
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS admin_user_scenes (
+    user_id INTEGER NOT NULL REFERENCES admin_users(user_id) ON DELETE CASCADE,
+    scene_id INTEGER NOT NULL REFERENCES scenes(scene_id) ON DELETE CASCADE,
+    is_primary BOOLEAN DEFAULT FALSE,
+    assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    assigned_by TEXT,
+    PRIMARY KEY (user_id, scene_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_user_scenes_scene ON admin_user_scenes(scene_id);
+CREATE INDEX IF NOT EXISTS idx_admin_user_scenes_user ON admin_user_scenes(user_id);
 
 -- =============================================================================
 -- ADMIN REQUESTS TABLE
