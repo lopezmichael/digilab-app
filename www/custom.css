@@ -247,8 +247,7 @@ body {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  margin-left: auto;
+  gap: 0.5rem;
 }
 
 .header-action-btn {
@@ -363,6 +362,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  margin-left: auto;
 }
 
 .header-scene-selector .form-group {
