@@ -764,7 +764,7 @@ ui <- page_fillable(
                   selected = "all",
                   width = "180px",
                   selectize = FALSE),
-      # Admin + help icons (right of scene selector)
+      # Admin + help icons + dark mode toggle
       div(
         class = "header-actions",
         actionLink("admin_login_link",
@@ -774,11 +774,10 @@ ui <- page_fillable(
         actionLink("help_menu_link",
                    bsicons::bs_icon("three-dots-vertical"),
                    class = "header-action-btn",
-                   title = "Help & Resources")
+                   title = "Help & Resources"),
+        input_dark_mode(id = "dark_mode", mode = "light")
       )
-    ),
-    # Dark mode toggle (after scene selector)
-    input_dark_mode(id = "dark_mode", mode = "light")
+    )
   ),
 
   # Main Layout with Sidebar

@@ -39,11 +39,20 @@ get_scene_choices <- function(db_con, continent = "all") {
   choices <- list("All Scenes" = "all")
 
   # Check if continent column exists AND has data (migration may not have run yet)
+  # Use information_schema to avoid error-logging noise from safe_query
   has_continent <- tryCatch({
     result <- safe_query(db_con,
-      "SELECT COUNT(*) as n FROM scenes WHERE continent IS NOT NULL",
-      default = data.frame(n = 0))
-    result$n[1] > 0
+      "SELECT EXISTS (
+         SELECT 1 FROM information_schema.columns
+         WHERE table_name = 'scenes' AND column_name = 'continent'
+       ) AS col_exists",
+      default = data.frame(col_exists = FALSE))
+    if (!isTRUE(result$col_exists[1])) return(FALSE)
+    # Column exists — check if any rows have data
+    result2 <- safe_query(db_con,
+      "SELECT EXISTS (SELECT 1 FROM scenes WHERE continent IS NOT NULL) AS has_data",
+      default = data.frame(has_data = FALSE))
+    isTRUE(result2$has_data[1])
   }, error = function(e) FALSE)
 
   # Query scenes — filter by continent only if column exists and not "all"

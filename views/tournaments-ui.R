@@ -64,11 +64,11 @@ tagList(
     ),
     div(class = "advanced-filter-group",
       tags$label("From", class = "advanced-filter-label", `for` = "tournaments_date_from"),
-      dateInput("tournaments_date_from", NULL, value = NA, width = "130px")
+      dateInput("tournaments_date_from", NULL, value = character(0), width = "130px")
     ),
     div(class = "advanced-filter-group",
       tags$label("To", class = "advanced-filter-label", `for` = "tournaments_date_to"),
-      dateInput("tournaments_date_to", NULL, value = NA, width = "130px")
+      dateInput("tournaments_date_to", NULL, value = character(0), width = "130px")
     ),
     div(class = "advanced-filter-group",
       tags$label("Size", class = "advanced-filter-label", `for` = "tournaments_size_filter"),
