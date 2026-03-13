@@ -1351,6 +1351,32 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
     flex: 1 1 calc(50% - 0.5rem);
     min-width: 120px;
   }
+
+  /* Mobile filter panel: 2-column grid layout */
+  .mobile-filters-panel {
+    flex-wrap: wrap;
+  }
+
+  .mobile-filters-panel .advanced-filter-group {
+    flex: 1 1 calc(50% - 0.5rem);
+    min-width: 0;
+  }
+
+  /* Color pills wrap naturally */
+  .mobile-filters-panel .color-filter-pills {
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  /* Date range spans full width */
+  .mobile-filters-panel .date-range-group {
+    flex: 1 1 100%;
+  }
+
+  /* Selectize inputs fill their container on mobile */
+  .mobile-filters-panel .selectize-control {
+    width: 100% !important;
+  }
 }
 
 /* ===== Advanced Filter Select Options ===== */

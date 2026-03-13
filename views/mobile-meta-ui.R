@@ -4,44 +4,90 @@
 # Returns a bare tagList (no assignment) so source(...)$value works.
 
 tagList(
-  # -- Title strip with filters (SAME input IDs as desktop) ------------------
+  # -- Title strip: search + toggle + reset ------------------------------------
   div(
     class = "page-title-strip mb-2",
     div(
       class = "title-strip-content",
-      # Left side: page title
       div(
         class = "title-strip-context",
         bsicons::bs_icon("stack", class = "title-strip-icon"),
         tags$span(class = "title-strip-text", "Deck Meta")
       ),
-      # Right side: compact filters
       div(
         class = "title-strip-controls",
         div(
           class = "title-strip-search",
           textInput("meta_search", NULL, placeholder = "Search...", width = "120px")
         ),
-        div(
-          class = "title-strip-select",
-          selectInput("meta_format", NULL,
-                      choices = format_choices_with_all,
-                      selected = "",
-                      width = "140px",
-                      selectize = FALSE)
-        ),
-        span(class = "title-strip-pill-label", "Status"),
-        div(
-          class = "pill-toggle",
-          `data-input-id` = "meta_min_entries",
-          tags$button("Unranked", class = "pill-option active", `data-value` = "0"),
-          tags$button("Ranked", class = "pill-option", `data-value` = "10")
+        tags$button(
+          type = "button",
+          class = "btn-title-strip-filters",
+          `data-target` = "mobile_meta_filters",
+          icon("sliders"),
+          "Filters"
         ),
         actionButton("reset_meta_filters", NULL,
                      icon = icon("rotate-right"),
                      class = "btn-title-strip-reset",
                      title = "Reset filters")
       )
+    )
+  ),
+
+  # -- Collapsible filters (hidden by default) ---------------------------------
+  div(
+    id = "mobile_meta_filters",
+    class = "advanced-filters-row mobile-filters-panel",
+    div(class = "advanced-filter-group",
+      tags$label("Format", class = "advanced-filter-label"),
+      selectInput("meta_format", NULL,
+                  choices = format_choices_with_all,
+                  selected = "",
+                  width = "100%",
+                  selectize = FALSE)
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Status", class = "advanced-filter-label"),
+      div(
+        class = "pill-toggle",
+        `data-input-id` = "meta_min_entries",
+        tags$button("Unranked", class = "pill-option active", `data-value` = "0"),
+        tags$button("Ranked", class = "pill-option", `data-value` = "10")
+      )
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Color", class = "advanced-filter-label"),
+      div(id = "meta_color_pills", class = "color-filter-pills",
+        tags$span(class = "color-pill", `data-color` = "Red",
+          tags$span(class = "color-dot"), "Red"),
+        tags$span(class = "color-pill", `data-color` = "Blue",
+          tags$span(class = "color-dot"), "Blue"),
+        tags$span(class = "color-pill", `data-color` = "Yellow",
+          tags$span(class = "color-dot"), "Yellow"),
+        tags$span(class = "color-pill", `data-color` = "Green",
+          tags$span(class = "color-dot"), "Green"),
+        tags$span(class = "color-pill", `data-color` = "Black",
+          tags$span(class = "color-dot"), "Black"),
+        tags$span(class = "color-pill", `data-color` = "Purple",
+          tags$span(class = "color-dot"), "Purple"),
+        tags$span(class = "color-pill", `data-color` = "White",
+          tags$span(class = "color-dot"), "White")
+      )
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Conv %", class = "advanced-filter-label"),
+      selectInput("meta_conversion_filter", NULL,
+        choices = list("Any" = "0", "5%+" = "5", "10%+" = "10", "20%+" = "20", "30%+" = "30"),
+        width = "100%", selectize = FALSE)
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Top 3 only", class = "advanced-filter-label"),
+      checkboxInput("meta_top3_toggle", NULL, value = FALSE)
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Has decklist", class = "advanced-filter-label"),
+      checkboxInput("meta_decklist_toggle", NULL, value = FALSE)
     )
   ),
 

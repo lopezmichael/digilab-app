@@ -4,7 +4,7 @@
 # Returns a bare tagList (no assignment) so source(...)$value works.
 
 tagList(
-  # -- Title strip with filters (SAME input IDs as desktop) ------------------
+  # -- Title strip: search + toggle + reset ------------------------------------
   div(
     class = "page-title-strip mb-2",
     div(
@@ -20,30 +20,61 @@ tagList(
           class = "title-strip-search",
           textInput("tournaments_search", NULL, placeholder = "Search...", width = "120px")
         ),
-        div(
-          class = "title-strip-select",
-          selectInput("tournaments_format", NULL,
-                      choices = format_choices_with_all,
-                      selected = "",
-                      width = "140px",
-                      selectize = FALSE)
-        ),
-        div(
-          class = "title-strip-select",
-          selectInput("tournaments_event_type", NULL,
-                      choices = list(
-                        "All Events" = "",
-                        "Event Types" = EVENT_TYPES
-                      ),
-                      selected = "",
-                      width = "120px",
-                      selectize = FALSE)
+        tags$button(
+          type = "button",
+          class = "btn-title-strip-filters",
+          `data-target` = "mobile_tournaments_filters",
+          icon("sliders"),
+          "Filters"
         ),
         actionButton("reset_tournaments_filters", NULL,
                      icon = icon("rotate-right"),
                      class = "btn-title-strip-reset",
                      title = "Reset filters")
       )
+    )
+  ),
+
+  # -- Collapsible filters (hidden by default) ---------------------------------
+  div(
+    id = "mobile_tournaments_filters",
+    class = "advanced-filters-row mobile-filters-panel",
+    div(class = "advanced-filter-group",
+      tags$label("Format", class = "advanced-filter-label"),
+      selectInput("tournaments_format", NULL,
+                  choices = format_choices_with_all,
+                  selected = "",
+                  width = "100%",
+                  selectize = FALSE)
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Event Type", class = "advanced-filter-label"),
+      selectInput("tournaments_event_type", NULL,
+                  choices = list(
+                    "All Events" = "",
+                    "Event Types" = EVENT_TYPES
+                  ),
+                  selected = "",
+                  width = "100%",
+                  selectize = FALSE)
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Store", class = "advanced-filter-label"),
+      selectInput("tournaments_store_filter", NULL,
+        choices = list("All" = ""),
+        width = "100%")
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Size", class = "advanced-filter-label"),
+      selectInput("tournaments_size_filter", NULL,
+        choices = list("Any" = "0", "8+" = "8", "16+" = "16", "32+" = "32", "64+" = "64", "128+" = "128"),
+        width = "100%", selectize = FALSE)
+    ),
+    div(class = "advanced-filter-group date-range-group",
+      tags$label("From", class = "advanced-filter-label"),
+      dateInput("tournaments_date_from", NULL, value = NA, width = "110px"),
+      span(class = "advanced-filter-label", "\u2013"),
+      dateInput("tournaments_date_to", NULL, value = NA, width = "110px")
     )
   ),
 

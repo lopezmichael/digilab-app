@@ -4,7 +4,7 @@
 # Returns a bare tagList (no assignment) so source(...)$value works.
 
 tagList(
-  # -- Title strip with filters (SAME input IDs as desktop) ------------------
+  # -- Title strip: search + toggle + reset ------------------------------------
   div(
     class = "page-title-strip mb-2",
     div(
@@ -20,26 +20,61 @@ tagList(
           class = "title-strip-search",
           textInput("players_search", NULL, placeholder = "Search...", width = "120px")
         ),
-        div(
-          class = "title-strip-select",
-          selectInput("players_format", NULL,
-                      choices = format_choices_with_all,
-                      selected = "",
-                      width = "140px",
-                      selectize = FALSE)
-        ),
-        span(class = "title-strip-pill-label", "Status"),
-        div(
-          class = "pill-toggle",
-          `data-input-id` = "players_min_events",
-          tags$button("Unranked", class = "pill-option active", `data-value` = "0"),
-          tags$button("Ranked", class = "pill-option", `data-value` = "10")
+        tags$button(
+          type = "button",
+          class = "btn-title-strip-filters",
+          `data-target` = "mobile_players_filters",
+          icon("sliders"),
+          "Filters"
         ),
         actionButton("reset_players_filters", NULL,
                      icon = icon("rotate-right"),
                      class = "btn-title-strip-reset",
                      title = "Reset filters")
       )
+    )
+  ),
+
+  # -- Collapsible filters (hidden by default) ---------------------------------
+  div(
+    id = "mobile_players_filters",
+    class = "advanced-filters-row mobile-filters-panel",
+    div(class = "advanced-filter-group",
+      tags$label("Format", class = "advanced-filter-label"),
+      selectInput("players_format", NULL,
+                  choices = format_choices_with_all,
+                  selected = "",
+                  width = "100%",
+                  selectize = FALSE)
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Status", class = "advanced-filter-label"),
+      div(
+        class = "pill-toggle",
+        `data-input-id` = "players_min_events",
+        tags$button("Unranked", class = "pill-option active", `data-value` = "0"),
+        tags$button("Ranked", class = "pill-option", `data-value` = "10")
+      )
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Store", class = "advanced-filter-label"),
+      selectInput("players_store_filter", NULL,
+        choices = list("All" = ""),
+        width = "100%")
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Win %", class = "advanced-filter-label"),
+      selectInput("players_win_pct_filter", NULL,
+        choices = list("Any" = "0", "50%+" = "50", "60%+" = "60", "70%+" = "70"),
+        width = "100%", selectize = FALSE)
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Top 3 only", class = "advanced-filter-label"),
+      checkboxInput("players_top3_toggle", NULL, value = FALSE)
+    ),
+    div(class = "advanced-filter-group",
+      tags$label("Has decklist", class = "advanced-filter-label"),
+      checkboxInput("players_decklist_toggle", NULL, value = FALSE)
     )
   ),
 
