@@ -358,14 +358,27 @@ body {
   }
 }
 
-/* Scene selector dropdown in header */
+/* Scene selector dropdown in header (cascading: continent + scene) */
 .header-scene-selector {
   display: flex;
   align-items: center;
+  gap: 0.5rem;
 }
 
 .header-scene-selector .form-group {
   margin-bottom: 0;
+}
+
+.continent-selector-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.continent-icon {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.85);
+  flex-shrink: 0;
 }
 
 .header-scene-selector select {
@@ -400,6 +413,12 @@ body {
 .header-scene-selector select option {
   background-color: #0A3055;
   color: #FFFFFF;
+}
+
+.header-scene-selector select optgroup {
+  font-weight: 600;
+  font-style: normal;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 /* Mobile responsive header */
@@ -463,13 +482,27 @@ body {
     order: 10;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     padding-top: 0.4rem;
+    gap: 0.35rem;
+  }
+
+  .continent-selector-wrapper {
+    flex-shrink: 0;
   }
 
   .header-scene-selector select {
-    width: 100% !important;
     font-size: 0.8rem;
     padding: 0.3rem 0.4rem;
     padding-right: 1.3rem;
+  }
+
+  /* Scene dropdown fills remaining space on mobile */
+  .header-scene-selector > .form-group {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .header-scene-selector > .form-group select {
+    width: 100% !important;
   }
 
   /* Slightly reduce top padding on tablet/mobile */

@@ -751,13 +751,31 @@ ui <- page_fillable(
                  class = "header-action-btn",
                  title = "Help & Resources")
     ),
-    # Scene selector (separate child so it can wrap to its own row on mobile)
+    # Cascading scene selector: continent + scene dropdowns
     div(
       class = "header-scene-selector",
+      div(
+        class = "continent-selector-wrapper",
+        tags$i(class = "fas fa-globe continent-icon", id = "continent_icon"),
+        selectInput("continent_selector", NULL,
+                    choices = list(
+                      "ALL" = "all",
+                      "NAM" = "north_america",
+                      "SAM" = "south_america",
+                      "EUR" = "europe",
+                      "AFR" = "africa",
+                      "ASI" = "asia",
+                      "OCE" = "oceania",
+                      "ONL" = "online"
+                    ),
+                    selected = "all",
+                    width = "90px",
+                    selectize = FALSE)
+      ),
       selectInput("scene_selector", NULL,
                   choices = list("All Scenes" = "all"),
                   selected = "all",
-                  width = "140px",
+                  width = "180px",
                   selectize = FALSE)
     ),
     # Dark mode toggle (after scene selector)

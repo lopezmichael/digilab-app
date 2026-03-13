@@ -7,6 +7,7 @@
   'use strict';
 
   var STORAGE_KEY = 'digilab_scene_preference';
+  var CONTINENT_KEY = 'digilab_continent_preference';
   var ONBOARDING_KEY = 'digilab_onboarding_complete';
   var LAST_SEEN_ANNOUNCEMENT_KEY = 'digilab_last_seen_announcement_id';
   var LAST_SEEN_VERSION_KEY = 'digilab_last_seen_version';
@@ -237,20 +238,23 @@
 
   $(document).on('shiny:connected', function() {
 
-    // Send initial scene preference to Shiny (async storage read)
+    // Send initial scene + continent preference to Shiny (async storage read)
     Promise.all([
       getSavedScene(),
       isOnboardingComplete(),
       DigilabStorage.getItem(LAST_SEEN_ANNOUNCEMENT_KEY),
-      DigilabStorage.getItem(LAST_SEEN_VERSION_KEY)
+      DigilabStorage.getItem(LAST_SEEN_VERSION_KEY),
+      DigilabStorage.getItem(CONTINENT_KEY)
     ]).then(function(results) {
       var savedScene = results[0];
       var onboardingDone = results[1];
       var lastSeenAnnouncementId = results[2] ? parseInt(results[2], 10) : null;
       var lastSeenVersion = results[3];
+      var savedContinent = results[4];
 
       Shiny.setInputValue('scene_from_storage', {
         scene: savedScene,
+        continent: savedContinent,
         needsOnboarding: !onboardingDone,
         lastSeenAnnouncementId: lastSeenAnnouncementId,
         lastSeenVersion: lastSeenVersion,
@@ -258,12 +262,23 @@
       }, {priority: 'event'});
     });
 
-    // Handler for saving scene to storage
+    // Handler for saving scene + continent to storage
     Shiny.addCustomMessageHandler('saveScenePreference', function(message) {
       var sceneSlug = message.scene;
+      var continent = message.continent || 'all';
       saveScene(sceneSlug).then(function() {
+        return DigilabStorage.setItem(CONTINENT_KEY, continent);
+      }).then(function() {
         completeOnboarding();
       });
+    });
+
+    // Handler for updating continent icon
+    Shiny.addCustomMessageHandler('updateContinentIcon', function(iconClass) {
+      var el = document.getElementById('continent_icon');
+      if (el) {
+        el.className = 'fas fa-' + iconClass + ' continent-icon';
+      }
     });
 
     // Handler for geolocation request

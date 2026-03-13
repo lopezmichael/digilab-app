@@ -7,28 +7,88 @@
 # Scene Choices Helper
 # -----------------------------------------------------------------------------
 
-#' Get available scene choices for dropdown
-#' @return Named list of scene display names and slugs
-get_scene_choices <- function(db_con) {
+#' Get FA icon class for a continent value
+#' @param continent Character continent code
+#' @return Character FA icon name
+get_continent_icon <- function(continent) {
+  switch(continent,
+    "all" = "globe",
+    "north_america" = "earth-americas",
+    "south_america" = "earth-americas",
+    "europe" = "earth-europe",
+    "africa" = "earth-africa",
+    "asia" = "earth-asia",
+    "oceania" = "earth-oceania",
+    "online" = "wifi",
+    "globe"
+  )
+}
+
+#' Get available scene choices for dropdown, optionally filtered by continent
+#' Returns optgroup-structured list when filtering by continent
+#' @param db_con Database connection
+#' @param continent Character continent code or "all"
+#' @return Named list of scene display names and slugs (with optgroups)
+get_scene_choices <- function(db_con, continent = "all") {
+  # Online is a special case
+  if (continent == "online") {
+    return(list("Online / Webcam" = "online"))
+  }
+
   # Start with "All Scenes" option
   choices <- list("All Scenes" = "all")
 
-  # Get metro scenes from database
-  scenes <- safe_query(db_con,
-    "SELECT slug, display_name FROM scenes
-     WHERE scene_type = 'metro' AND is_active = TRUE
-     ORDER BY display_name",
-    default = data.frame(slug = character(), display_name = character())
-  )
-
-  if (nrow(scenes) > 0) {
-    for (i in seq_len(nrow(scenes))) {
-      choices[[scenes$display_name[i]]] <- scenes$slug[i]
-    }
+  # Query scenes filtered by continent
+  if (continent == "all") {
+    scenes <- safe_query(db_con,
+      "SELECT slug, display_name, scene_type, country FROM scenes
+       WHERE is_active = TRUE AND scene_type IN ('metro', 'country')
+       ORDER BY country, display_name",
+      default = data.frame(slug = character(), display_name = character(),
+                           scene_type = character(), country = character())
+    )
+  } else {
+    scenes <- safe_query(db_con,
+      "SELECT slug, display_name, scene_type, country FROM scenes
+       WHERE is_active = TRUE AND scene_type IN ('metro', 'country')
+         AND continent = $1
+       ORDER BY country, display_name",
+      params = list(continent),
+      default = data.frame(slug = character(), display_name = character(),
+                           scene_type = character(), country = character())
+    )
   }
 
-  # Add Online option
-  choices[["Online / Webcam"]] <- "online"
+  if (nrow(scenes) == 0) return(choices)
+
+  # Build optgroup structure by country
+  countries <- unique(scenes$country[!is.na(scenes$country)])
+
+  for (cty in countries) {
+    metro_scenes <- scenes[scenes$country == cty & scenes$scene_type == "metro", ]
+    country_scene <- scenes[scenes$country == cty & scenes$scene_type == "country", ]
+
+    if (nrow(metro_scenes) == 0) next
+
+    group_choices <- list()
+
+    # Add "All of Country" if parent scene exists and 2+ metros
+    if (nrow(country_scene) > 0 && nrow(metro_scenes) >= 2) {
+      group_choices[[paste0("All of ", cty)]] <- country_scene$slug[1]
+    }
+
+    # Add individual metros
+    for (i in seq_len(nrow(metro_scenes))) {
+      group_choices[[metro_scenes$display_name[i]]] <- metro_scenes$slug[i]
+    }
+
+    choices[[cty]] <- group_choices
+  }
+
+  # If "all" continent, also add Online
+  if (continent == "all") {
+    choices[["Online / Webcam"]] <- "online"
+  }
 
   choices
 }
@@ -53,20 +113,31 @@ get_scenes_for_map <- function(db_con) {
 # -----------------------------------------------------------------------------
 
 observeEvent(db_pool, {
-
-
-  choices <- get_scene_choices(db_pool)
-
-  # Use stored scene preference if available and valid
+  # Use stored continent + scene preference if available
   stored <- input$scene_from_storage
-  selected <- "all"
-  if (!is.null(stored) && !is.null(stored$scene) && stored$scene != "") {
-    if (stored$scene %in% unlist(choices)) {
-      selected <- stored$scene
+  continent <- "all"
+  scene_selected <- "all"
+
+  if (!is.null(stored)) {
+    if (!is.null(stored$continent) && stored$continent != "") {
+      continent <- stored$continent
+    }
+    if (!is.null(stored$scene) && stored$scene != "") {
+      scene_selected <- stored$scene
     }
   }
 
-  updateSelectInput(session, "scene_selector", choices = choices, selected = selected)
+  # Set continent dropdown
+  updateSelectInput(session, "continent_selector", selected = continent)
+  session$sendCustomMessage("updateContinentIcon", get_continent_icon(continent))
+
+  # Build scene choices for selected continent and set selection
+  choices <- get_scene_choices(db_pool, continent)
+  if (scene_selected %in% unlist(choices)) {
+    updateSelectInput(session, "scene_selector", choices = choices, selected = scene_selected)
+  } else {
+    updateSelectInput(session, "scene_selector", choices = choices, selected = "all")
+  }
 }, once = TRUE)
 
 # -----------------------------------------------------------------------------
@@ -112,12 +183,14 @@ observeEvent(input$scene_from_storage, {
 
   # If there's a stored scene preference, apply it
   if (!is.null(stored$scene) && stored$scene != "") {
-    # Rebuild choices to ensure they include all DB scenes
-    choices <- get_scene_choices(db_pool)
+    continent <- stored$continent %||% "all"
+    updateSelectInput(session, "continent_selector", selected = continent)
+    session$sendCustomMessage("updateContinentIcon", get_continent_icon(continent))
+
+    choices <- get_scene_choices(db_pool, continent)
     if (stored$scene %in% unlist(choices)) {
       rv$current_scene <- stored$scene
       updateSelectInput(session, "scene_selector", choices = choices, selected = stored$scene)
-      # Set dynamic min_events default for initial scene load
       shinyjs::delay(200, {
         session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = "0"))
         session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = "0"))
@@ -125,6 +198,29 @@ observeEvent(input$scene_from_storage, {
     }
   }
 }, once = TRUE)
+
+# -----------------------------------------------------------------------------
+# Continent Selector Cascade
+# -----------------------------------------------------------------------------
+
+# When continent changes, update scene dropdown choices and reset to "all"
+observeEvent(input$continent_selector, {
+  continent <- input$continent_selector
+  if (is.null(continent)) return()
+
+  # Update icon
+  session$sendCustomMessage("updateContinentIcon", get_continent_icon(continent))
+
+  # Rebuild scene choices for this continent
+  choices <- get_scene_choices(db_pool, continent)
+
+  # For Online continent, auto-select "online" scene
+  if (continent == "online") {
+    updateSelectInput(session, "scene_selector", choices = choices, selected = "online")
+  } else {
+    updateSelectInput(session, "scene_selector", choices = choices, selected = "all")
+  }
+}, ignoreInit = TRUE)
 
 # -----------------------------------------------------------------------------
 # Scene Selector Dropdown
@@ -154,8 +250,11 @@ observeEvent(input$scene_selector, {
   # Track scene change in GA4
   track_event("scene_change", scene = new_scene)
 
-  # Save to localStorage
-  session$sendCustomMessage("saveScenePreference", list(scene = new_scene))
+  # Save both continent and scene to localStorage
+  session$sendCustomMessage("saveScenePreference", list(
+    scene = new_scene,
+    continent = input$continent_selector %||% "all"
+  ))
 
   # Trigger data refresh
   rv$data_refresh <- Sys.time()
@@ -191,7 +290,7 @@ observeEvent(input$open_welcome_guide, {
 observeEvent(input$close_onboarding, {
   removeModal()
   # Mark onboarding as complete with default scene
-  session$sendCustomMessage("saveScenePreference", list(scene = "all"))
+  session$sendCustomMessage("saveScenePreference", list(scene = "all", continent = "all"))
   rv$current_scene <- "all"
   updateSelectInput(session, "scene_selector", selected = "all")
 })
@@ -325,7 +424,10 @@ select_scene <- function(scene_slug) {
   old_scene <- rv$current_scene
   rv$current_scene <- scene_slug
   updateSelectInput(session, "scene_selector", selected = scene_slug)
-  session$sendCustomMessage("saveScenePreference", list(scene = scene_slug))
+  session$sendCustomMessage("saveScenePreference", list(
+    scene = scene_slug,
+    continent = input$continent_selector %||% "all"
+  ))
   # Only trigger data refresh if scene actually changed
   if (!identical(old_scene, scene_slug)) {
     rv$data_refresh <- Sys.time()
