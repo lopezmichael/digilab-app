@@ -96,9 +96,10 @@ observeEvent(input$players_clear_advanced, {
   updateSelectInput(session, "players_win_pct_filter", selected = "0")
 })
 
-# Update store filter choices when scene changes
-observeEvent(rv$data_refresh, {
-  # Build scene/continent filter for store dropdown
+# Update store filter choices when scene changes or tab is first visited
+observe({
+  req("players" %in% visited_tabs())
+  rv$data_refresh
   scene <- rv$current_scene
   continent <- rv$current_continent
   scene_sql <- ""
@@ -170,6 +171,15 @@ output$player_standings <- renderReactable({
     start_idx = 1
   )
 
+  # Advanced filters: store
+  store_filter <- input$players_store_filter %||% ""
+  if (nchar(store_filter) > 0) {
+    store_idx <- filters$next_idx
+    filters$sql <- paste0(filters$sql, sprintf(" AND slug = $%d", store_idx))
+    filters$params <- c(filters$params, list(store_filter))
+    filters$next_idx <- store_idx + 1
+  }
+
   min_events <- as.numeric(input$players_min_events %||% 0)
   if (length(min_events) == 0 || is.na(min_events)) min_events <- 0
 
@@ -207,6 +217,13 @@ output$player_standings <- renderReactable({
   ", filters$sql, having_idx, filters$sql),
   params = c(filters$params, list(as.integer(min_events))),
   default = data.frame())
+
+  # Advanced filters: win percentage minimum
+  win_pct_min <- as.numeric(input$players_win_pct_filter %||% 0)
+  if (length(win_pct_min) == 0 || is.na(win_pct_min)) win_pct_min <- 0
+  if (win_pct_min > 0 && nrow(result) > 0) {
+    result <- result[!is.na(result$`Win %`) & result$`Win %` >= win_pct_min, ]
+  }
 
   if (nrow(result) == 0) {
     has_filters <- nchar(trimws(players_search_debounced() %||% "")) > 0 ||
@@ -356,7 +373,10 @@ output$player_standings <- renderReactable({
   input$players_format,
   players_search_debounced(),
   input$players_min_events,
+  input$players_store_filter,
+  input$players_win_pct_filter,
   rv$current_scene,
+  rv$current_continent,
   rv$community_filter,
   rv$data_refresh
 )
@@ -640,7 +660,6 @@ output$player_detail_modal <- renderUI({
     JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
     WHERE r.player_id = $1
     ORDER BY t.event_date DESC
-    LIMIT 10
   ", params = list(player_id), default = data.frame())
 
   # Get placement history for sparkline
@@ -762,38 +781,49 @@ output$player_detail_modal <- renderUI({
       )
     },
 
-    # Recent results
+    # Tournament history (paginated)
     if (nrow(recent_results) > 0) {
+      display_results <- data.frame(
+        Date = format(as.Date(recent_results$Date), "%b %d, %Y"),
+        Store = recent_results$Store,
+        Deck = recent_results$Deck,
+        Place = vapply(recent_results$Place, function(p) {
+          cls <- if (p == 1) "place-1st" else if (p == 2) "place-2nd" else if (p == 3) "place-3rd" else ""
+          as.character(tags$span(class = cls, ordinal(p)))
+        }, character(1)),
+        Record = sprintf("%d-%d", recent_results$W, recent_results$L),
+        Decklist = unname(vapply(recent_results$decklist_url, function(u) {
+          tag <- decklist_link_icon(u)
+          if (!is.null(tag)) as.character(tag) else ""
+        }, character(1))),
+        stringsAsFactors = FALSE,
+        row.names = NULL
+      )
+
       tagList(
-        h6(class = "modal-section-header", "Recent Results"),
-        tags$table(
-          class = "table table-sm table-striped",
-          tags$thead(
-            tags$tr(
-              tags$th("Date"), tags$th("Store"), tags$th("Deck"),
-              tags$th("Place"), tags$th("Record"), tags$th("")
+        h6(class = "modal-section-header mt-3", "Tournament History"),
+        reactable(
+          display_results,
+          compact = TRUE,
+          striped = TRUE,
+          pagination = TRUE,
+          defaultPageSize = 10,
+          columns = list(
+            Date = colDef(minWidth = 90),
+            Store = colDef(minWidth = 120),
+            Deck = colDef(minWidth = 100),
+            Place = colDef(minWidth = 55, align = "center", html = TRUE),
+            Record = colDef(minWidth = 60, align = "center"),
+            Decklist = colDef(
+              name = "",
+              minWidth = 40,
+              html = TRUE
             )
-          ),
-          tags$tbody(
-            lapply(1:nrow(recent_results), function(i) {
-              row <- recent_results[i, ]
-              tags$tr(
-                tags$td(format(as.Date(row$Date), "%b %d")),
-                tags$td(row$Store),
-                tags$td(row$Deck),
-                tags$td(
-                  class = if (row$Place == 1) "place-1st" else if (row$Place == 2) "place-2nd" else if (row$Place == 3) "place-3rd" else "",
-                  ordinal(row$Place)
-                ),
-                tags$td(sprintf("%d-%d", row$W, row$L)),
-                tags$td(decklist_link_icon(row$decklist_url))
-              )
-            })
           )
         )
       )
     } else {
-      digital_empty_state("No results recorded", "// deck data pending", "clipboard-x", mascot = "agumon")
+      digital_empty_state("No tournament history", "// results data pending", "calendar-x", mascot = "agumon")
     }
   ))
 })

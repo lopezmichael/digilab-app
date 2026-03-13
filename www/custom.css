@@ -1162,17 +1162,28 @@ body {
 
 /* ===== Advanced Filters Accordion ===== */
 .advanced-filters-row {
-  background: rgba(0, 0, 0, 0.15);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0px, transparent 1px, transparent 24px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0px, transparent 1px, transparent 24px),
+    linear-gradient(135deg, #0A3055 0%, #0F4C81 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0 0 8px 8px;
   padding: 0.5rem 1rem;
   display: none;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
+  color: #FFFFFF;
 }
 
 .advanced-filters-row.open {
   display: flex;
+  margin-bottom: 1rem;
+}
+
+.page-title-strip:has(+ .advanced-filters-row.open) {
+  border-radius: 8px 8px 0 0;
+  margin-bottom: 0 !important;
 }
 
 .advanced-filter-group {
@@ -1192,7 +1203,8 @@ body {
   letter-spacing: 0.5px;
   white-space: nowrap;
   margin-bottom: 0;
-  opacity: 0.7;
+  opacity: 0.8;
+  color: #FFFFFF;
 }
 
 .advanced-filter-group select {
@@ -1212,12 +1224,13 @@ body {
 
 .advanced-filter-group input[type="checkbox"] {
   margin-right: 0.25rem;
+  accent-color: #00C8FF;
 }
 
 .btn-title-strip-filters {
-  background: none;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.9);
   padding: 0.2rem 0.5rem;
   border-radius: 4px;
   font-size: 0.75rem;
@@ -1229,13 +1242,13 @@ body {
 }
 
 .btn-title-strip-filters:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.25);
+  color: #FFFFFF;
 }
 
 .btn-title-strip-filters.active {
-  background: rgba(0, 200, 255, 0.15);
-  border-color: rgba(0, 200, 255, 0.3);
+  background: rgba(0, 200, 255, 0.2);
+  border-color: rgba(0, 200, 255, 0.4);
   color: #00C8FF;
 }
 
@@ -1247,29 +1260,43 @@ body {
 
 /* Light mode adjustments */
 [data-bs-theme="light"] .advanced-filters-row {
-  background: rgba(0, 0, 0, 0.03);
-  border-top-color: rgba(0, 0, 0, 0.08);
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0px, transparent 1px, transparent 24px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0px, transparent 1px, transparent 24px),
+    linear-gradient(135deg, #0A3055 0%, #0F4C81 100%);
+  border-top-color: rgba(255, 255, 255, 0.1);
+  color: #FFFFFF;
 }
 
 [data-bs-theme="light"] .btn-title-strip-filters {
-  border-color: rgba(0, 0, 0, 0.15);
-  color: rgba(0, 0, 0, 0.5);
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 [data-bs-theme="light"] .btn-title-strip-filters:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: rgba(0, 0, 0, 0.8);
+  background: rgba(255, 255, 255, 0.25);
+  color: #FFFFFF;
 }
 
 [data-bs-theme="light"] .btn-title-strip-filters.active {
-  background: rgba(0, 100, 200, 0.1);
-  border-color: rgba(0, 100, 200, 0.3);
-  color: #0064C8;
+  background: rgba(0, 100, 200, 0.2);
+  border-color: rgba(0, 100, 200, 0.4);
+  color: #4DC8FF;
 }
 
 [data-bs-theme="light"] .advanced-filter-group select {
-  background-color: rgba(0, 0, 0, 0.03) !important;
-  border-color: rgba(0, 0, 0, 0.15) !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #FFFFFF !important;
+}
+
+/* Dark mode adjustments */
+[data-bs-theme="dark"] .advanced-filters-row {
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0px, transparent 1px, transparent 24px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0px, transparent 1px, transparent 24px),
+    linear-gradient(135deg, #1A202C 0%, #2D3748 100%);
 }
 
 /* Mobile: advanced filters stack */
@@ -1284,6 +1311,145 @@ body {
     min-width: 120px;
   }
 }
+
+/* ===== Advanced Filter Select Options ===== */
+.advanced-filter-group select option {
+  background-color: #0A3055;
+  color: #FFFFFF;
+}
+
+/* ===== Advanced Filter Date Inputs ===== */
+.advanced-filter-group .shiny-date-input {
+  width: auto;
+}
+
+.advanced-filter-group .shiny-date-input input {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #FFFFFF !important;
+  padding: 0.25rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  width: 110px;
+}
+
+.advanced-filter-group .shiny-date-input input:focus {
+  border-color: #00C8FF !important;
+  box-shadow: 0 0 0 2px rgba(0, 200, 255, 0.15);
+}
+
+/* ===== Advanced Filter Selectize (autocomplete store dropdowns) ===== */
+.advanced-filter-group .selectize-input {
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: #FFFFFF !important;
+  padding: 0.25rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  min-height: 0;
+  box-shadow: none !important;
+}
+
+.advanced-filter-group .selectize-input > input {
+  color: #FFFFFF !important;
+}
+
+.advanced-filter-group .selectize-input > input::placeholder {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.advanced-filter-group .selectize-input.focus {
+  border-color: #00C8FF !important;
+  box-shadow: 0 0 0 2px rgba(0, 200, 255, 0.15) !important;
+}
+
+.advanced-filter-group .selectize-input .item {
+  color: #FFFFFF !important;
+}
+
+.advanced-filter-group .selectize-dropdown {
+  background-color: #0A3055 !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #FFFFFF !important;
+}
+
+.advanced-filter-group .selectize-dropdown .option {
+  color: #FFFFFF !important;
+}
+
+.advanced-filter-group .selectize-dropdown .option.active {
+  background-color: rgba(0, 200, 255, 0.2) !important;
+  color: #FFFFFF !important;
+}
+
+.advanced-filter-group .selectize-control.single .selectize-input::after {
+  border-color: rgba(255, 255, 255, 0.6) transparent transparent transparent;
+}
+
+/* ===== Color Filter Pills ===== */
+.color-filter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.color-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 2px solid transparent;
+  opacity: 0.5;
+  user-select: none;
+}
+
+.color-pill:hover {
+  opacity: 0.75;
+}
+
+.color-pill.active {
+  opacity: 1;
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.15);
+}
+
+.color-pill .color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Color pill specific colors */
+.color-pill[data-color="Red"] { background: rgba(229, 56, 59, 0.3); color: #FF6B6E; }
+.color-pill[data-color="Blue"] { background: rgba(45, 125, 210, 0.3); color: #5CA3E8; }
+.color-pill[data-color="Yellow"] { background: rgba(245, 183, 0, 0.3); color: #FFD24D; }
+.color-pill[data-color="Green"] { background: rgba(56, 161, 105, 0.3); color: #5CC98A; }
+.color-pill[data-color="Black"] { background: rgba(45, 55, 72, 0.5); color: #A0AEC0; }
+.color-pill[data-color="Purple"] { background: rgba(128, 90, 213, 0.3); color: #A78BFA; }
+.color-pill[data-color="White"] { background: rgba(160, 174, 192, 0.3); color: #E2E8F0; }
+
+.color-pill[data-color="Red"] .color-dot { background: #E5383B; }
+.color-pill[data-color="Blue"] .color-dot { background: #2D7DD2; }
+.color-pill[data-color="Yellow"] .color-dot { background: #F5B700; }
+.color-pill[data-color="Green"] .color-dot { background: #38A169; }
+.color-pill[data-color="Black"] .color-dot { background: #2D3748; border: 1px solid #4A5568; }
+.color-pill[data-color="Purple"] .color-dot { background: #805AD5; }
+.color-pill[data-color="White"] .color-dot { background: #A0AEC0; }
+
+.color-pill.active[data-color="Red"] { border-color: #E5383B; }
+.color-pill.active[data-color="Blue"] { border-color: #2D7DD2; }
+.color-pill.active[data-color="Yellow"] { border-color: #F5B700; }
+.color-pill.active[data-color="Green"] { border-color: #38A169; }
+.color-pill.active[data-color="Black"] { border-color: #4A5568; }
+.color-pill.active[data-color="Purple"] { border-color: #805AD5; }
+.color-pill.active[data-color="White"] { border-color: #A0AEC0; }
 
 /* ===== Pill Toggle Controls ===== */
 .pill-toggle {
@@ -2063,8 +2229,8 @@ body {
    ADMIN NOTIFICATION BAR
    ============================================================================= */
 
-/* Collapse the empty Shiny output placeholder before any renderUI fires */
-#admin_notification_bar:empty {
+/* Notification bar placeholder hidden by default, shown via MutationObserver in app.R */
+#admin_notification_bar {
   display: none;
 }
 

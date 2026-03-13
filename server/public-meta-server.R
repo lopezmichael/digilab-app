@@ -21,7 +21,7 @@ observeEvent(input$reset_meta_filters, {
   session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = "0"))
   updateCheckboxInput(session, "meta_top3_toggle", value = FALSE)
   updateCheckboxInput(session, "meta_decklist_toggle", value = FALSE)
-  updateSelectInput(session, "meta_color_filter", selected = "")
+  session$sendCustomMessage("clearColorPills", TRUE)
   updateSelectInput(session, "meta_conversion_filter", selected = "0")
 })
 
@@ -29,7 +29,7 @@ observeEvent(input$reset_meta_filters, {
 observeEvent(input$meta_clear_advanced, {
   updateCheckboxInput(session, "meta_top3_toggle", value = FALSE)
   updateCheckboxInput(session, "meta_decklist_toggle", value = FALSE)
-  updateSelectInput(session, "meta_color_filter", selected = "")
+  session$sendCustomMessage("clearColorPills", TRUE)
   updateSelectInput(session, "meta_conversion_filter", selected = "0")
 })
 
@@ -59,14 +59,14 @@ meta_archetype_data <- reactive({
   having_idx <- filters$next_idx
 
   result <- safe_query(db_pool, sprintf("
-    SELECT archetype_id, archetype_name as \"Deck\", primary_color as \"Color\",
+    SELECT archetype_id, archetype_name as \"Deck\", primary_color as \"Color\", secondary_color,
            SUM(entries)::int as \"Entries\",
            SUM(firsts)::int as \"1sts\",
            SUM(top3s)::int as \"Top 3s\",
            ROUND(SUM(total_wins) * 100.0 / NULLIF(SUM(total_wins) + SUM(total_losses), 0), 1) as \"Win %%\"
     FROM mv_archetype_store_stats
     WHERE 1=1 %s
-    GROUP BY archetype_id, archetype_name, primary_color
+    GROUP BY archetype_id, archetype_name, primary_color, secondary_color
     HAVING SUM(entries) >= $%d
     ORDER BY SUM(entries) DESC, SUM(firsts) DESC
   ", filters$sql, having_idx),
@@ -82,12 +82,37 @@ meta_archetype_data <- reactive({
   # Calculate Conv % (conversion rate: Top 3s / Entries)
   result$`Conv %` <- round(result$`Top 3s` * 100 / result$Entries, 1)
 
+  # Advanced filters: top 3 only
+  if (isTRUE(input$meta_top3_toggle) && nrow(result) > 0) {
+    result <- result[result$`Top 3s` > 0, ]
+  }
+
+  # Advanced filters: conversion rate minimum
+  conv_min <- as.numeric(input$meta_conversion_filter %||% 0)
+  if (length(conv_min) == 0 || is.na(conv_min)) conv_min <- 0
+  if (conv_min > 0 && nrow(result) > 0) {
+    result <- result[!is.na(result$`Conv %`) & result$`Conv %` >= conv_min, ]
+  }
+
+  # Advanced filters: color (client-side, any match on primary or secondary)
+  color_filter <- input$meta_color_pills
+  if (!is.null(color_filter) && length(color_filter) > 0 && any(nchar(color_filter) > 0)) {
+    match_primary <- result$Color %in% color_filter
+    match_secondary <- !is.na(result$secondary_color) & result$secondary_color %in% color_filter
+    result <- result[match_primary | match_secondary, ]
+  }
+
   result
 }) |> bindCache(
   input$meta_format,
   meta_search_debounced(),
   input$meta_min_entries,
+  input$meta_color_pills,
+  input$meta_top3_toggle,
+  input$meta_decklist_toggle,
+  input$meta_conversion_filter,
   rv$current_scene,
+  rv$current_continent,
   rv$community_filter,
   rv$data_refresh
 )
@@ -131,6 +156,7 @@ output$archetype_stats <- renderReactable({
     }"),
     columns = list(
       archetype_id = colDef(show = FALSE),
+      secondary_color = colDef(show = FALSE),
       Deck = colDef(minWidth = 150),
       Color = colDef(minWidth = 80, cell = function(value) deck_color_badge(value)),
       Entries = colDef(minWidth = 70, align = "center"),
@@ -253,8 +279,11 @@ observeEvent(input$archetype_clicked, {
 output$deck_detail_modal <- renderUI({
   req(rv$selected_archetype_id)
 
-  archetype_id <- rv$selected_archetype_id
+  # React to advanced filter changes so modal updates
+  input$meta_top3_toggle
+  input$meta_decklist_toggle
 
+  archetype_id <- rv$selected_archetype_id
 
   # Get archetype info
   archetype <- safe_query(db_pool, "
@@ -334,8 +363,15 @@ output$deck_detail_modal <- renderUI({
     JOIN players p ON r.player_id = p.player_id
     WHERE r.archetype_id = $1 %s
     ORDER BY t.event_date DESC, r.placement ASC
-    LIMIT 10
   ", scene_filters$sql), params = c(list(archetype_id), scene_filters$params), default = data.frame())
+
+  # Apply advanced filters to modal results
+  if (isTRUE(input$meta_top3_toggle) && nrow(recent_results) > 0) {
+    recent_results <- recent_results[recent_results$Place <= 3, ]
+  }
+  if (isTRUE(input$meta_decklist_toggle) && nrow(recent_results) > 0) {
+    recent_results <- recent_results[!is.na(recent_results$decklist_url) & recent_results$decklist_url != "", ]
+  }
 
   # Card image URL
   card_img_url <- if (!is.na(archetype$display_card_id) && archetype$display_card_id != "") {
@@ -461,38 +497,50 @@ output$deck_detail_modal <- renderUI({
       )
     },
 
-    # Recent results
+    # Tournament history (paginated)
     if (nrow(recent_results) > 0) {
+      # Format for display
+      display_results <- data.frame(
+        Date = format(as.Date(recent_results$Date), "%b %d, %Y"),
+        Store = recent_results$Store,
+        Player = recent_results$Player,
+        Place = vapply(recent_results$Place, function(p) {
+          cls <- if (p == 1) "place-1st" else if (p == 2) "place-2nd" else if (p == 3) "place-3rd" else ""
+          as.character(tags$span(class = cls, ordinal(p)))
+        }, character(1)),
+        Record = sprintf("%d-%d", recent_results$W, recent_results$L),
+        Decklist = unname(vapply(recent_results$decklist_url, function(u) {
+          tag <- decklist_link_icon(u)
+          if (!is.null(tag)) as.character(tag) else ""
+        }, character(1))),
+        stringsAsFactors = FALSE,
+        row.names = NULL
+      )
+
       tagList(
-        h6(class = "modal-section-header mt-3", "Recent Results"),
-        tags$table(
-          class = "table table-sm table-striped",
-          tags$thead(
-            tags$tr(
-              tags$th("Date"), tags$th("Store"), tags$th("Player"),
-              tags$th("Place"), tags$th("Record"), tags$th("")
+        h6(class = "modal-section-header mt-3", "Tournament History"),
+        reactable(
+          display_results,
+          compact = TRUE,
+          striped = TRUE,
+          pagination = TRUE,
+          defaultPageSize = 10,
+          columns = list(
+            Date = colDef(minWidth = 90),
+            Store = colDef(minWidth = 120),
+            Player = colDef(minWidth = 100),
+            Place = colDef(minWidth = 55, align = "center", html = TRUE),
+            Record = colDef(minWidth = 60, align = "center"),
+            Decklist = colDef(
+              name = "",
+              minWidth = 40,
+              html = TRUE
             )
-          ),
-          tags$tbody(
-            lapply(1:nrow(recent_results), function(i) {
-              row <- recent_results[i, ]
-              tags$tr(
-                tags$td(format(as.Date(row$Date), "%b %d")),
-                tags$td(row$Store),
-                tags$td(row$Player),
-                tags$td(
-                  class = if (row$Place == 1) "place-1st" else if (row$Place == 2) "place-2nd" else if (row$Place == 3) "place-3rd" else "",
-                  ordinal(row$Place)
-                ),
-                tags$td(sprintf("%d-%d", row$W, row$L)),
-                tags$td(decklist_link_icon(row$decklist_url))
-              )
-            })
           )
         )
       )
     } else {
-      digital_empty_state("No tournament history", "// player data pending", "person-x", mascot = "agumon")
+      digital_empty_state("No tournament history", "// results data pending", "calendar-x", mascot = "agumon")
     }
   ))
 })

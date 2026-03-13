@@ -60,15 +60,15 @@ tagList(
       tags$label("Store", class = "advanced-filter-label", `for` = "tournaments_store_filter"),
       selectInput("tournaments_store_filter", NULL,
         choices = list("All" = ""),
-        width = "160px", selectize = FALSE)
+        width = "160px")
     ),
     div(class = "advanced-filter-group",
       tags$label("From", class = "advanced-filter-label", `for` = "tournaments_date_from"),
-      dateInput("tournaments_date_from", NULL, value = character(0), width = "130px")
+      dateInput("tournaments_date_from", NULL, value = NA, width = "110px")
     ),
     div(class = "advanced-filter-group",
       tags$label("To", class = "advanced-filter-label", `for` = "tournaments_date_to"),
-      dateInput("tournaments_date_to", NULL, value = character(0), width = "130px")
+      dateInput("tournaments_date_to", NULL, value = NA, width = "110px")
     ),
     div(class = "advanced-filter-group",
       tags$label("Size", class = "advanced-filter-label", `for` = "tournaments_size_filter"),

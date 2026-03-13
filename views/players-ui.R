@@ -56,7 +56,7 @@ tagList(
       tags$label("Store", class = "advanced-filter-label", `for` = "players_store_filter"),
       selectInput("players_store_filter", NULL,
         choices = list("All" = ""),
-        width = "160px", selectize = FALSE)
+        width = "160px")
     ),
     div(class = "advanced-filter-group",
       tags$label("Win %", class = "advanced-filter-label", `for` = "players_win_pct_filter"),

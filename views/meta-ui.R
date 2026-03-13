@@ -52,6 +52,26 @@ tagList(
   div(
     id = "meta_advanced_filters",
     class = "advanced-filters-row",
+    # Row 1: Color pills + checkboxes
+    div(class = "advanced-filter-group",
+      tags$label("Color", class = "advanced-filter-label"),
+      div(id = "meta_color_pills", class = "color-filter-pills",
+        tags$span(class = "color-pill", `data-color` = "Red",
+          tags$span(class = "color-dot"), "Red"),
+        tags$span(class = "color-pill", `data-color` = "Blue",
+          tags$span(class = "color-dot"), "Blue"),
+        tags$span(class = "color-pill", `data-color` = "Yellow",
+          tags$span(class = "color-dot"), "Yellow"),
+        tags$span(class = "color-pill", `data-color` = "Green",
+          tags$span(class = "color-dot"), "Green"),
+        tags$span(class = "color-pill", `data-color` = "Black",
+          tags$span(class = "color-dot"), "Black"),
+        tags$span(class = "color-pill", `data-color` = "Purple",
+          tags$span(class = "color-dot"), "Purple"),
+        tags$span(class = "color-pill", `data-color` = "White",
+          tags$span(class = "color-dot"), "White")
+      )
+    ),
     div(class = "advanced-filter-group",
       tags$label("Top 3 only", class = "advanced-filter-label"),
       checkboxInput("meta_top3_toggle", NULL, value = FALSE)
@@ -61,17 +81,10 @@ tagList(
       checkboxInput("meta_decklist_toggle", NULL, value = FALSE)
     ),
     div(class = "advanced-filter-group",
-      tags$label("Color", class = "advanced-filter-label", `for` = "meta_color_filter"),
-      selectInput("meta_color_filter", NULL,
-        choices = list("Any" = "", "Red" = "Red", "Blue" = "Blue", "Green" = "Green",
-                       "Yellow" = "Yellow", "Purple" = "Purple", "Black" = "Black", "White" = "White"),
-        width = "100px", selectize = FALSE)
-    ),
-    div(class = "advanced-filter-group",
-      tags$label("Top 3 Conv %", class = "advanced-filter-label", `for` = "meta_conversion_filter"),
+      tags$label("Conv %", class = "advanced-filter-label", `for` = "meta_conversion_filter"),
       selectInput("meta_conversion_filter", NULL,
         choices = list("Any" = "0", "5%+" = "5", "10%+" = "10", "20%+" = "20", "30%+" = "30"),
-        width = "90px", selectize = FALSE)
+        width = "80px", selectize = FALSE)
     ),
     actionButton("meta_clear_advanced", "Clear All",
       class = "btn btn-outline-secondary btn-sm btn-clear-advanced")

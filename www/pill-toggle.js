@@ -35,6 +35,12 @@
       $group.find('.pill-option[data-value="' + message.value + '"]').addClass('active');
       Shiny.setInputValue(message.inputId, String(message.value), {priority: 'event'});
     });
+
+    // Clear color pills from server
+    Shiny.addCustomMessageHandler('clearColorPills', function(message) {
+      $('.color-filter-pills .color-pill').removeClass('active');
+      Shiny.setInputValue('meta_color_pills', null, {priority: 'event'});
+    });
   });
 
   // Toggle advanced filters visibility
@@ -50,5 +56,15 @@
       $target.addClass('open');
       btn.addClass('active');
     }
+  });
+
+  // Color filter pills — multi-select toggle, sends array to Shiny
+  $(document).on('click', '.color-pill', function() {
+    $(this).toggleClass('active');
+    var selected = [];
+    $(this).closest('.color-filter-pills').find('.color-pill.active').each(function() {
+      selected.push($(this).data('color'));
+    });
+    Shiny.setInputValue('meta_color_pills', selected.length > 0 ? selected : null, {priority: 'event'});
   });
 })();

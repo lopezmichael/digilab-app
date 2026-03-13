@@ -35,6 +35,54 @@ observeEvent(input$tournaments_clear_advanced, {
   updateSelectInput(session, "tournaments_size_filter", selected = "0")
 })
 
+# Update store filter choices when scene changes or tab is first visited
+observe({
+  req("tournaments" %in% visited_tabs())
+  rv$data_refresh
+  scene <- rv$current_scene
+  continent <- rv$current_continent
+  scene_sql <- ""
+  scene_params <- NULL
+
+  if (!is.null(scene) && scene != "all" && scene != "online" && !startsWith(scene, "country:") && !startsWith(scene, "state:")) {
+    scene_sql <- "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE slug = $1)"
+    scene_params <- list(scene)
+  } else if (!is.null(scene) && startsWith(scene, "country:")) {
+    scene_sql <- "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE country = $1)"
+    scene_params <- list(sub("^country:", "", scene))
+  } else if (!is.null(scene) && startsWith(scene, "state:")) {
+    scene_sql <- "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE country = 'United States' AND state_region = $1)"
+    scene_params <- list(sub("^state:", "", scene))
+  } else if (!is.null(scene) && scene == "online") {
+    scene_sql <- "AND s.is_online = TRUE"
+  } else if (!is.null(continent) && continent != "all" && continent != "") {
+    if (continent == "online") {
+      scene_sql <- "AND s.is_online = TRUE"
+    } else {
+      scene_sql <- "AND s.scene_id IN (SELECT scene_id FROM scenes WHERE continent = $1)"
+      scene_params <- list(continent)
+    }
+  }
+
+  stores <- safe_query(db_pool, sprintf(
+    "SELECT DISTINCT s.slug, s.name FROM stores s
+     JOIN tournaments t ON s.store_id = t.store_id
+     WHERE s.is_active = TRUE %s
+     ORDER BY s.name", scene_sql),
+  params = scene_params,
+  default = data.frame(slug = character(), name = character()))
+
+  store_choices <- list("All" = "")
+  if (nrow(stores) > 0) {
+    for (i in seq_len(nrow(stores))) {
+      nm <- stores$name[i]
+      if (is.na(nm) || nm == "") next
+      store_choices[[nm]] <- stores$slug[i]
+    }
+  }
+  updateSelectInput(session, "tournaments_store_filter", choices = store_choices, selected = "")
+})
+
 # Debounce search input (300ms)
 tournaments_search_debounced <- reactive(input$tournaments_search) |> debounce(300)
 
@@ -56,6 +104,42 @@ tournaments_data <- reactive({
     start_idx = 1
   )
 
+  # Advanced filters: store
+  store_filter <- input$tournaments_store_filter %||% ""
+  if (nchar(store_filter) > 0) {
+    store_idx <- filters$next_idx
+    filters$sql <- paste0(filters$sql, sprintf(" AND slug = $%d", store_idx))
+    filters$params <- c(filters$params, list(store_filter))
+    filters$next_idx <- store_idx + 1
+  }
+
+  # Advanced filters: date range
+  date_from <- input$tournaments_date_from
+  if (length(date_from) == 1 && !is.na(date_from)) {
+    idx <- filters$next_idx
+    filters$sql <- paste0(filters$sql, sprintf(" AND event_date >= $%d", idx))
+    filters$params <- c(filters$params, list(as.character(date_from)))
+    filters$next_idx <- idx + 1
+  }
+
+  date_to <- input$tournaments_date_to
+  if (length(date_to) == 1 && !is.na(date_to)) {
+    idx <- filters$next_idx
+    filters$sql <- paste0(filters$sql, sprintf(" AND event_date <= $%d", idx))
+    filters$params <- c(filters$params, list(as.character(date_to)))
+    filters$next_idx <- idx + 1
+  }
+
+  # Advanced filters: minimum size
+  size_min <- as.numeric(input$tournaments_size_filter %||% 0)
+  if (length(size_min) == 0 || is.na(size_min)) size_min <- 0
+  if (size_min > 0) {
+    idx <- filters$next_idx
+    filters$sql <- paste0(filters$sql, sprintf(" AND player_count >= $%d", idx))
+    filters$params <- c(filters$params, list(as.integer(size_min)))
+    filters$next_idx <- idx + 1
+  }
+
   query <- paste0("
     SELECT tournament_id, event_date as \"Date\", store_name as \"Store\",
            event_type as \"Type\", format as \"Format\", player_count as \"Players\",
@@ -70,7 +154,12 @@ tournaments_data <- reactive({
   input$tournaments_format,
   input$tournaments_event_type,
   tournaments_search_debounced(),
+  input$tournaments_store_filter,
+  input$tournaments_date_from,
+  input$tournaments_date_to,
+  input$tournaments_size_filter,
   rv$current_scene,
+  rv$current_continent,
   rv$community_filter,
   rv$data_refresh
 )
