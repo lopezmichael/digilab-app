@@ -796,6 +796,18 @@ version_changelog_content <- function() {
         span("Mobile filter panels — search always visible, filters behind a compact toggle")
       ),
       div(class = "version-changelog-item",
+        bsicons::bs_icon("incognito", class = "text-danger"),
+        span("Player anonymization — players can request to hide their name from public views")
+      ),
+      div(class = "version-changelog-item",
+        bsicons::bs_icon("table", class = "text-success"),
+        span("Reactable tables in player and deck modals for richer match history")
+      ),
+      div(class = "version-changelog-item",
+        bsicons::bs_icon("search", class = "text-warning"),
+        span("Find decks with decklists or top 3 finishes using the new advanced filters")
+      ),
+      div(class = "version-changelog-item",
         bsicons::bs_icon("shield-check", class = "text-info"),
         span("Admin-scene junction table for multi-scene regional admin access")
       )
