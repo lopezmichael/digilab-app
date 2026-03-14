@@ -1451,7 +1451,8 @@ observeEvent(input$submit_tournament, {
     tournament_id <- tourney_result$tournament_id[1]
     total_rounds <- input$submit_rounds
 
-    # Insert each result
+    # Phase 1: Resolve all players and prepare row data
+    resolved_rows <- list()
     for (i in seq_len(nrow(results))) {
       row <- results[i, ]
 
@@ -1502,13 +1503,16 @@ observeEvent(input$submit_tournament, {
           ", params = list(clean_member, player_id))
         }
       } else {
-        player <- DBI::dbGetQuery(conn, "
-          SELECT player_id FROM players
-          WHERE (member_number IS NOT NULL AND member_number = $1) OR LOWER(display_name) = LOWER($2)
-          LIMIT 1
-        ", params = list(clean_member, username))
-
-        if (nrow(player) == 0) {
+        match_info <- match_player(username, conn, member_number = clean_member, scene_id = scene_id)
+        if (match_info$status == "matched" || match_info$status == "ambiguous") {
+          player_id <- if (match_info$status == "matched") match_info$player_id else match_info$candidates$player_id[1]
+          if (has_real_id) {
+            DBI::dbExecute(conn, "
+              UPDATE players SET member_number = $1, identity_status = 'verified'
+              WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
+            ", params = list(clean_member, player_id))
+          }
+        } else {
           identity_status <- if (has_real_id) "verified" else "unverified"
           new_player <- DBI::dbGetQuery(conn, "
             INSERT INTO players (display_name, member_number, identity_status, home_scene_id)
@@ -1516,14 +1520,6 @@ observeEvent(input$submit_tournament, {
             RETURNING player_id
           ", params = list(username, clean_member, identity_status, scene_id))
           player_id <- new_player$player_id[1]
-        } else {
-          player_id <- player$player_id[1]
-          if (has_real_id) {
-            DBI::dbExecute(conn, "
-              UPDATE players SET member_number = $1, identity_status = 'verified'
-              WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
-            ", params = list(clean_member, player_id))
-          }
         }
       }
 
@@ -1533,13 +1529,40 @@ observeEvent(input$submit_tournament, {
         deck_id <- if (nrow(unknown) > 0) unknown$archetype_id[1] else NA_integer_
       }
 
-      # Insert result (PostgreSQL auto-generates result_id)
+      resolved_rows[[i]] <- list(
+        player_id = player_id, username = username,
+        deck_id = deck_id, pending_deck_request_id = pending_deck_request_id,
+        placement = row$placement, wins = wins, losses = losses, ties = ties, pts = pts
+      )
+    }
+
+    # Phase 2: Check for duplicate player_ids before inserting results
+    resolved_player_ids <- vapply(resolved_rows, function(r) r$player_id, integer(1))
+    dup_ids <- unique(resolved_player_ids[duplicated(resolved_player_ids)])
+    if (length(dup_ids) > 0) {
+      dup_names <- vapply(dup_ids, function(pid) {
+        matches <- which(resolved_player_ids == pid)
+        paste(vapply(matches, function(j) resolved_rows[[j]]$username, character(1)), collapse = ", ")
+      }, character(1))
+      DBI::dbExecute(conn, "ROLLBACK")
+      notify(
+        paste0("Duplicate players detected — the following rows resolve to the same player: ",
+               paste(dup_names, collapse = "; "),
+               ". Please fix before submitting."),
+        type = "error", duration = 10
+      )
+      return()
+    }
+
+    # Phase 3: Insert each result
+    for (i in seq_len(length(resolved_rows))) {
+      r <- resolved_rows[[i]]
       DBI::dbExecute(conn, "
         INSERT INTO results (tournament_id, player_id, archetype_id, pending_deck_request_id, placement, wins, losses, ties, points)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       ", params = list(
-        tournament_id, player_id, deck_id, pending_deck_request_id,
-        row$placement, wins, losses, ties, pts
+        tournament_id, r$player_id, r$deck_id, r$pending_deck_request_id,
+        r$placement, r$wins, r$losses, r$ties, r$pts
       ))
     }
 
@@ -2077,13 +2100,16 @@ observeEvent(input$match_submit, {
                              !grepl("^GUEST", submitter_member, ignore.case = TRUE)
     clean_submitter_member <- if (submitter_has_real_id) submitter_member else NA_character_
 
-    player <- DBI::dbGetQuery(conn, "
-      SELECT player_id FROM players
-      WHERE (member_number IS NOT NULL AND member_number = $1) OR LOWER(display_name) = LOWER($2)
-      LIMIT 1
-    ", params = list(clean_submitter_member, submitter_username))
-
-    if (nrow(player) == 0) {
+    match_info <- match_player(submitter_username, conn, member_number = clean_submitter_member, scene_id = match_scene_id)
+    if (match_info$status == "matched" || match_info$status == "ambiguous") {
+      player_id <- if (match_info$status == "matched") match_info$player_id else match_info$candidates$player_id[1]
+      if (submitter_has_real_id) {
+        DBI::dbExecute(conn, "
+          UPDATE players SET member_number = $1, identity_status = 'verified'
+          WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
+        ", params = list(clean_submitter_member, player_id))
+      }
+    } else {
       identity_status <- if (submitter_has_real_id) "verified" else "unverified"
       new_player <- DBI::dbGetQuery(conn, "
         INSERT INTO players (display_name, member_number, identity_status, home_scene_id)
@@ -2091,14 +2117,6 @@ observeEvent(input$match_submit, {
         RETURNING player_id
       ", params = list(submitter_username, clean_submitter_member, identity_status, match_scene_id))
       player_id <- new_player$player_id[1]
-    } else {
-      player_id <- player$player_id[1]
-      if (submitter_has_real_id) {
-        DBI::dbExecute(conn, "
-          UPDATE players SET member_number = $1, identity_status = 'verified'
-          WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
-        ", params = list(clean_submitter_member, player_id))
-      }
     }
 
     # Insert each match - read from editable inputs
@@ -2141,13 +2159,16 @@ observeEvent(input$match_submit, {
                          !grepl("^GUEST", opponent_member, ignore.case = TRUE)
       clean_opp_member <- if (opp_has_real_id) opponent_member else NA_character_
 
-      opponent <- DBI::dbGetQuery(conn, "
-        SELECT player_id FROM players
-        WHERE (member_number IS NOT NULL AND member_number = $1) OR LOWER(display_name) = LOWER($2)
-        LIMIT 1
-      ", params = list(clean_opp_member, opponent_username))
-
-      if (nrow(opponent) == 0) {
+      opp_match_info <- match_player(opponent_username, conn, member_number = clean_opp_member, scene_id = match_scene_id)
+      if (opp_match_info$status == "matched" || opp_match_info$status == "ambiguous") {
+        opponent_id <- if (opp_match_info$status == "matched") opp_match_info$player_id else opp_match_info$candidates$player_id[1]
+        if (opp_has_real_id) {
+          DBI::dbExecute(conn, "
+            UPDATE players SET member_number = $1, identity_status = 'verified'
+            WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
+          ", params = list(clean_opp_member, opponent_id))
+        }
+      } else {
         opp_identity <- if (opp_has_real_id) "verified" else "unverified"
         new_opponent <- DBI::dbGetQuery(conn, "
           INSERT INTO players (display_name, member_number, identity_status, home_scene_id)
@@ -2155,14 +2176,6 @@ observeEvent(input$match_submit, {
           RETURNING player_id
         ", params = list(opponent_username, clean_opp_member, opp_identity, match_scene_id))
         opponent_id <- new_opponent$player_id[1]
-      } else {
-        opponent_id <- opponent$player_id[1]
-        if (opp_has_real_id) {
-          DBI::dbExecute(conn, "
-            UPDATE players SET member_number = $1, identity_status = 'verified'
-            WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
-          ", params = list(clean_opp_member, opponent_id))
-        }
       }
 
       tryCatch({

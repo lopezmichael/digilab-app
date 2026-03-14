@@ -5,6 +5,13 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.1] - 2026-03-14
+
+### Fixed
+- **Duplicate player_id crash on submission**: All three result entry flows (Enter Results, Upload Results, Edit Tournaments) now validate for duplicate player_ids before inserting. Two grid rows resolving to the same player (via pre-match, fallback query, or ambiguous auto-resolve) no longer crash with `duplicate key value violates unique constraint results_tournament_id_player_id_key`. Instead, a user-facing error identifies which rows collided so they can be fixed before resubmitting.
+- **Cross-scene player mismatching in public submissions**: Public submit flow had three raw SQL fallback queries matching players globally by `LOWER(display_name)` with no scene filter, bypassing the scene-aware `match_player()` cascade used by admin flows. Replaced all three (standings submission, match history submitter, match history opponents) with `match_player()` calls scoped to the tournament's scene. Prevents results from being attributed to same-name players in different regions.
+- **Merged 6 duplicate player records**: Identified and merged player pairs that were split due to the unscoped matching: Dariouche (1153+1338), KayceeAnthony (1196+1198), JT (1134+1188), Matt (14+1174), MüllGott13 (1449+1492), willam (1156+1901).
+
 ## [1.7.0] - 2026-03-13 - Filter Redesign & Scene Restructure
 
 ### Added

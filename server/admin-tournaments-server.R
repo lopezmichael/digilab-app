@@ -1122,7 +1122,8 @@ observeEvent(input$edit_grid_save, {
         delete_count <- delete_count + 1L
       }
 
-      # 3. UPDATE or INSERT filled rows
+      # 3. Phase 1: Resolve all players and prepare row data
+      resolved_rows <- list()
       for (idx in seq_len(nrow(filled_rows))) {
         row <- filled_rows[idx, ]
         name <- trimws(row$player_name)
@@ -1204,7 +1205,37 @@ observeEvent(input$edit_grid_save, {
           }
         }
 
-        if (!is.na(row$result_id)) {
+        resolved_rows[[idx]] <- list(
+          player_id = player_id, player_name = name,
+          archetype_id = archetype_id, pending_deck_request_id = pending_deck_request_id,
+          placement = row$placement, wins = wins, losses = losses, ties = ties, pts = pts,
+          result_id = row$result_id
+        )
+      }
+
+      # Phase 2: Check for duplicate player_ids before inserting/updating results
+      resolved_player_ids <- vapply(resolved_rows, function(r) r$player_id, integer(1))
+      dup_ids <- unique(resolved_player_ids[duplicated(resolved_player_ids)])
+      if (length(dup_ids) > 0) {
+        dup_names <- vapply(dup_ids, function(pid) {
+          matches <- which(resolved_player_ids == pid)
+          paste(vapply(matches, function(j) resolved_rows[[j]]$player_name, character(1)), collapse = ", ")
+        }, character(1))
+        DBI::dbExecute(conn, "ROLLBACK")
+        notify(
+          paste0("Duplicate players detected \u2014 the following rows resolve to the same player: ",
+                 paste(dup_names, collapse = "; "),
+                 ". Please fix before saving."),
+          type = "error", duration = 10
+        )
+        return()
+      }
+
+      # Phase 3: UPDATE or INSERT filled rows
+      for (idx in seq_len(length(resolved_rows))) {
+        r <- resolved_rows[[idx]]
+
+        if (!is.na(r$result_id)) {
           # UPDATE existing result
           DBI::dbExecute(conn, "
             UPDATE results
@@ -1212,8 +1243,8 @@ observeEvent(input$edit_grid_save, {
                 placement = $4, wins = $5, losses = $6, ties = $7, points = $8,
                 updated_at = CURRENT_TIMESTAMP
             WHERE result_id = $9
-          ", params = list(player_id, archetype_id, pending_deck_request_id,
-                           row$placement, wins, losses, ties, pts, row$result_id))
+          ", params = list(r$player_id, r$archetype_id, r$pending_deck_request_id,
+                           r$placement, r$wins, r$losses, r$ties, r$pts, r$result_id))
           update_count <- update_count + 1L
         } else {
           # INSERT new result
@@ -1221,8 +1252,8 @@ observeEvent(input$edit_grid_save, {
             INSERT INTO results (tournament_id, player_id, archetype_id,
                                  pending_deck_request_id, placement, wins, losses, ties, points)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-          ", params = list(tournament_id, player_id, archetype_id,
-                           pending_deck_request_id, row$placement, wins, losses, ties, pts))
+          ", params = list(tournament_id, r$player_id, r$archetype_id,
+                           r$pending_deck_request_id, r$placement, r$wins, r$losses, r$ties, r$pts))
           insert_count <- insert_count + 1L
         }
       }
