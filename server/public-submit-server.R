@@ -1490,7 +1490,7 @@ observeEvent(input$submit_tournament, {
       # Determine identity status for member number
       has_real_id <- !is.na(member_number) && nchar(member_number) > 0 &&
                      !grepl("^GUEST", member_number, ignore.case = TRUE)
-      clean_member <- if (has_real_id) member_number else NULL
+      clean_member <- if (has_real_id) member_number else NA_character_
 
       if (!is.na(row$matched_player_id) && row$match_status == "matched") {
         player_id <- row$matched_player_id

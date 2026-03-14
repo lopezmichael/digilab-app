@@ -1157,7 +1157,7 @@ observeEvent(input$edit_grid_save, {
             } else {
               has_real_id <- nchar(member_num) > 0 && !grepl("^GUEST", member_num, ignore.case = TRUE)
               identity_status <- if (has_real_id) "verified" else "unverified"
-              clean_member <- if (has_real_id) member_num else NULL
+              clean_member <- if (has_real_id) member_num else NA_character_
               new_player <- DBI::dbGetQuery(conn,
                 "INSERT INTO players (display_name, member_number, identity_status, home_scene_id) VALUES ($1, $2, $3, $4) RETURNING player_id",
                 params = list(name, clean_member, identity_status, scene_id))
