@@ -180,7 +180,7 @@ deck_color_badge_dual <- function(primary, secondary = NULL) {
 # For single-color: deck name inside colored badge (e.g., Red "Shinegreymon")
 # For dual-color: split color initials + deck name (e.g., [R|U] Imperialdramon)
 deck_name_badge <- function(name, primary, secondary = NULL) {
-  if (is.null(name) || is.na(name) || name == "" || name == "-") return("-")
+  if (is.null(name) || is.na(name) || name == "" || name == "-") return(htmltools::span("-"))
 
   has_secondary <- !is.null(secondary) && !is.na(secondary) && secondary != ""
 
