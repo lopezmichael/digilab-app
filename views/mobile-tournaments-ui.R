@@ -47,22 +47,24 @@ tagList(
                   width = "100%",
                   selectize = FALSE)
     ),
-    div(class = "advanced-filter-group mobile-filter-full",
-      tags$label("Event Type", class = "advanced-filter-label"),
-      selectInput("tournaments_event_type", NULL,
-                  choices = list(
-                    "All Events" = "",
-                    "Event Types" = EVENT_TYPES
-                  ),
-                  selected = "",
-                  width = "100%",
-                  selectize = FALSE)
-    ),
-    div(class = "advanced-filter-group mobile-filter-full",
-      tags$label("Size", class = "advanced-filter-label"),
-      selectInput("tournaments_size_filter", NULL,
-        choices = list("Any" = "0", "8+" = "8", "16+" = "16", "32+" = "32", "64+" = "64", "128+" = "128"),
-        width = "100%", selectize = FALSE)
+    div(class = "mobile-filter-pair",
+      div(class = "advanced-filter-group",
+        tags$label("Event Type", class = "advanced-filter-label"),
+        selectInput("tournaments_event_type", NULL,
+                    choices = list(
+                      "All Events" = "",
+                      "Event Types" = EVENT_TYPES
+                    ),
+                    selected = "",
+                    width = "100%",
+                    selectize = FALSE)
+      ),
+      div(class = "advanced-filter-group",
+        tags$label("Size", class = "advanced-filter-label"),
+        selectInput("tournaments_size_filter", NULL,
+          choices = list("Any" = "0", "8+" = "8", "16+" = "16", "32+" = "32", "64+" = "64", "128+" = "128"),
+          width = "100%", selectize = FALSE)
+      )
     ),
     div(class = "advanced-filter-group mobile-filter-full",
       tags$label("Store", class = "advanced-filter-label"),
@@ -70,11 +72,15 @@ tagList(
         choices = list("All" = ""),
         width = "100%")
     ),
-    div(class = "advanced-filter-group mobile-filter-full date-range-group",
-      tags$label("From", class = "advanced-filter-label"),
-      dateInput("tournaments_date_from", NULL, value = NA, width = "100%"),
-      span(class = "advanced-filter-label", "\u2013"),
-      dateInput("tournaments_date_to", NULL, value = NA, width = "100%")
+    div(class = "mobile-filter-pair date-range-pair",
+      div(class = "advanced-filter-group",
+        tags$label("From", class = "advanced-filter-label"),
+        dateInput("tournaments_date_from", NULL, value = NA, width = "100%")
+      ),
+      div(class = "advanced-filter-group",
+        tags$label("To", class = "advanced-filter-label"),
+        dateInput("tournaments_date_to", NULL, value = NA, width = "100%")
+      )
     )
   ),
 

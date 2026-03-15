@@ -47,20 +47,22 @@ tagList(
                   width = "100%",
                   selectize = FALSE)
     ),
-    div(class = "advanced-filter-group mobile-filter-full",
-      tags$label("Status", class = "advanced-filter-label"),
-      div(
-        class = "pill-toggle",
-        `data-input-id` = "meta_min_entries",
-        tags$button("Unranked", class = "pill-option active", `data-value` = "0"),
-        tags$button("Ranked", class = "pill-option", `data-value` = "10")
+    div(class = "mobile-filter-pair",
+      div(class = "advanced-filter-group",
+        tags$label("Status", class = "advanced-filter-label"),
+        div(
+          class = "pill-toggle",
+          `data-input-id` = "meta_min_entries",
+          tags$button("Unranked", class = "pill-option active", `data-value` = "0"),
+          tags$button("Ranked", class = "pill-option", `data-value` = "10")
+        )
+      ),
+      div(class = "advanced-filter-group",
+        tags$label("Conv %", class = "advanced-filter-label"),
+        selectInput("meta_conversion_filter", NULL,
+          choices = list("Any" = "0", "5%+" = "5", "10%+" = "10", "20%+" = "20", "30%+" = "30"),
+          width = "100%", selectize = FALSE)
       )
-    ),
-    div(class = "advanced-filter-group mobile-filter-full",
-      tags$label("Conv %", class = "advanced-filter-label"),
-      selectInput("meta_conversion_filter", NULL,
-        choices = list("Any" = "0", "5%+" = "5", "10%+" = "10", "20%+" = "20", "30%+" = "30"),
-        width = "100%", selectize = FALSE)
     ),
     div(class = "advanced-filter-group mobile-filter-full",
       tags$label("Color", class = "advanced-filter-label"),
@@ -81,13 +83,16 @@ tagList(
           tags$span(class = "color-dot"), "White")
       )
     ),
-    div(class = "advanced-filter-group",
-      tags$label("Top 3 only", class = "advanced-filter-label"),
-      checkboxInput("meta_top3_toggle", NULL, value = FALSE)
-    ),
-    div(class = "advanced-filter-group",
-      tags$label("Has decklist", class = "advanced-filter-label"),
-      checkboxInput("meta_decklist_toggle", NULL, value = FALSE)
+    div(class = "mobile-filter-checkbox-row",
+      span(class = "mobile-filter-note", "These filters also apply to deck detail cards"),
+      div(class = "advanced-filter-group",
+        tags$label("Top 3 only", class = "advanced-filter-label"),
+        checkboxInput("meta_top3_toggle", NULL, value = FALSE)
+      ),
+      div(class = "advanced-filter-group",
+        tags$label("Has decklist", class = "advanced-filter-label"),
+        checkboxInput("meta_decklist_toggle", NULL, value = FALSE)
+      )
     )
   ),
 

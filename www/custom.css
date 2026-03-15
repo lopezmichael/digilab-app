@@ -1293,7 +1293,7 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
   color: #FFFFFF;
 }
 
-/* Date range group — bundle From/To tightly */
+/* Date range group — bundle From/To tightly (desktop) */
 .date-range-group {
   gap: 0.3rem !important;
   flex-wrap: nowrap;
@@ -1363,9 +1363,73 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
     min-width: 0;
   }
 
-  /* Full-width items span both columns */
+  /* Full-width filter groups: stack label above input, centered */
   .mobile-filters-panel .mobile-filter-full {
     grid-column: 1 / -1;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mobile-filters-panel .mobile-filter-full > .advanced-filter-label {
+    text-align: center;
+    margin-bottom: 0.2rem;
+  }
+
+  .mobile-filters-panel .mobile-filter-full select,
+  .mobile-filters-panel .mobile-filter-full .shiny-input-container {
+    width: 100% !important;
+  }
+
+  /* Paired filter row: two filters side-by-side, each stacked vertically */
+  .mobile-filters-panel .mobile-filter-pair {
+    grid-column: 1 / -1;
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .mobile-filter-pair .advanced-filter-group {
+    flex: 1 1 50%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mobile-filter-pair .advanced-filter-group > .advanced-filter-label {
+    text-align: center;
+    margin-bottom: 0.2rem;
+  }
+
+  .mobile-filter-pair .advanced-filter-group select {
+    width: 100% !important;
+  }
+
+  /* Date range pair: centered labels */
+  .mobile-filter-pair.date-range-pair .advanced-filter-group {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mobile-filter-pair.date-range-pair .shiny-date-input input {
+    width: 100% !important;
+  }
+
+  /* Checkbox row: note on left, checkboxes on right */
+  .mobile-filter-checkbox-row {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .mobile-filter-note {
+    flex: 1;
+    font-size: 0.65rem;
+    opacity: 0.6;
+    line-height: 1.3;
+  }
+
+  .mobile-filter-checkbox-row .advanced-filter-group {
+    flex: 0 0 auto;
+    white-space: nowrap;
   }
 
   /* Color pills wrap naturally */
@@ -1383,6 +1447,42 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
 
   .mobile-filters-panel .mobile-filter-full .selectize-control {
     width: 100% !important;
+  }
+
+  /* Paired filters: undo display:contents so inputs fill their column */
+  .mobile-filter-pair .shiny-input-container {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  .mobile-filter-pair .selectize-control {
+    width: 100% !important;
+  }
+
+  /* Pill toggle fills its column in paired layout */
+  .mobile-filter-pair .pill-toggle {
+    width: 100%;
+    display: flex;
+  }
+
+  .mobile-filter-pair .pill-toggle .pill-option {
+    flex: 1;
+  }
+
+  /* Date inputs fill width */
+  .mobile-filter-pair .shiny-date-input {
+    width: 100%;
+  }
+
+  .mobile-filter-pair .shiny-date-input input {
+    width: 100% !important;
+  }
+
+  /* Checkbox row checkboxes: larger touch target */
+  .mobile-filter-checkbox-row input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: #00C8FF;
   }
 }
 

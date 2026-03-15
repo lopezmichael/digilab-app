@@ -47,20 +47,22 @@ tagList(
                   width = "100%",
                   selectize = FALSE)
     ),
-    div(class = "advanced-filter-group mobile-filter-full",
-      tags$label("Status", class = "advanced-filter-label"),
-      div(
-        class = "pill-toggle",
-        `data-input-id` = "players_min_events",
-        tags$button("Unranked", class = "pill-option active", `data-value` = "0"),
-        tags$button("Ranked", class = "pill-option", `data-value` = "10")
+    div(class = "mobile-filter-pair",
+      div(class = "advanced-filter-group",
+        tags$label("Status", class = "advanced-filter-label"),
+        div(
+          class = "pill-toggle",
+          `data-input-id` = "players_min_events",
+          tags$button("Unranked", class = "pill-option active", `data-value` = "0"),
+          tags$button("Ranked", class = "pill-option", `data-value` = "10")
+        )
+      ),
+      div(class = "advanced-filter-group",
+        tags$label("Win %", class = "advanced-filter-label"),
+        selectInput("players_win_pct_filter", NULL,
+          choices = list("Any" = "0", "50%+" = "50", "60%+" = "60", "70%+" = "70"),
+          width = "100%", selectize = FALSE)
       )
-    ),
-    div(class = "advanced-filter-group mobile-filter-full",
-      tags$label("Win %", class = "advanced-filter-label"),
-      selectInput("players_win_pct_filter", NULL,
-        choices = list("Any" = "0", "50%+" = "50", "60%+" = "60", "70%+" = "70"),
-        width = "100%", selectize = FALSE)
     ),
     div(class = "advanced-filter-group mobile-filter-full",
       tags$label("Store", class = "advanced-filter-label"),
@@ -68,13 +70,16 @@ tagList(
         choices = list("All" = ""),
         width = "100%")
     ),
-    div(class = "advanced-filter-group",
-      tags$label("Top 3 only", class = "advanced-filter-label"),
-      checkboxInput("players_top3_toggle", NULL, value = FALSE)
-    ),
-    div(class = "advanced-filter-group",
-      tags$label("Has decklist", class = "advanced-filter-label"),
-      checkboxInput("players_decklist_toggle", NULL, value = FALSE)
+    div(class = "mobile-filter-checkbox-row",
+      span(class = "mobile-filter-note", "These filters also apply to player detail cards"),
+      div(class = "advanced-filter-group",
+        tags$label("Top 3 only", class = "advanced-filter-label"),
+        checkboxInput("players_top3_toggle", NULL, value = FALSE)
+      ),
+      div(class = "advanced-filter-group",
+        tags$label("Has decklist", class = "advanced-filter-label"),
+        checkboxInput("players_decklist_toggle", NULL, value = FALSE)
+      )
     )
   ),
 
