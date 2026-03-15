@@ -1,5 +1,5 @@
 ---
-currentVersion: "1.7.3"
+currentVersion: "1.7.4"
 lastUpdated: "2026-03-15"
 
 inProgress: []
@@ -122,6 +122,14 @@ planned:
     targetVersion: "Future"
 
 completed:
+  # v1.7.4 — Admin Permission Tier Scoping
+  - id: admin-permission-tiers
+    title: "Admin Permission Tier Scoping"
+    description: "Regional admins can access Manage Admins (scene_admins only in their region). Suggested merges, merge modal, and scene requests scoped by tier. Server-side privilege escalation prevention. Fixed regional admin notification counts."
+    tags: [admin, security]
+    date: "2026-03"
+    version: "v1.7.4"
+
   # v1.7.3 — Discord Restructure & Admin UI Design Pass
   - id: discord-restructure
     title: "Discord Restructure & App-Side Changes"

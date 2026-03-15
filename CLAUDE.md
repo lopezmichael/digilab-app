@@ -95,9 +95,9 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.7.3 - Discord Restructure & Admin UI Design Pass
+### Latest Release: v1.7.4 - Admin Permission Tier Scoping
 
-Discord restructure (Phases 1–5): DB migration, webhook refactor to per-action threads, thread ID capture, resolution sync, regional admin role, scene-centric tree view, scene naming standardization. Admin UI design pass: sectioned form layouts, info-hint-box helper text, global pagination styling, table consistency. See `CHANGELOG.md` for full details.
+Regional admins can now access Manage Admins to create/edit/deactivate scene admins in their region. Suggested merges, merge modal, and scene requests scoped by admin tier. Server-side privilege escalation prevention. Fixed regional admin notification counts. See `CHANGELOG.md` for full details.
 
 See `ROADMAP.md` for the full version plan.
 
@@ -105,6 +105,7 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v1.7.4 | Admin Permission Tier Scoping |
 | v1.7.3 | Discord Restructure & Admin UI Design Pass |
 | v1.7.2 | Dual-Color Badges, Rating Snapshots & Bug Fixes |
 | v1.7.0 | Filter Redesign & Scene Restructure |
@@ -114,7 +115,6 @@ See `ROADMAP.md` for the full version plan.
 | v1.4.0 | Admin Infrastructure & Request Queue |
 | v1.3.2 | Sentry Error Fixes |
 | v1.3.1 | Fixes & Upload Improvements |
-| v1.3.0 | Mobile Views & PWA Fixes |
 
 ### Key Architectural Decisions
 
@@ -381,6 +381,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.7.3** - Discord Restructure & Admin UI Design Pass
+**v1.7.4** - Admin Permission Tier Scoping
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

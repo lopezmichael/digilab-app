@@ -38,7 +38,10 @@ server/
 ├── admin-decks-server.R       # Deck archetype CRUD
 ├── admin-stores-server.R      # Store management
 ├── admin-players-server.R     # Player management
-└── admin-formats-server.R     # Format management
+├── admin-formats-server.R     # Format management
+├── admin-users-server.R       # Admin account management (super + regional)
+├── admin-notifications-server.R # Notification bar + request queue
+└── admin-scenes-server.R      # Scene management
 ```
 
 ### Naming Convention
@@ -171,6 +174,7 @@ All reactive values are initialized in `app.R`. **Never create new reactive valu
 | `db_con` | connection | DuckDB database connection |
 | `is_admin` | logical | Whether user is authenticated as admin or superadmin |
 | `is_superadmin` | logical | Whether user is authenticated as superadmin (Edit Stores, Edit Formats) |
+| `can_manage_admins` | logical (output) | Whether user can access Manage Admins tab (superadmin or regional_admin) |
 
 ### Navigation & Scene
 
@@ -846,8 +850,11 @@ showModal(modalDialog(title = "Title", ..., footer = modalButton("Close")))
 # Check admin (Enter Results, Edit Tournaments, Edit Players, Edit Decks)
 req(rv$is_admin)
 
-# Check superadmin (Edit Stores, Edit Formats)
+# Check superadmin (Edit Stores, Edit Formats, Edit Scenes)
 req(rv$is_superadmin)
+
+# Check superadmin or regional admin (Manage Admins)
+req(isTRUE(rv$is_superadmin) || isTRUE(rv$admin_user$role == "regional_admin"))
 
 # Check DB connection
 req(rv$db_con)

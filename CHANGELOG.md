@@ -5,6 +5,24 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.4] - 2026-03-15 - Admin Permission Tier Scoping
+
+### Added
+- **Regional admin Manage Admins access**: Regional admins can now access the Manage Admins tab to create, edit, and deactivate scene admins within their region. Role dropdown locked to `scene_admin`; scene dropdown filtered to their region's scenes. Server-side validation prevents privilege escalation.
+- **Scoped suggested merges**: Suggested merge candidates now filtered by region for regional admins (matches players with home scene or tournament participation in their region). Scene admins no longer see merge suggestions.
+- **Scoped merge modal**: Merge Players modal now filters player choices to the admin's accessible scenes (super admins still see all).
+- **Scene requests for regional admins**: Scene request notifications and cards now visible to regional admins. Notification click navigates to Manage Admins page (not Manage Scenes, which is superadmin-only).
+- **Admin scope helpers**: `get_admin_accessible_scene_ids()` and `get_admin_regions()` in shared-server.R for consistent permission scoping across all admin modules.
+- **`can_manage_admins` output**: New conditional output for sidebar visibility (superadmin + regional admin).
+
+### Fixed
+- **Regional admin notification counts broken**: Store requests, data errors, and missing schedule counts were always 0 for regional admins because `scene_id` was NULL (regional admins use `admin_regions`, not a single scene). Now queries by accessible scene IDs.
+- **Orphaned scene_admin editable by any regional admin**: Scene admins with no scene assignment in `admin_user_scenes` could be edited/deactivated by any regional admin. Now denied when no scene assignments exist.
+
+### Changed
+- **Sidebar restructured**: "Manage Admins" link moved out of Super Admin section into its own `can_manage_admins` conditional block. Super Admin section retains Edit Decks, Edit Formats, and Manage Scenes.
+- **Tree view for regional admins**: Hides Super Admins section and other regional admin rows. Filters scene list to their region only. "No Admin Assigned" section shows only their region's uncovered scenes.
+
 ## [1.7.3] - 2026-03-15 - Discord Restructure & Admin UI Design Pass
 
 ### Added
