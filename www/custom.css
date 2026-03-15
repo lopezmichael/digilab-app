@@ -6170,7 +6170,7 @@ a:hover, .nav-link:hover {
   background: rgba(255, 255, 255, 0.06);
 }
 
-.skeleton-line {
+.skeleton-cards-container .skeleton-line {
   height: 14px;
   border-radius: 4px;
   background: linear-gradient(90deg, rgba(0, 0, 0, 0.06) 25%, rgba(0, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0.06) 75%);
@@ -6178,15 +6178,15 @@ a:hover, .nav-link:hover {
   animation: skeleton-shimmer 1.5s ease-in-out infinite;
 }
 
-[data-bs-theme="dark"] .skeleton-line {
+[data-bs-theme="dark"] .skeleton-cards-container .skeleton-line {
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.06) 25%, rgba(255, 255, 255, 0.12) 50%, rgba(255, 255, 255, 0.06) 75%);
   background-size: 200% 100%;
   animation: skeleton-shimmer 1.5s ease-in-out infinite;
 }
 
-.skeleton-line-title { width: 60%; height: 18px; }
-.skeleton-line-short { width: 35%; }
-.skeleton-line-medium { width: 80%; }
+.skeleton-cards-container .skeleton-line-title { width: 60%; height: 18px; }
+.skeleton-cards-container .skeleton-line-short { width: 35%; }
+.skeleton-cards-container .skeleton-line-medium { width: 80%; }
 
 /* Required field indicator */
 .required-indicator {
