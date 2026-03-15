@@ -65,10 +65,14 @@ submit_ui <- tagList(
               "Tournament Information"
             ),
             card_body(
-              # Tournament Details Section
-              div(
-                class = "mb-4 submit-form-inputs",
-                tags$label(class = "form-label fw-semibold text-muted small", "TOURNAMENT DETAILS"),
+              class = "admin-form-body",
+
+              # --- Tournament Details section ---
+              div(class = "admin-form-section submit-form-inputs",
+                div(class = "admin-form-section-label",
+                  bsicons::bs_icon("calendar-event"),
+                  "Tournament Details"
+                ),
                 layout_columns(
                   col_widths = breakpoints(sm = c(12, 12, 12), md = c(4, 4, 4)),
                   selectInput("submit_scene", "Scene",
@@ -99,12 +103,12 @@ submit_ui <- tagList(
                 uiOutput("submit_duplicate_warning")
               ),
 
-              # Divider
-              tags$hr(class = "my-3"),
-
-              # Upload Section (Screenshots or CSV)
-              div(
-                tags$label(class = "form-label fw-semibold text-muted small", "UPLOAD STANDINGS"),
+              # --- Upload section ---
+              div(class = "admin-form-section",
+                div(class = "admin-form-section-label",
+                  bsicons::bs_icon("cloud-upload"),
+                  "Upload Standings"
+                ),
                 div(
                   class = "d-flex align-items-start gap-3",
                   # Upload area - compact
@@ -133,7 +137,7 @@ submit_ui <- tagList(
 
               # Process button - right aligned
               div(
-                class = "d-flex justify-content-end mt-3 pt-2",
+                class = "admin-form-actions justify-content-end",
                 actionButton("submit_process_ocr", "Process Results",
                              class = "btn-primary",
                              icon = icon("arrow-right"))
@@ -259,10 +263,14 @@ submit_ui <- tagList(
             "Submit Match History"
           ),
           card_body(
-            # Tournament Selection Section
-            div(
-              class = "mb-4",
-              tags$label(class = "form-label fw-semibold text-muted small", "SELECT TOURNAMENT"),
+            class = "admin-form-body",
+
+            # --- Tournament Selection section ---
+            div(class = "admin-form-section",
+              div(class = "admin-form-section-label",
+                bsicons::bs_icon("trophy"),
+                "Select Tournament"
+              ),
               layout_columns(
                 col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
                 selectInput("match_store", "Store",
@@ -275,13 +283,12 @@ submit_ui <- tagList(
               uiOutput("match_tournament_info")
             ),
 
-            # Divider
-            tags$hr(class = "my-3"),
-
-            # Player Info Section
-            div(
-              class = "mb-4",
-              tags$label(class = "form-label fw-semibold text-muted small", "YOUR PLAYER INFO"),
+            # --- Player Info section ---
+            div(class = "admin-form-section",
+              div(class = "admin-form-section-label",
+                bsicons::bs_icon("person-fill"),
+                "Your Player Info"
+              ),
               layout_columns(
                 col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
                 div(
@@ -297,12 +304,12 @@ submit_ui <- tagList(
               )
             ),
 
-            # Divider
-            tags$hr(class = "my-3"),
-
-            # Screenshot Section
-            div(
-              tags$label(class = "form-label fw-semibold text-muted small", "MATCH HISTORY SCREENSHOT"),
+            # --- Screenshot section ---
+            div(class = "admin-form-section",
+              div(class = "admin-form-section-label",
+                bsicons::bs_icon("camera"),
+                "Match History Screenshot"
+              ),
               div(
                 class = "d-flex align-items-start gap-3",
                 # Upload area - compact
@@ -327,7 +334,7 @@ submit_ui <- tagList(
 
             # Process button - right aligned
             div(
-              class = "d-flex justify-content-end mt-3 pt-2",
+              class = "admin-form-actions justify-content-end",
               actionButton("match_process_ocr", "Process Screenshot",
                            class = "btn-primary",
                            icon = icon("magic"))

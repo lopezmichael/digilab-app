@@ -39,51 +39,65 @@ admin_results_ui <- tagList(
     card(
         card_header("Tournament Details"),
         card_body(
-          class = "tournament-details-form",
-          # Row 1: Scene + Store + Date
-          div(
-            class = "row g-3 mb-3",
-            div(class = "col-12 col-md-4",
-                selectInput("tournament_scene", "Scene", choices = c("Loading..." = ""))),
-            div(class = "col-12 col-md-4",
-                selectInput("tournament_store", "Store", choices = c("Select scene first..." = ""))),
-            div(class = "col-12 col-md-4",
-                div(
-                  class = "date-required",
-                  dateInput("tournament_date", "Date *", value = character(0)),
-                  div(id = "date_required_hint", class = "date-required-hint", "Required")
-                ))
+          class = "admin-form-body tournament-details-form",
+
+          # --- Event section ---
+          div(class = "admin-form-section",
+            div(class = "admin-form-section-label",
+              bsicons::bs_icon("calendar-event"),
+              "Event"
+            ),
+            div(
+              class = "row g-3 mb-3",
+              div(class = "col-12 col-md-4",
+                  selectInput("tournament_scene", "Scene", choices = c("Loading..." = ""))),
+              div(class = "col-12 col-md-4",
+                  selectInput("tournament_store", "Store", choices = c("Select scene first..." = ""))),
+              div(class = "col-12 col-md-4",
+                  div(
+                    class = "date-required",
+                    dateInput("tournament_date", "Date *", value = character(0)),
+                    div(id = "date_required_hint", class = "date-required-hint", "Required")
+                  ))
+            ),
+            div(
+              class = "row g-3 mb-3",
+              div(class = "col-12 col-md-6",
+                  selectInput("tournament_type", "Event Type",
+                              choices = c("Select event type..." = "", EVENT_TYPES))),
+              div(class = "col-12 col-md-6",
+                  selectInput("tournament_format", "Format/Set", choices = list("Loading..." = "")))
+            )
           ),
-          # Row 2: Event Type + Format
-          div(
-            class = "row g-3 mb-3",
-            div(class = "col-12 col-md-6",
-                selectInput("tournament_type", "Event Type",
-                            choices = c("Select event type..." = "", EVENT_TYPES))),
-            div(class = "col-12 col-md-6",
-                selectInput("tournament_format", "Format/Set", choices = list("Loading..." = "")))
+
+          # --- Size section ---
+          div(class = "admin-form-section",
+            div(class = "admin-form-section-label",
+              bsicons::bs_icon("people-fill"),
+              "Size & Format"
+            ),
+            div(
+              class = "row g-3 mb-3",
+              div(class = "col-12 col-md-6",
+                  numericInput("tournament_players", "Number of Players", value = 8, min = 2)),
+              div(class = "col-12 col-md-6",
+                  numericInput("tournament_rounds", "Number of Rounds", value = 3, min = 1))
+            ),
+            div(
+              class = "row g-3",
+              div(class = "col-12 col-md-6",
+                  radioButtons("admin_record_format", "Record Format",
+                               choices = c("Points" = "points", "W-L-T" = "wlt"),
+                               selected = "points", inline = TRUE),
+                  tags$small(class = "form-text text-muted",
+                      "Points: Total match points (e.g., from Bandai TCG+ standings). ",
+                      "W-L-T: Individual wins, losses, and ties."))
+            )
           ),
-          # Row 3: Players + Rounds
+
+          # --- Action ---
           div(
-            class = "row g-3 mb-3",
-            div(class = "col-12 col-md-6",
-                numericInput("tournament_players", "Number of Players", value = 8, min = 2)),
-            div(class = "col-12 col-md-6",
-                numericInput("tournament_rounds", "Number of Rounds", value = 3, min = 1))
-          ),
-          # Row 4: Record Format
-          div(
-            class = "row g-3 mb-3",
-            div(class = "col-12 col-md-6",
-                radioButtons("admin_record_format", "Record Format",
-                             choices = c("Points" = "points", "W-L-T" = "wlt"),
-                             selected = "points", inline = TRUE),
-                div(class = "text-muted small mt-1",
-                    "Points: Total match points (e.g., from Bandai TCG+ standings). ",
-                    "W-L-T: Individual wins, losses, and ties."))
-          ),
-          div(
-            class = "d-flex justify-content-end mt-3",
+            class = "admin-form-actions justify-content-end",
             actionButton("create_tournament", "Create Tournament", class = "btn-primary btn-lg",
                          icon = icon("arrow-right"))
           )

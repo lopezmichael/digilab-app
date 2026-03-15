@@ -34,54 +34,64 @@ admin_tournaments_ui <- tagList(
           )
         ),
         card_body(
+          class = "admin-form-body",
           # Hidden field for edit mode
           textInput("editing_tournament_id", NULL, value = ""),
           tags$script("document.getElementById('editing_tournament_id').parentElement.style.display = 'none';"),
 
           p(class = "text-muted small", "Select a tournament from the list to edit or delete."),
 
-          # Store dropdown
-          selectInput("edit_tournament_store", "Store", choices = NULL),
-
-          # Date
-          dateInput("edit_tournament_date", "Date", value = Sys.Date()),
-
-          # Event Type + Format
-          layout_columns(
-            col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
-            selectInput("edit_tournament_type", "Event Type",
-                        choices = c("Select event type..." = "", EVENT_TYPES)),
-            selectInput("edit_tournament_format", "Format/Set", choices = list("Loading..." = ""))
-          ),
-
-          # Players + Rounds
-          layout_columns(
-            col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
-            numericInput("edit_tournament_players", "Number of Players", value = 8, min = 2),
-            numericInput("edit_tournament_rounds", "Number of Rounds", value = 3, min = 1)
-          ),
-
-          hr(),
-
-          # Tournament stats (read-only info)
-          uiOutput("tournament_stats_info"),
-
-          # View/Edit Results button (only shown when tournament selected)
-          shinyjs::hidden(
-            div(
-              id = "view_results_btn_container",
-              class = "mt-3",
-              actionButton("view_edit_results", "View/Edit Results",
-                           class = "btn-primary w-100",
-                           icon = icon("list-check"))
+          # --- Event Details section ---
+          div(class = "admin-form-section",
+            div(class = "admin-form-section-label",
+              bsicons::bs_icon("calendar-event"),
+              "Event Details"
+            ),
+            selectInput("edit_tournament_store", "Store", choices = NULL),
+            dateInput("edit_tournament_date", "Date", value = Sys.Date()),
+            layout_columns(
+              col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
+              selectInput("edit_tournament_type", "Event Type",
+                          choices = c("Select event type..." = "", EVENT_TYPES)),
+              selectInput("edit_tournament_format", "Format/Set", choices = list("Loading..." = ""))
             )
           ),
 
-          hr(),
+          # --- Size section ---
+          div(class = "admin-form-section",
+            div(class = "admin-form-section-label",
+              bsicons::bs_icon("people-fill"),
+              "Size"
+            ),
+            layout_columns(
+              col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
+              numericInput("edit_tournament_players", "Number of Players", value = 8, min = 2),
+              numericInput("edit_tournament_rounds", "Number of Rounds", value = 3, min = 1)
+            )
+          ),
 
-          # Action buttons
+          # --- Stats section ---
+          div(class = "admin-form-section",
+            div(class = "admin-form-section-label",
+              bsicons::bs_icon("bar-chart-fill"),
+              "Stats"
+            ),
+            uiOutput("tournament_stats_info"),
+            # View/Edit Results button (only shown when tournament selected)
+            shinyjs::hidden(
+              div(
+                id = "view_results_btn_container",
+                class = "mt-3",
+                actionButton("view_edit_results", "View/Edit Results",
+                             class = "btn-primary w-100",
+                             icon = icon("list-check"))
+              )
+            )
+          ),
+
+          # --- Action buttons ---
           div(
-            class = "d-flex gap-2",
+            class = "admin-form-actions",
             shinyjs::hidden(
               actionButton("update_tournament", "Update Tournament", class = "btn-success")
             ),

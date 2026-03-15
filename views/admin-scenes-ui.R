@@ -28,32 +28,51 @@ admin_scenes_ui <- tagList(
           )
         ),
         card_body(
-          textInput("scene_display_name", "Display Name",
-                    placeholder = "e.g., Cincinnati Area"),
-          tags$small(class = "form-text text-muted d-block mt-n2 mb-2",
-                     "Metro/city name. Country is derived automatically from coordinates."),
-          textInput("scene_slug", "URL Slug",
-                    placeholder = "e.g., houston"),
-          tags$small(class = "form-text text-muted d-block mt-n2 mb-2",
-                     "Lowercase, no spaces. Used in URLs like ?scene=houston"),
-          selectInput("scene_type", "Type",
-                      choices = c("Metro Area" = "metro",
-                                  "Online" = "online"),
-                      selected = "metro",
-                      selectize = FALSE),
-          conditionalPanel(
-            condition = "input.scene_type == 'metro'",
-            textInput("scene_location", "Location",
-                      placeholder = "e.g., Houston, TX"),
-            div(
-              class = "text-muted small mb-2",
-              bsicons::bs_icon("geo-alt"),
-              " Map coordinates will be set automatically from the location"
+          class = "admin-form-body",
+
+          # --- Scene Info section ---
+          div(class = "admin-form-section",
+            div(class = "admin-form-section-label",
+              bsicons::bs_icon("geo-alt-fill"),
+              "Scene Info"
+            ),
+            textInput("scene_display_name", "Display Name",
+                      placeholder = "e.g., Cincinnati Area"),
+            tags$small(class = "form-text text-muted d-block mt-n2 mb-2",
+                       "Metro/city name. Country is derived automatically from coordinates."),
+            textInput("scene_slug", "URL Slug",
+                      placeholder = "e.g., houston"),
+            tags$small(class = "form-text text-muted d-block mt-n2 mb-2",
+                       "Lowercase, no spaces. Used in URLs like ?scene=houston"),
+            selectInput("scene_type", "Type",
+                        choices = c("Metro Area" = "metro",
+                                    "Online" = "online"),
+                        selected = "metro",
+                        selectize = FALSE),
+            conditionalPanel(
+              condition = "input.scene_type == 'metro'",
+              textInput("scene_location", "Location",
+                        placeholder = "e.g., Houston, TX"),
+              div(
+                class = "text-muted small mb-2",
+                bsicons::bs_icon("geo-alt"),
+                " Map coordinates will be set automatically from the location"
+              )
             )
           ),
-          checkboxInput("scene_is_active", "Active", value = TRUE),
+
+          # --- Status section ---
+          div(class = "admin-form-section",
+            div(class = "admin-form-section-label",
+              bsicons::bs_icon("toggle-on"),
+              "Status"
+            ),
+            checkboxInput("scene_is_active", "Active", value = TRUE)
+          ),
+
+          # --- Action buttons ---
           div(
-            class = "d-flex gap-2 mt-3",
+            class = "admin-form-actions",
             actionButton("save_scene_btn", "Save", class = "btn-primary"),
             conditionalPanel(
               condition = "output.editing_scene == true",
@@ -110,17 +129,39 @@ admin_scenes_ui <- tagList(
       card(
         card_header("New Announcement"),
         card_body(
-          textInput("announcement_title", "Title", placeholder = "e.g., New scenes added!"),
-          textAreaInput("announcement_body", "Body", rows = 4,
-                        placeholder = "Announcement details..."),
-          selectInput("announcement_type", "Type",
-                      choices = c("Info" = "info", "Donation" = "donation",
-                                  "Update" = "update", "Event" = "event"),
-                      selectize = FALSE),
-          dateInput("announcement_expires_at", "Expires (optional)",
-                    value = NA),
-          checkboxInput("announcement_no_expiry", "No expiry", value = TRUE),
-          actionButton("create_announcement_btn", "Create", class = "btn-primary")
+          class = "admin-form-body",
+
+          # --- Content section ---
+          div(class = "admin-form-section",
+            div(class = "admin-form-section-label",
+              bsicons::bs_icon("megaphone-fill"),
+              "Content"
+            ),
+            textInput("announcement_title", "Title", placeholder = "e.g., New scenes added!"),
+            textAreaInput("announcement_body", "Body", rows = 4,
+                          placeholder = "Announcement details..."),
+            selectInput("announcement_type", "Type",
+                        choices = c("Info" = "info", "Donation" = "donation",
+                                    "Update" = "update", "Event" = "event"),
+                        selectize = FALSE)
+          ),
+
+          # --- Scheduling section ---
+          div(class = "admin-form-section",
+            div(class = "admin-form-section-label",
+              bsicons::bs_icon("calendar-event"),
+              "Scheduling"
+            ),
+            dateInput("announcement_expires_at", "Expires (optional)",
+                      value = NA),
+            checkboxInput("announcement_no_expiry", "No expiry", value = TRUE)
+          ),
+
+          # --- Action ---
+          div(
+            class = "admin-form-actions",
+            actionButton("create_announcement_btn", "Create", class = "btn-primary")
+          )
         )
       ),
 

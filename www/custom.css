@@ -2661,6 +2661,48 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
   border-color: rgba(15, 76, 129, 0.25);
 }
 
+/* Admin panel reactable table enhancements */
+.admin-panel .rt-th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(0, 0, 0, 0.5);
+  border-bottom: 2px solid rgba(15, 76, 129, 0.15) !important;
+  padding: 8px 6px !important;
+}
+
+[data-bs-theme="dark"] .admin-panel .rt-th {
+  color: rgba(255, 255, 255, 0.45);
+  border-bottom-color: rgba(0, 200, 255, 0.12) !important;
+}
+
+.admin-panel .rt-th .rt-sort-header:hover {
+  color: rgba(0, 200, 255, 0.8);
+}
+
+.admin-panel .rt-td {
+  padding: 6px !important;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+}
+
+[data-bs-theme="dark"] .admin-panel .rt-td {
+  border-bottom-color: rgba(255, 255, 255, 0.04);
+}
+
+.admin-panel .rt-tr:hover .rt-td {
+  background: rgba(15, 76, 129, 0.04);
+}
+
+[data-bs-theme="dark"] .admin-panel .rt-tr:hover .rt-td {
+  background: rgba(0, 200, 255, 0.04);
+}
+
+/* Admin card header hint text */
+.admin-panel .card-header .small.text-muted {
+  font-size: 0.72rem;
+  letter-spacing: 0.3px;
+}
+
 /* =============================================================================
    TABLES
    ============================================================================= */
