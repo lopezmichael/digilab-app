@@ -902,6 +902,14 @@ ui <- page_fillable(
                      class = "nav-link-sidebar")
         ),
 
+        # Manage Admins (superadmin + regional admin)
+        conditionalPanel(
+          condition = "output.can_manage_admins",
+          actionLink("nav_admin_users",
+                     tagList(bsicons::bs_icon("person-gear"), " Manage Admins"),
+                     class = "nav-link-sidebar")
+        ),
+
         # Super Admin Section (superadmin only)
         conditionalPanel(
           condition = "output.is_superadmin",
@@ -911,9 +919,6 @@ ui <- page_fillable(
                      class = "nav-link-sidebar"),
           actionLink("nav_admin_formats",
                      tagList(bsicons::bs_icon("calendar3"), " Edit Formats"),
-                     class = "nav-link-sidebar"),
-          actionLink("nav_admin_users",
-                     tagList(bsicons::bs_icon("person-gear"), " Manage Admins"),
                      class = "nav-link-sidebar"),
           actionLink("nav_admin_scenes",
                      tagList(bsicons::bs_icon("globe2"), " Manage Scenes"),

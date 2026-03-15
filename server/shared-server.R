@@ -812,6 +812,11 @@ outputOptions(output, "is_admin", suspendWhenHidden = FALSE)
 output$is_superadmin <- reactive({ rv$is_superadmin })
 outputOptions(output, "is_superadmin", suspendWhenHidden = FALSE)
 
+output$can_manage_admins <- reactive({
+  isTRUE(rv$is_superadmin) || isTRUE(rv$admin_user$role == "regional_admin")
+})
+outputOptions(output, "can_manage_admins", suspendWhenHidden = FALSE)
+
 output$has_active_tournament <- reactive({ !is.null(rv$active_tournament_id) })
 outputOptions(output, "has_active_tournament", suspendWhenHidden = FALSE)
 
@@ -1280,8 +1285,66 @@ get_archetype_choices <- function(pool) {
   return(choices)
 }
 
-get_player_choices <- function(pool) {
-  players <- safe_query(pool, "SELECT player_id, display_name FROM players WHERE is_active = TRUE ORDER BY display_name", default = data.frame())
+# ---------------------------------------------------------------------------
+# Admin Scope Helpers: Scene access by permission tier
+# ---------------------------------------------------------------------------
+
+#' Get scene IDs an admin can manage based on their role
+#' @param pool Database connection pool
+#' @param admin_user The admin_user reactive list (must have $role, $user_id)
+#' @return Integer vector of scene_ids, or NULL for super_admin (meaning "all")
+get_admin_accessible_scene_ids <- function(pool, admin_user) {
+  if (is.null(admin_user) || is.null(admin_user$role)) return(integer(0))
+
+  if (admin_user$role == "super_admin") return(NULL)
+
+  if (admin_user$role == "regional_admin") {
+    scenes <- safe_query(pool, "
+      SELECT DISTINCT s.scene_id
+      FROM scenes s
+      JOIN admin_regions ar ON ar.country = s.country
+        AND (ar.state_region IS NULL OR ar.state_region = s.state_region)
+      WHERE ar.user_id = $1 AND s.is_active = TRUE
+    ", params = list(admin_user$user_id), default = data.frame())
+    return(if (nrow(scenes) > 0) scenes$scene_id else integer(0))
+  }
+
+  if (admin_user$role == "scene_admin") {
+    scenes <- safe_query(pool, "
+      SELECT scene_id FROM admin_user_scenes WHERE user_id = $1
+    ", params = list(admin_user$user_id), default = data.frame())
+    return(if (nrow(scenes) > 0) scenes$scene_id else integer(0))
+  }
+
+  integer(0)
+}
+
+#' Get admin's assigned regions
+#' @param pool Database connection pool
+#' @param user_id Admin user ID
+#' @return data.frame with country, state_region columns
+get_admin_regions <- function(pool, user_id) {
+  safe_query(pool, "
+    SELECT country, state_region FROM admin_regions WHERE user_id = $1
+  ", params = list(user_id), default = data.frame(country = character(), state_region = character()))
+}
+
+get_player_choices <- function(pool, scene_ids = NULL) {
+  if (is.null(scene_ids)) {
+    players <- safe_query(pool, "SELECT player_id, display_name FROM players WHERE is_active = TRUE ORDER BY display_name", default = data.frame())
+  } else {
+    players <- safe_query(pool, "
+      SELECT player_id, display_name FROM players p
+      WHERE is_active = TRUE
+        AND EXISTS (
+          SELECT 1 FROM results r
+          JOIN tournaments t ON r.tournament_id = t.tournament_id
+          JOIN stores s ON t.store_id = s.store_id
+          WHERE r.player_id = p.player_id AND s.scene_id = ANY($1::int[])
+        )
+      ORDER BY display_name
+    ", params = list(as.integer(scene_ids)), default = data.frame())
+  }
   choices <- setNames(players$player_id, players$display_name)
   return(choices)
 }

@@ -2,6 +2,7 @@
 # Admin - Manage admin accounts UI (super admin only)
 
 admin_users_ui <- tagList(
+  uiOutput("pending_scene_requests"),
   h2("Manage Admins"),
   div(class = "page-help-text",
     div(class = "info-hint-box",

@@ -10,7 +10,30 @@ output$suggested_merges_section <- renderUI({
   rv$refresh_players  # React to data changes
   req(rv$is_admin)
 
-  candidates <- safe_query(db_pool, "
+  # Scene admins shouldn't see merge suggestions (too complex for scene-level)
+  req(isTRUE(rv$is_superadmin) || isTRUE(rv$admin_user$role == "regional_admin"))
+
+  accessible <- get_admin_accessible_scene_ids(db_pool, rv$admin_user)
+
+  # Build scene filter clause for regional admins
+  scene_filter <- ""
+  query_params <- list()
+  if (!is.null(accessible)) {
+    scene_filter <- "
+      AND (
+        loc.home_scene_id = ANY($1::int[])
+        OR EXISTS (
+          SELECT 1 FROM results r3
+          JOIN tournaments t3 ON r3.tournament_id = t3.tournament_id
+          JOIN stores s3 ON t3.store_id = s3.store_id
+          WHERE r3.player_id = loc.player_id AND s3.scene_id = ANY($1::int[])
+        )
+      )
+    "
+    query_params <- list(as.integer(accessible))
+  }
+
+  candidates <- safe_query(db_pool, sprintf("
     SELECT l.player_id as limitless_pid, l.display_name as limitless_name, l.limitless_username,
            loc.player_id as local_pid, loc.display_name as local_name, loc.member_number,
            COALESCE(le.events, 0) as local_events, COALESCE(oe.events, 0) as online_events,
@@ -35,8 +58,9 @@ output$suggested_merges_section <- renderUI({
       AND (l.member_number IS NULL OR l.member_number = '')
       AND loc.member_number IS NOT NULL AND loc.member_number != ''
       AND l.is_active IS NOT FALSE AND loc.is_active IS NOT FALSE
+      %s
     ORDER BY le.events DESC NULLS LAST
-  ", default = data.frame())
+  ", scene_filter), params = if (length(query_params) > 0) query_params else NULL, default = data.frame())
 
   if (nrow(candidates) == 0) return(NULL)
 
@@ -503,8 +527,9 @@ observeEvent(input$confirm_delete_player, {
 
 # Show merge modal
 observeEvent(input$show_merge_modal, {
-  # Fetch player choices when modal opens
-  player_choices <- get_player_choices(db_pool)
+  # Fetch player choices scoped to admin's accessible scenes
+  accessible <- get_admin_accessible_scene_ids(db_pool, rv$admin_user)
+  player_choices <- get_player_choices(db_pool, scene_ids = accessible)
 
   showModal(modalDialog(
     title = tagList(bsicons::bs_icon("arrow-left-right"), " Merge Players"),

@@ -14,7 +14,7 @@ outputOptions(output, "editing_admin", suspendWhenHidden = FALSE)
 observe({
   rv$current_nav
   req(rv$current_nav == "admin_users")
-  req(db_pool, rv$is_superadmin)
+  req(db_pool, isTRUE(rv$is_superadmin) || isTRUE(rv$admin_user$role == "regional_admin"))
 
   # Check if UI has rendered yet (admin_role is a sibling input that's always visible)
   if (is.null(input$admin_role)) {
@@ -23,12 +23,21 @@ observe({
     return()
   }
 
+  is_regional <- isTRUE(rv$admin_user$role == "regional_admin")
+
   scenes <- safe_query(db_pool,
     "SELECT scene_id, display_name FROM scenes
      WHERE scene_type IN ('metro', 'online') AND is_active = TRUE
      ORDER BY display_name",
     default = data.frame())
   if (nrow(scenes) == 0) { invalidateLater(500); return() }
+
+  # Regional admins: filter to their accessible scenes only
+  if (is_regional) {
+    admin_scene_ids <- get_admin_accessible_scene_ids(db_pool, rv$admin_user)
+    scenes <- scenes[scenes$scene_id %in% admin_scene_ids, ]
+  }
+
   choices <- setNames(as.character(scenes$scene_id), scenes$display_name)
   # Preserve current selection when repopulating choices
   current_selection <- isolate(input$admin_scene)
@@ -39,23 +48,48 @@ observe({
 
 # --- Populate scene filter dropdown ---
 observe({
-  req(rv$current_nav == "admin_users", db_pool, rv$is_superadmin)
+  req(rv$current_nav == "admin_users", db_pool,
+      isTRUE(rv$is_superadmin) || isTRUE(rv$admin_user$role == "regional_admin"))
   # Wait for UI to render
   if (is.null(input$admin_users_scene_filter)) {
     invalidateLater(100)
     return()
   }
+
+  is_regional <- isTRUE(rv$admin_user$role == "regional_admin")
+
   scenes <- safe_query(db_pool,
     "SELECT scene_id, display_name FROM scenes WHERE is_active = TRUE ORDER BY display_name",
     default = data.frame())
   if (nrow(scenes) == 0) { invalidateLater(500); return() }
-  choices <- c("All Scenes" = "all",
-               "Super Admins" = "super",
-               "No Admin" = "uncovered",
-               setNames(as.character(scenes$scene_id), scenes$display_name))
+
+  # Regional admins: filter to their region's scenes, no Super/Uncovered filters
+  if (is_regional) {
+    admin_scene_ids <- get_admin_accessible_scene_ids(db_pool, rv$admin_user)
+    scenes <- scenes[scenes$scene_id %in% admin_scene_ids, ]
+    choices <- c("All Scenes" = "all",
+                 "No Admin" = "uncovered",
+                 setNames(as.character(scenes$scene_id), scenes$display_name))
+  } else {
+    choices <- c("All Scenes" = "all",
+                 "Super Admins" = "super",
+                 "No Admin" = "uncovered",
+                 setNames(as.character(scenes$scene_id), scenes$display_name))
+  }
+
   current <- isolate(input$admin_users_scene_filter)
   updateSelectInput(session, "admin_users_scene_filter",
                     choices = choices, selected = current %||% "all")
+})
+
+# --- Role dropdown restriction for regional admins ---
+observe({
+  req(rv$admin_user$role == "regional_admin")
+  req(rv$current_nav == "admin_users")
+  if (is.null(input$admin_role)) { invalidateLater(100); return() }
+  updateSelectInput(session, "admin_role",
+    choices = c("Scene Admin" = "scene_admin"),
+    selected = "scene_admin")
 })
 
 # --- Region selector UI for regional_admin role ---
@@ -160,7 +194,7 @@ get_selected_regions <- function(input, db_pool) {
 # --- Admin Users Data ---
 admin_users_data <- reactive({
   rv$refresh_users  # Trigger refresh
-  req(db_pool, rv$is_superadmin)
+  req(db_pool, isTRUE(rv$is_superadmin) || isTRUE(rv$admin_user$role == "regional_admin"))
   safe_query(db_pool,
     "SELECT u.user_id, u.username, u.discord_user_id, u.role,
             u.is_active, u.created_at, aus.scene_id, s.display_name as scene_name
@@ -177,6 +211,8 @@ output$admin_users_grouped <- renderUI({
   req(nrow(df) > 0)
 
   scene_filter <- input$admin_users_scene_filter %||% "all"
+  is_regional <- isTRUE(rv$admin_user$role == "regional_admin")
+  admin_scene_ids <- if (is_regional) get_admin_accessible_scene_ids(db_pool, rv$admin_user) else NULL
 
   # Get all active metro/online scenes with geographic info
   all_scenes <- safe_query(db_pool,
@@ -184,6 +220,11 @@ output$admin_users_grouped <- renderUI({
      WHERE is_active = TRUE AND scene_type IN ('metro', 'online')
      ORDER BY country, state_region, display_name",
     default = data.frame())
+
+  # Regional admins: filter scenes to their region only
+  if (is_regional && !is.null(admin_scene_ids)) {
+    all_scenes <- all_scenes[all_scenes$scene_id %in% admin_scene_ids, ]
+  }
 
   # Get all admin assignments
   # Direct scene_admin assignments
@@ -267,8 +308,8 @@ output$admin_users_grouped <- renderUI({
       }
     }
 
-    # Regional inheritance
-    if (nrow(regional_assignments) > 0) {
+    # Regional inheritance (hide other regional admins from regional admin view)
+    if (nrow(regional_assignments) > 0 && !is_regional) {
       scene_country <- all_scenes$country[i]
       scene_state <- all_scenes$state_region[i]
       for (j in seq_len(nrow(regional_assignments))) {
@@ -310,8 +351,8 @@ output$admin_users_grouped <- renderUI({
   # Split admins
   supers <- df[df$role == "super_admin", ]
 
-  # Apply scene filter
-  show_supers <- scene_filter %in% c("all", "super")
+  # Apply scene filter (regional admins never see super admins section)
+  show_supers <- !is_regional && scene_filter %in% c("all", "super")
   show_tree <- scene_filter %in% c("all") || (!scene_filter %in% c("super", "uncovered"))
   show_uncovered <- scene_filter %in% c("all", "uncovered")
 
@@ -360,8 +401,8 @@ output$admin_users_grouped <- renderUI({
 
       country_content <- tagList()
 
-      # Show country-level regional admins
-      if (nrow(cty_regional) > 0) {
+      # Show country-level regional admins (hide from regional admin view)
+      if (nrow(cty_regional) > 0 && !is_regional) {
         for (k in seq_len(nrow(cty_regional))) {
           country_content <- tagAppendChild(country_content,
             make_user_row(cty_regional$username[k], cty_regional$user_id[k],
@@ -388,7 +429,8 @@ output$admin_users_grouped <- renderUI({
 
           state_content <- tagList()
 
-          if (nrow(st_regional) > 0) {
+          # Show state-level regional admins (hide from regional admin view)
+          if (nrow(st_regional) > 0 && !is_regional) {
             for (k in seq_len(nrow(st_regional))) {
               state_content <- tagAppendChild(state_content,
                 make_user_row(st_regional$username[k], st_regional$user_id[k],
@@ -582,6 +624,23 @@ observeEvent(input$admin_user_clicked, {
   if (nrow(row) == 0) return()
   row <- row[1, ]
 
+  # Regional admin restrictions on who they can edit
+  if (isTRUE(rv$admin_user$role == "regional_admin")) {
+    if (row$role != "scene_admin") {
+      notify("You can only edit scene admins", type = "warning")
+      return()
+    }
+    # Check the target's scene is in their region
+    target_scenes <- safe_query(db_pool,
+      "SELECT scene_id FROM admin_user_scenes WHERE user_id = $1",
+      params = list(row$user_id), default = data.frame())
+    accessible <- get_admin_accessible_scene_ids(db_pool, rv$admin_user)
+    if (nrow(target_scenes) > 0 && !any(target_scenes$scene_id %in% accessible)) {
+      notify("This admin is outside your region", type = "warning")
+      return()
+    }
+  }
+
   editing_admin_id(row$user_id)
   updateTextInput(session, "admin_username", value = row$username)
   updateTextInput(session, "admin_discord_id", value = row$discord_user_id %||% "")
@@ -698,7 +757,35 @@ observeEvent(input$generate_password_btn, {
 
 # --- Save Admin (Create or Update) ---
 observeEvent(input$save_admin_btn, {
-  req(rv$is_superadmin)
+  req(isTRUE(rv$is_superadmin) || isTRUE(rv$admin_user$role == "regional_admin"))
+
+  # Server-side validation for regional admins
+  if (isTRUE(rv$admin_user$role == "regional_admin")) {
+    if (input$admin_role != "scene_admin") {
+      notify("You can only create scene admins", type = "error")
+      return()
+    }
+    accessible <- get_admin_accessible_scene_ids(db_pool, rv$admin_user)
+    selected_scene_val <- as.integer(input$admin_scene)
+    if (is.na(selected_scene_val) || !selected_scene_val %in% accessible) {
+      notify("This scene is not in your region", type = "error")
+      return()
+    }
+    # Cannot edit own account
+    if (!is.null(editing_admin_id()) && editing_admin_id() == rv$admin_user$user_id) {
+      notify("You cannot edit your own account here", type = "error")
+      return()
+    }
+    # If editing, target must be a scene_admin in their region
+    if (!is.null(editing_admin_id())) {
+      target <- safe_query(db_pool, "SELECT role FROM admin_users WHERE user_id = $1",
+                           params = list(editing_admin_id()), default = data.frame())
+      if (nrow(target) > 0 && target$role[1] != "scene_admin") {
+        notify("You can only edit scene admins", type = "error")
+        return()
+      }
+    }
+  }
 
   username <- trimws(input$admin_username)
   discord_user_id <- trimws(input$admin_discord_id)
@@ -970,7 +1057,8 @@ observeEvent(input$save_admin_btn, {
 
 # --- Toggle Active Status ---
 observeEvent(input$toggle_admin_active_btn, {
-  req(rv$is_superadmin, !is.null(editing_admin_id()))
+  req(isTRUE(rv$is_superadmin) || isTRUE(rv$admin_user$role == "regional_admin"),
+      !is.null(editing_admin_id()))
   uid <- editing_admin_id()
 
   # Prevent self-deactivation
@@ -981,10 +1069,26 @@ observeEvent(input$toggle_admin_active_btn, {
 
   # Get current status
   current <- safe_query(db_pool,
-    "SELECT is_active, username FROM admin_users WHERE user_id = $1",
+    "SELECT is_active, username, role FROM admin_users WHERE user_id = $1",
     params = list(uid),
     default = data.frame())
   if (nrow(current) == 0) return()
+
+  # Regional admins can only toggle scene_admins in their region
+  if (isTRUE(rv$admin_user$role == "regional_admin")) {
+    if (current$role[1] != "scene_admin") {
+      notify("You can only deactivate scene admins", type = "error")
+      return()
+    }
+    target_scenes <- safe_query(db_pool,
+      "SELECT scene_id FROM admin_user_scenes WHERE user_id = $1",
+      params = list(uid), default = data.frame())
+    accessible <- get_admin_accessible_scene_ids(db_pool, rv$admin_user)
+    if (nrow(target_scenes) > 0 && !any(target_scenes$scene_id %in% accessible)) {
+      notify("This admin is outside your region", type = "error")
+      return()
+    }
+  }
 
   new_status <- !current$is_active[1]
 

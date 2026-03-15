@@ -11,7 +11,9 @@ admin_refresh_timer <- reactiveTimer(300000)
 # Query: Get pending request counts from admin_requests table
 # ---------------------------------------------------------------------------
 
-get_pending_request_counts <- function(pool, scene_id, is_superadmin) {
+get_pending_request_counts <- function(pool, scene_id, is_superadmin, admin_user = NULL) {
+  is_regional <- isTRUE(admin_user$role == "regional_admin")
+
   if (is_superadmin) {
     counts <- safe_query(pool, "
       SELECT request_type, COUNT(*) as n
@@ -38,6 +40,15 @@ get_pending_request_counts <- function(pool, scene_id, is_superadmin) {
     type_counts[[counts$request_type[i]]] <- counts$n[i]
   }
 
+  # Regional admins: also count scene_requests (they have NULL scene_id, so missed above)
+  if (is_regional) {
+    scene_req_count <- safe_query(pool, "
+      SELECT COUNT(*) as n FROM admin_requests
+      WHERE status = 'pending' AND request_type = 'scene_request'
+    ", default = data.frame(n = 0))
+    type_counts$scene_request <- scene_req_count$n[1]
+  }
+
   # Deck requests use a separate table (deck_requests)
   if (is_superadmin) {
     deck_count <- safe_query(pool, "
@@ -48,7 +59,7 @@ get_pending_request_counts <- function(pool, scene_id, is_superadmin) {
     type_counts$deck_request <- 0
   }
 
-  # Suggested player merges (Limitless → Local)
+  # Suggested player merges (Limitless → Local) — for superadmin and regional admin
   if (is_superadmin) {
     merge_count <- safe_query(pool, "
       SELECT COUNT(*) as n
@@ -61,6 +72,32 @@ get_pending_request_counts <- function(pool, scene_id, is_superadmin) {
         AND l.is_active IS NOT FALSE AND loc.is_active IS NOT FALSE
     ", default = data.frame(n = 0))
     type_counts$suggested_merge <- merge_count$n[1]
+  } else if (is_regional) {
+    accessible <- get_admin_accessible_scene_ids(pool, admin_user)
+    if (length(accessible) > 0) {
+      merge_count <- safe_query(pool, "
+        SELECT COUNT(*) as n
+        FROM players l
+        JOIN players loc ON LOWER(l.display_name) = LOWER(loc.display_name)
+          AND l.player_id != loc.player_id
+        WHERE l.limitless_username IS NOT NULL AND l.limitless_username != ''
+          AND (l.member_number IS NULL OR l.member_number = '')
+          AND loc.member_number IS NOT NULL AND loc.member_number != ''
+          AND l.is_active IS NOT FALSE AND loc.is_active IS NOT FALSE
+          AND (
+            loc.home_scene_id = ANY($1::int[])
+            OR EXISTS (
+              SELECT 1 FROM results r3
+              JOIN tournaments t3 ON r3.tournament_id = t3.tournament_id
+              JOIN stores s3 ON t3.store_id = s3.store_id
+              WHERE r3.player_id = loc.player_id AND s3.scene_id = ANY($1::int[])
+            )
+          )
+      ", params = list(as.integer(accessible)), default = data.frame(n = 0))
+      type_counts$suggested_merge <- merge_count$n[1]
+    } else {
+      type_counts$suggested_merge <- 0
+    }
   } else {
     type_counts$suggested_merge <- 0
   }
@@ -207,7 +244,7 @@ output$admin_notification_bar <- renderUI({
     NULL
   }
 
-  counts <- get_pending_request_counts(db_pool, scene_id, rv$is_superadmin)
+  counts <- get_pending_request_counts(db_pool, scene_id, rv$is_superadmin, admin_user = rv$admin_user)
   # Exclude bug_report from total — bugs are Discord-only, not shown in-app
   total <- sum(unlist(counts)) - (counts$bug_report %||% 0)
 
@@ -223,7 +260,7 @@ output$admin_notification_bar <- renderUI({
     ))
   }
 
-  if (counts$scene_request > 0 && rv$is_superadmin) {
+  if (counts$scene_request > 0 && (rv$is_superadmin || isTRUE(rv$admin_user$role == "regional_admin"))) {
     items <- c(items, list(
       actionLink("notif_scenes", paste0(counts$scene_request, " scene ",
         if (counts$scene_request == 1) "request" else "requests"),
@@ -247,7 +284,7 @@ output$admin_notification_bar <- renderUI({
     ))
   }
 
-  if ((counts$suggested_merge %||% 0) > 0 && rv$is_superadmin) {
+  if ((counts$suggested_merge %||% 0) > 0 && (rv$is_superadmin || isTRUE(rv$admin_user$role == "regional_admin"))) {
     items <- c(items, list(
       actionLink("notif_merges", paste0(counts$suggested_merge, " merge ",
         if (counts$suggested_merge == 1) "suggestion" else "suggestions"),
@@ -307,7 +344,7 @@ output$pending_store_requests <- renderUI({
 })
 
 output$pending_scene_requests <- renderUI({
-  req(rv$is_superadmin)
+  req(isTRUE(rv$is_superadmin) || isTRUE(rv$admin_user$role == "regional_admin"))
   rv$requests_refresh
 
   reqs <- get_pending_requests(db_pool, "scene_request")
@@ -403,8 +440,14 @@ observeEvent(input$notif_stores, {
 })
 
 observeEvent(input$notif_scenes, {
-  nav_select("main_content", "admin_scenes")
-  session$sendCustomMessage("updateSidebarNav", "nav_admin_scenes")
+  if (rv$is_superadmin) {
+    nav_select("main_content", "admin_scenes")
+    session$sendCustomMessage("updateSidebarNav", "nav_admin_scenes")
+  } else {
+    # Regional admins don't have admin_scenes tab — show on admin_users
+    nav_select("main_content", "admin_users")
+    session$sendCustomMessage("updateSidebarNav", "nav_admin_users")
+  }
 })
 
 observeEvent(input$notif_data_errors, {
