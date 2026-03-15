@@ -36,7 +36,7 @@ admin_scenes_ui <- tagList(
               bsicons::bs_icon("geo-alt-fill"),
               "Scene Info"
             ),
-            textInput("scene_display_name", "Display Name",
+            textInput("scene_display_name", tags$span("Display Name", tags$span(class = "required-indicator", "*")),
                       placeholder = "e.g., Cincinnati Area"),
             tags$small(class = "form-text text-muted d-block mt-n2 mb-2",
                        "Metro/city name. Country is derived automatically from coordinates."),
@@ -44,7 +44,7 @@ admin_scenes_ui <- tagList(
                       placeholder = "e.g., houston"),
             tags$small(class = "form-text text-muted d-block mt-n2 mb-2",
                        "Lowercase, no spaces. Used in URLs like ?scene=houston"),
-            selectInput("scene_type", "Type",
+            selectInput("scene_type", tags$span("Type", tags$span(class = "required-indicator", "*")),
                         choices = c("Metro Area" = "metro",
                                     "Online" = "online"),
                         selected = "metro",

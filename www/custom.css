@@ -6103,6 +6103,91 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
     repeating-linear-gradient(90deg, rgba(0, 200, 255, 0.02) 0px, transparent 1px, transparent 25px);
 }
 
+/* =============================================================================
+   SKELETON LOADERS — Mobile card placeholders
+   ============================================================================= */
+
+.skeleton-cards-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+
+.skeleton-card {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+[data-bs-theme="dark"] .skeleton-card {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.skeleton-cards-container .skeleton-line {
+  height: 14px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.06) 25%, rgba(0, 0, 0, 0.1) 50%, rgba(0, 0, 0, 0.06) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+[data-bs-theme="dark"] .skeleton-cards-container .skeleton-line {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.06) 25%, rgba(255, 255, 255, 0.12) 50%, rgba(255, 255, 255, 0.06) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+.skeleton-cards-container .skeleton-line-title { width: 60%; height: 18px; }
+.skeleton-cards-container .skeleton-line-short { width: 35%; }
+.skeleton-cards-container .skeleton-line-medium { width: 80%; }
+
+/* Required field indicator */
+.required-indicator {
+  color: #dc2626;
+  margin-left: 2px;
+  font-weight: 600;
+}
+
+/* Map loading state */
+.map-loading-container {
+  position: relative;
+}
+
+.map-loading-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  z-index: 1;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+[data-bs-theme="dark"] .map-loading-placeholder {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.map-loading-placeholder .spinner-border {
+  width: 2rem;
+  height: 2rem;
+  color: #0F4C81;
+  opacity: 0.5;
+}
+
+[data-bs-theme="dark"] .map-loading-placeholder .spinner-border {
+  color: rgba(0, 200, 255, 0.6);
+}
+
 /* =========================================================================
    FORM VALIDATION
    ========================================================================= */

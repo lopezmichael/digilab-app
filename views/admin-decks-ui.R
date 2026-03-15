@@ -39,8 +39,8 @@ admin_decks_ui <- tagList(
 
           # --- Identity section ---
           admin_section("palette-fill", "Identity",
-            textInput("deck_name", "Archetype Name", placeholder = "e.g., Fenriloogamon"),
-            selectInput("deck_primary_color", "Primary Color",
+            textInput("deck_name", tags$span("Archetype Name", tags$span(class = "required-indicator", "*")), placeholder = "e.g., Fenriloogamon"),
+            selectInput("deck_primary_color", tags$span("Primary Color", tags$span(class = "required-indicator", "*")),
                         choices = c("Red", "Blue", "Yellow", "Green", "Purple", "Black", "White")),
             selectInput("deck_secondary_color", "Secondary Color",
                         choices = c("None" = "", "Red", "Blue", "Yellow", "Green", "Purple", "Black", "White")),

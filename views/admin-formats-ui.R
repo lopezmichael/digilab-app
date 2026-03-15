@@ -29,8 +29,8 @@ admin_formats_ui <- tagList(
 
           # --- Format Info section ---
           admin_section("collection-fill", "Format Info",
-            textInput("format_id", "Set Code", placeholder = "e.g., BT20, EX09"),
-            textInput("format_set_name", "Set Name", placeholder = "e.g., Xros Encounter"),
+            textInput("format_id", tags$span("Set Code", tags$span(class = "required-indicator", "*")), placeholder = "e.g., BT20, EX09"),
+            textInput("format_set_name", tags$span("Set Name", tags$span(class = "required-indicator", "*")), placeholder = "e.g., Xros Encounter"),
             dateInput("format_release_date", "Release Date", value = Sys.Date()),
             checkboxInput("format_is_active", "Active", value = TRUE),
             tags$small(class = "form-text text-muted d-block mt-n2 mb-2",

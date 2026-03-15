@@ -53,7 +53,7 @@ admin_stores_ui <- tagList(
             # Physical store fields (shown when checkbox unchecked)
             conditionalPanel(
               condition = "!input.store_is_online",
-              textInput("store_name", "Store Name"),
+              textInput("store_name", tags$span("Store Name", tags$span(class = "required-indicator", "*"))),
               selectInput("store_country_physical", "Country",
                 choices = COUNTRY_CHOICES,
                 selected = "USA"
@@ -61,15 +61,15 @@ admin_stores_ui <- tagList(
               textInput("store_address", "Street Address"),
               layout_columns(
                 col_widths = breakpoints(sm = c(12, 12, 12), md = c(5, 4, 3)),
-                textInput("store_city", "City"),
-                textInput("store_state", "State / Province"),
+                textInput("store_city", tags$span("City", tags$span(class = "required-indicator", "*"))),
+                textInput("store_state", tags$span("State / Province", tags$span(class = "required-indicator", "*"))),
                 textInput("store_zip", "Postal Code")
               )
             ),
             # Online store fields (shown when checkbox checked)
             conditionalPanel(
               condition = "input.store_is_online",
-              textInput("store_name_online", "Store/Organizer Name"),
+              textInput("store_name_online", tags$span("Store/Organizer Name", tags$span(class = "required-indicator", "*"))),
               selectInput("store_country", "Country",
                 choices = COUNTRY_CHOICES,
                 selected = "USA"
@@ -88,7 +88,7 @@ admin_stores_ui <- tagList(
 
           # --- Details section ---
           admin_section("link-45deg", "Details",
-            selectInput("store_scene", "Scene",
+            selectInput("store_scene", tags$span("Scene", tags$span(class = "required-indicator", "*")),
               choices = c("Select scene..." = ""),
               selectize = FALSE
             ),

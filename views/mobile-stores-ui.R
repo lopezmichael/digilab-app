@@ -26,8 +26,19 @@ tagList(
   # -- Compact map (200px) ----------------------------------------------------
   div(
     class = "mobile-map-compact",
-    mapgl::mapboxglOutput("mobile_stores_map", height = "200px")
+    div(
+      class = "map-loading-container",
+      div(class = "map-loading-placeholder",
+        div(class = "spinner-border", role = "status",
+          tags$span(class = "visually-hidden", "Loading map...")
+        )
+      ),
+      mapgl::mapboxglOutput("mobile_stores_map", height = "200px")
+    )
   ),
+
+  # Skeleton loading state (auto-hidden when cards render)
+  skeleton_cards(n = 3, id_prefix = "mobile_stores_cards"),
 
   # -- Store cards (rendered by server) ---------------------------------------
   uiOutput("mobile_stores_cards"),

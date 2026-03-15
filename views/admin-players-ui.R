@@ -47,7 +47,7 @@ admin_players_ui <- tagList(
 
           # --- Identity section ---
           admin_section("person-fill", "Identity",
-            textInput("player_display_name", "Display Name", placeholder = "Enter player name..."),
+            textInput("player_display_name", tags$span("Display Name", tags$span(class = "required-indicator", "*")), placeholder = "Enter player name..."),
             textInput("player_member_number", "Member Number", placeholder = "e.g. 0012345678")
           ),
 

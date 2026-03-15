@@ -50,13 +50,13 @@ admin_results_ui <- tagList(
             div(
               class = "row g-3 mb-3",
               div(class = "col-12 col-md-4",
-                  selectInput("tournament_scene", "Scene", choices = c("Loading..." = ""))),
+                  selectInput("tournament_scene", tags$span("Scene", tags$span(class = "required-indicator", "*")), choices = c("Loading..." = ""))),
               div(class = "col-12 col-md-4",
-                  selectInput("tournament_store", "Store", choices = c("Select scene first..." = ""))),
+                  selectInput("tournament_store", tags$span("Store", tags$span(class = "required-indicator", "*")), choices = c("Select scene first..." = ""))),
               div(class = "col-12 col-md-4",
                   div(
                     class = "date-required",
-                    dateInput("tournament_date", "Date *", value = character(0)),
+                    dateInput("tournament_date", tags$span("Date", tags$span(class = "required-indicator", "*")), value = character(0)),
                     div(id = "date_required_hint", class = "date-required-hint", "Required")
                   ))
             ),
@@ -66,7 +66,7 @@ admin_results_ui <- tagList(
                   selectInput("tournament_type", "Event Type",
                               choices = c("Select event type..." = "", EVENT_TYPES))),
               div(class = "col-12 col-md-6",
-                  selectInput("tournament_format", "Format/Set", choices = list("Loading..." = "")))
+                  selectInput("tournament_format", tags$span("Format/Set", tags$span(class = "required-indicator", "*")), choices = list("Loading..." = "")))
             )
           ),
 

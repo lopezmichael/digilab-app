@@ -90,6 +90,9 @@ tagList(
   # Historical rating indicator (shown when viewing past format)
   uiOutput("historical_rating_badge"),
 
+  # Skeleton loading state (auto-hidden when cards render)
+  skeleton_cards(n = 3, id_prefix = "mobile_players_cards"),
+
   # Card container rendered by server
   uiOutput("mobile_players_cards"),
 

@@ -42,13 +42,13 @@ admin_tournaments_ui <- tagList(
 
           # --- Event Details section ---
           admin_section("calendar-event", "Event Details",
-            selectInput("edit_tournament_store", "Store", choices = NULL),
-            dateInput("edit_tournament_date", "Date", value = Sys.Date()),
+            selectInput("edit_tournament_store", tags$span("Store", tags$span(class = "required-indicator", "*")), choices = NULL),
+            dateInput("edit_tournament_date", tags$span("Date", tags$span(class = "required-indicator", "*")), value = Sys.Date()),
             layout_columns(
               col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
               selectInput("edit_tournament_type", "Event Type",
                           choices = c("Select event type..." = "", EVENT_TYPES)),
-              selectInput("edit_tournament_format", "Format/Set", choices = list("Loading..." = ""))
+              selectInput("edit_tournament_format", tags$span("Format/Set", tags$span(class = "required-indicator", "*")), choices = list("Loading..." = ""))
             )
           ),
 
