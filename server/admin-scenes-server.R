@@ -34,7 +34,7 @@ outputOptions(output, "editing_scene", suspendWhenHidden = FALSE)
 
 # --- Scenes Table ---
 scenes_data <- reactive({
-  rv$data_refresh  # Trigger refresh
+  rv$refresh_scenes  # Trigger refresh
   req(db_pool, rv$is_superadmin)
   safe_query(db_pool,
     "SELECT s.scene_id, s.display_name, s.slug, s.scene_type, s.latitude, s.longitude,
@@ -392,7 +392,7 @@ execute_scene_save <- function() {
 
     if (nrow(insert_result) > 0) {
       notify(paste0("Scene '", form$display_name, "' created"), type = "message")
-      rv$data_refresh <- rv$data_refresh + 1
+      rv$refresh_scenes <- rv$refresh_scenes + 1
 
       # Clear form
       editing_scene_id(NULL)
@@ -431,7 +431,7 @@ execute_scene_save <- function() {
                     derive_continent(form$country), sid))
 
     notify(paste0("Scene '", form$display_name, "' updated"), type = "message")
-    rv$data_refresh <- rv$data_refresh + 1
+    rv$refresh_scenes <- rv$refresh_scenes + 1
   }
 }
 
@@ -470,7 +470,7 @@ observeEvent(input$delete_scene_btn, {
 
   scene_name <- input$scene_display_name
   notify(paste0("Scene '", scene_name, "' deleted"), type = "message")
-  rv$data_refresh <- rv$data_refresh + 1
+  rv$refresh_scenes <- rv$refresh_scenes + 1
 
   # Clear form
   editing_scene_id(NULL)
@@ -489,7 +489,7 @@ observeEvent(input$delete_scene_btn, {
 
 # --- Announcements Table ---
 announcements_data <- reactive({
-  rv$data_refresh
+  rv$refresh_scenes  # Announcements managed in scenes admin
   req(db_pool, rv$is_superadmin)
   safe_query(db_pool,
     "SELECT id, title, announcement_type, active,
@@ -572,7 +572,7 @@ observeEvent(input$create_announcement_btn, {
 
   if (nrow(result) > 0) {
     notify(paste0("Announcement '", title, "' created"), type = "message")
-    rv$data_refresh <- rv$data_refresh + 1
+    rv$refresh_scenes <- rv$refresh_scenes + 1
 
     # Clear form
     updateTextInput(session, "announcement_title", value = "")
@@ -637,6 +637,6 @@ observeEvent(input$confirm_toggle_announcement, {
     notify(paste0("'", row$title, "' activated"), type = "message")
   }
 
-  rv$data_refresh <- rv$data_refresh + 1
+  rv$refresh_scenes <- rv$refresh_scenes + 1
   updateReactable("admin_announcements_table", selected = NA)
 })

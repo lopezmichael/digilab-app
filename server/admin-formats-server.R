@@ -117,7 +117,7 @@ observeEvent(input$add_format, {
 
     # Refresh format choices and public tables
     rv$format_refresh <- (rv$format_refresh %||% 0) + 1
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_formats <- rv$refresh_formats + 1
 
   }, error = function(e) {
     if (grepl("unique|duplicate|primary key", e$message, ignore.case = TRUE)) {
@@ -187,7 +187,7 @@ observeEvent(input$update_format, {
 
     # Refresh format choices and public tables
     rv$format_refresh <- (rv$format_refresh %||% 0) + 1
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_formats <- rv$refresh_formats + 1
 
   }, error = function(e) {
     notify(paste("Error:", e$message), type = "error")
@@ -275,7 +275,7 @@ observeEvent(input$confirm_delete_format, {
 
     # Refresh format choices and public tables
     rv$format_refresh <- (rv$format_refresh %||% 0) + 1
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_formats <- rv$refresh_formats + 1
 
   }, error = function(e) {
     notify(paste("Error:", e$message), type = "error")

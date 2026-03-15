@@ -159,7 +159,7 @@ get_selected_regions <- function(input, db_pool) {
 
 # --- Admin Users Data ---
 admin_users_data <- reactive({
-  rv$data_refresh  # Trigger refresh
+  rv$refresh_users  # Trigger refresh
   req(db_pool, rv$is_superadmin)
   safe_query(db_pool,
     "SELECT u.user_id, u.username, u.discord_user_id, u.role,
@@ -840,7 +840,7 @@ observeEvent(input$save_admin_btn, {
         notify(paste0("Admin '", username, "' created"), type = "message")
       }
 
-      rv$data_refresh <- rv$data_refresh + 1
+      rv$refresh_users <- rv$refresh_users + 1
 
       # Clear form
       editing_admin_id(NULL)
@@ -958,7 +958,7 @@ observeEvent(input$save_admin_btn, {
     }
 
     notify(paste0("Admin '", username, "' updated"), type = "message")
-    rv$data_refresh <- rv$data_refresh + 1
+    rv$refresh_users <- rv$refresh_users + 1
 
     # If editing self, update reactive state
     if (uid == rv$admin_user$user_id) {
@@ -994,7 +994,7 @@ observeEvent(input$toggle_admin_active_btn, {
 
   action <- if (new_status) "reactivated" else "deactivated"
   notify(paste0("Admin '", current$username[1], "' ", action), type = "message")
-  rv$data_refresh <- rv$data_refresh + 1
+  rv$refresh_users <- rv$refresh_users + 1
 
   # Clear selection
   editing_admin_id(NULL)

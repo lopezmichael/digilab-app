@@ -7,7 +7,7 @@
 # =============================================================================
 
 output$suggested_merges_section <- renderUI({
-  rv$data_refresh  # React to data changes
+  rv$refresh_players  # React to data changes
   req(rv$is_admin)
 
   candidates <- safe_query(db_pool, "
@@ -139,7 +139,7 @@ observeEvent(input$suggested_merge_action, {
       ", params = list(current_admin_username(rv), source_id))
 
       notify("Players merged successfully!", type = "message")
-      rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+      rv$refresh_players <- rv$refresh_players + 1
 
     }, error = function(e) {
       notify(paste("Merge failed:", e$message), type = "error")
@@ -383,13 +383,14 @@ observeEvent(input$update_player, {
   if (nchar(new_member) == 0) new_member <- NA_character_
 
   tryCatch({
+    updated_slug <- generate_unique_slug(db_pool, new_name, exclude_player_id = player_id)
     safe_execute(db_pool, "
       UPDATE players
       SET display_name = $1, member_number = $2, is_anonymized = $3,
-          updated_at = CURRENT_TIMESTAMP, updated_by = $4
-      WHERE player_id = $5
+          slug = $4, updated_at = CURRENT_TIMESTAMP, updated_by = $5
+      WHERE player_id = $6
     ", params = list(new_name, new_member, isTRUE(input$player_is_anonymized),
-                     current_admin_username(rv), player_id))
+                     updated_slug, current_admin_username(rv), player_id))
 
     notify(sprintf("Updated player: %s", new_name), type = "message")
 
@@ -403,7 +404,7 @@ observeEvent(input$update_player, {
     shinyjs::hide("delete_player")
 
     # Trigger refresh of public tables
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_players <- rv$refresh_players + 1
 
   }, error = function(e) {
     notify(paste("Error:", e$message), type = "error")
@@ -487,7 +488,7 @@ observeEvent(input$confirm_delete_player, {
     shinyjs::hide("delete_player")
 
     # Trigger refresh of public tables
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_players <- rv$refresh_players + 1
 
   }, error = function(e) {
     notify(paste("Error:", e$message), type = "error")
@@ -672,7 +673,7 @@ observeEvent(input$confirm_merge_players, {
     updateSelectizeInput(session, "merge_target_player", selected = "")
 
     # Trigger refresh of public tables
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_players <- rv$refresh_players + 1
 
   }, error = function(e) {
     notify(paste("Error:", e$message), type = "error")

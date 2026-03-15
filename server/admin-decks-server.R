@@ -232,7 +232,7 @@ observeEvent(input$add_archetype, {
     output$card_search_results <- renderUI({ NULL })
 
     # Trigger refresh of public tables
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_decks <- rv$refresh_decks + 1
 
   }, error = function(e) {
     notify(paste("Error:", e$message), type = "error")
@@ -272,7 +272,7 @@ output$archetype_list <- renderReactable({
   # Also refresh when deck requests are approved
   input$deck_request_approve_click
   input$confirm_edit_approve_deck
-  rv$data_refresh
+  rv$refresh_decks
 
   # Sort by Card ID with NULLs first (decks needing review), then alphabetically
   data <- safe_query(db_pool, "
@@ -421,7 +421,7 @@ observeEvent(input$update_archetype, {
     shinyjs::hide("delete_archetype")
 
     # Trigger refresh of public tables
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_decks <- rv$refresh_decks + 1
 
   }, error = function(e) {
     notify(paste("Error:", e$message), type = "error")
@@ -525,7 +525,7 @@ observeEvent(input$confirm_delete_archetype, {
     shinyjs::hide("delete_archetype")
 
     # Trigger refresh of public tables
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_decks <- rv$refresh_decks + 1
 
   }, error = function(e) {
     notify(paste("Error:", e$message), type = "error")
@@ -1019,7 +1019,7 @@ create_deck_from_request <- function(req_id, deck_name, primary_color, secondary
 
     # Refresh
     rv$deck_requests_refresh <- Sys.time()
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_decks <- rv$refresh_decks + 1
 
   }, error = function(e) {
     notify(paste("Error approving deck:", e$message), type = "error")
@@ -1064,7 +1064,7 @@ reject_deck_request <- function(req_id, replacement_archetype_id, session, rv) {
     }
     notify(msg, type = "message")
     rv$deck_requests_refresh <- Sys.time()
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_decks <- rv$refresh_decks + 1
 
   }, error = function(e) {
     notify(paste("Error rejecting request:", e$message), type = "error")
@@ -1215,7 +1215,7 @@ observeEvent(input$confirm_merge_decks, {
     notify(msg, type = "message", duration = 5)
 
     # Refresh data
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_decks <- rv$refresh_decks + 1
 
   }, error = function(e) {
     notify(paste("Error merging decks:", e$message), type = "error")

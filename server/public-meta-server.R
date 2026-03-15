@@ -33,7 +33,7 @@ meta_search_debounced <- reactive(input$meta_search) |> debounce(300)
 # ---------------------------------------------------------------------------
 meta_archetype_data <- reactive({
   req("meta" %in% visited_tabs())  # Lazy load: skip until tab visited
-  rv$data_refresh  # Trigger refresh on admin changes
+  rv$refresh_decks; rv$refresh_tournaments  # Trigger refresh on admin changes
 
   filters <- build_mv_filters(
     format = input$meta_format,
@@ -128,7 +128,7 @@ meta_archetype_data <- reactive({
   rv$current_scene,
   rv$current_continent,
   rv$community_filter,
-  rv$data_refresh
+  rv$refresh_decks, rv$refresh_tournaments
 )
 
 # ---------------------------------------------------------------------------

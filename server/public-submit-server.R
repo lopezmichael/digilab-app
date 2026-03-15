@@ -1514,11 +1514,12 @@ observeEvent(input$submit_tournament, {
           }
         } else {
           identity_status <- if (has_real_id) "verified" else "unverified"
+          player_slug <- generate_unique_slug(db_pool, username)
           new_player <- DBI::dbGetQuery(conn, "
-            INSERT INTO players (display_name, member_number, identity_status, home_scene_id)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id)
+            VALUES ($1, $2, $3, $4, $5)
             RETURNING player_id
-          ", params = list(username, clean_member, identity_status, scene_id))
+          ", params = list(username, player_slug, clean_member, identity_status, scene_id))
           player_id <- new_player$player_id[1]
         }
       }
@@ -1570,7 +1571,8 @@ observeEvent(input$submit_tournament, {
     DBI::dbExecute(conn, "COMMIT")
 
     # Trigger refresh
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_tournaments <- rv$refresh_tournaments + 1
+    rv$refresh_players <- rv$refresh_players + 1
     rv$results_refresh <- (rv$results_refresh %||% 0) + 1
 
     notify(
@@ -2111,11 +2113,12 @@ observeEvent(input$match_submit, {
       }
     } else {
       identity_status <- if (submitter_has_real_id) "verified" else "unverified"
+      player_slug <- generate_unique_slug(db_pool, submitter_username)
       new_player <- DBI::dbGetQuery(conn, "
-        INSERT INTO players (display_name, member_number, identity_status, home_scene_id)
-        VALUES ($1, $2, $3, $4)
+        INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING player_id
-      ", params = list(submitter_username, clean_submitter_member, identity_status, match_scene_id))
+      ", params = list(submitter_username, player_slug, clean_submitter_member, identity_status, match_scene_id))
       player_id <- new_player$player_id[1]
     }
 
@@ -2170,11 +2173,12 @@ observeEvent(input$match_submit, {
         }
       } else {
         opp_identity <- if (opp_has_real_id) "verified" else "unverified"
+        opp_slug <- generate_unique_slug(db_pool, opponent_username)
         new_opponent <- DBI::dbGetQuery(conn, "
-          INSERT INTO players (display_name, member_number, identity_status, home_scene_id)
-          VALUES ($1, $2, $3, $4)
+          INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id)
+          VALUES ($1, $2, $3, $4, $5)
           RETURNING player_id
-        ", params = list(opponent_username, clean_opp_member, opp_identity, match_scene_id))
+        ", params = list(opponent_username, opp_slug, clean_opp_member, opp_identity, match_scene_id))
         opponent_id <- new_opponent$player_id[1]
       }
 

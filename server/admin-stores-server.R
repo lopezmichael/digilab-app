@@ -131,7 +131,8 @@ reverse_geocode_with_mapbox <- function(lat, lng) {
 observe({
   rv$current_nav
   req(rv$current_nav == "admin_stores")
-  rv$data_refresh
+  rv$refresh_stores
+  rv$refresh_scenes
   req(db_pool, rv$is_admin)
 
   # Check if UI has rendered yet
@@ -193,7 +194,7 @@ observe({
 
 # --- Populate scene dropdown for Enter Results (default to current scene) ---
 observe({
-  rv$data_refresh
+  rv$refresh_scenes
   req(db_pool, rv$is_admin)
 
   scenes <- safe_query(db_pool, "
@@ -428,7 +429,7 @@ observeEvent(input$add_store, {
     updateSelectInput(session, "store_scene", selected = "")
 
     # Trigger refresh of public tables (also updates tournament_store dropdown via observer)
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_stores <- rv$refresh_stores + 1
 
   }, error = function(e) {
     notify(paste("Error:", e$message), type = "error")
@@ -439,10 +440,10 @@ observeEvent(input$add_store, {
 output$admin_store_list <- renderReactable({
 
 
-  # Trigger refresh via rv$data_refresh (set after add/update/delete complete)
+  # Trigger refresh via rv$refresh_stores (set after add/update/delete complete)
   # Do NOT use input$add_store etc. directly — they fire simultaneously with
   # the handler, racing on the same connection
-  rv$data_refresh
+  rv$refresh_stores
   rv$schedules_refresh
   input$admin_stores_scene_filter
   input$admin_stores_incomplete_only
@@ -778,7 +779,7 @@ observeEvent(input$update_store, {
     shinyjs::hide("delete_store")
 
     # Trigger refresh of public tables (also updates tournament_store dropdown via observer)
-    rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+    rv$refresh_stores <- rv$refresh_stores + 1
 
   }, error = function(e) {
     notify(paste("Error:", e$message), type = "error")
@@ -893,7 +894,7 @@ observeEvent(input$confirm_delete_store, {
   shinyjs::hide("delete_store")
 
   # Trigger refresh of public tables (also updates tournament_store dropdown via observer)
-  rv$data_refresh <- (rv$data_refresh %||% 0) + 1
+  rv$refresh_stores <- rv$refresh_stores + 1
 })
 
 # =============================================================================

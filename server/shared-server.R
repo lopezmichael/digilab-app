@@ -13,6 +13,54 @@ current_admin_username <- function(rv) {
 }
 
 # ---------------------------------------------------------------------------
+# Shared Helper: Slug Generation
+# ---------------------------------------------------------------------------
+
+#' Generate URL-friendly slug from text
+#' @param text String to slugify
+#' @return Lowercase string with special chars replaced by hyphens, or NA
+generate_slug <- function(text) {
+  if (is.null(text) || !nzchar(trimws(text))) return(NA_character_)
+  text |> trimws() |> tolower() |>
+    gsub("[^a-z0-9]+", "-", x = _) |>
+    gsub("^-|-$", "", x = _)
+}
+
+#' Generate unique player slug, appending suffix if needed
+#' @param db_pool Database connection pool
+#' @param text Display name to slugify
+#' @param exclude_player_id Player ID to exclude from uniqueness check (for updates)
+#' @return Unique slug string, or NA if text is empty
+generate_unique_slug <- function(db_pool, text, exclude_player_id = NULL) {
+  base_slug <- generate_slug(text)
+  if (is.na(base_slug)) return(NA_character_)
+
+  # Check for existing slug
+  if (!is.null(exclude_player_id)) {
+    existing <- safe_query(db_pool,
+      "SELECT COUNT(*) as n FROM players WHERE slug = $1 AND is_active = TRUE AND player_id != $2",
+      params = list(base_slug, exclude_player_id), default = data.frame(n = 0))
+  } else {
+    existing <- safe_query(db_pool,
+      "SELECT COUNT(*) as n FROM players WHERE slug = $1 AND is_active = TRUE",
+      params = list(base_slug), default = data.frame(n = 0))
+  }
+
+  if (existing$n[1] == 0) return(base_slug)
+
+  # Append suffix for uniqueness
+  for (i in 2:100) {
+    candidate <- paste0(base_slug, "-", i)
+    check <- safe_query(db_pool,
+      "SELECT COUNT(*) as n FROM players WHERE slug = $1 AND is_active = TRUE",
+      params = list(candidate), default = data.frame(n = 0))
+    if (check$n[1] == 0) return(candidate)
+  }
+
+  return(paste0(base_slug, "-", as.integer(Sys.time())))
+}
+
+# ---------------------------------------------------------------------------
 # Shared Helper: Fuzzy Match Check (pg_trgm)
 # ---------------------------------------------------------------------------
 
@@ -1079,7 +1127,7 @@ observeEvent(input$bootstrap_btn, {
 observe({
   rv$current_nav
   req(rv$current_nav == "admin_results")
-  rv$data_refresh
+  rv$refresh_stores
   req(rv$is_admin)
 
   # Check if UI has rendered yet (tournament_date is a sibling input that's always visible)
@@ -1294,7 +1342,7 @@ get_latest_format_id <- reactive({
     "SELECT format_id FROM formats WHERE is_active = TRUE ORDER BY release_date DESC NULLS LAST LIMIT 1",
     default = data.frame(format_id = character()))
   if (nrow(result) > 0) result$format_id[1] else NULL
-}) |> bindCache(rv$data_refresh)
+}) |> bindCache(rv$refresh_formats)
 
 # =============================================================================
 # Community Filter Banner
@@ -1614,7 +1662,12 @@ mv_views_exist <- function(pool) {
 
 # Auto-refresh materialized views when data changes
 observe({
-  rv$data_refresh
-  req(rv$data_refresh > 0)  # Skip initial value
+  rv$refresh_tournaments
+  rv$refresh_players
+  rv$refresh_stores
+  rv$refresh_decks
+  rv$refresh_formats
+  rv$refresh_scenes
+  req(rv$refresh_tournaments > 0 || rv$refresh_players > 0 || rv$refresh_stores > 0 || rv$refresh_decks > 0)  # Skip initial value
   refresh_materialized_views(db_pool)
 })

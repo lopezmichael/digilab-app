@@ -30,7 +30,7 @@ observeEvent(input$reset_tournaments_filters, {
 # Update store filter choices when scene changes or tab is first visited
 observe({
   req("tournaments" %in% visited_tabs())
-  rv$data_refresh
+  rv$refresh_tournaments
   scene_filters <- build_filters_param(
     table_alias = "s",
     scene = rv$current_scene,
@@ -65,7 +65,7 @@ tournaments_search_debounced <- reactive(input$tournaments_search) |> debounce(3
 # ---------------------------------------------------------------------------
 tournaments_data <- reactive({
   req("tournaments" %in% visited_tabs())  # Lazy load: skip until tab visited
-  rv$data_refresh  # Trigger refresh on admin changes
+  rv$refresh_tournaments  # Trigger refresh on admin changes
 
   filters <- build_mv_filters(
     format = input$tournaments_format,
@@ -137,7 +137,7 @@ tournaments_data <- reactive({
   rv$current_scene,
   rv$current_continent,
   rv$community_filter,
-  rv$data_refresh
+  rv$refresh_tournaments
 )
 
 # ---------------------------------------------------------------------------
