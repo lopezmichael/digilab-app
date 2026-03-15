@@ -705,7 +705,7 @@ observeEvent(input$update_store, {
   # Scene required for all stores
   if (is.null(input$store_scene) || input$store_scene == "") {
     show_field_error(session, "store_scene")
-    notify("Please select a scene", type = "error")
+    notify("Please select a scene", type = "warning")
     return()
   }
 
