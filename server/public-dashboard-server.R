@@ -20,6 +20,13 @@ output$dashboard_page <- renderUI({
 })
 
 # ---------------------------------------------------------------------------
+# Shared chart theme mode reactive
+# ---------------------------------------------------------------------------
+chart_mode <- reactive({
+  if (!is.null(input$dark_mode) && input$dark_mode == "dark") "dark" else "light"
+})
+
+# ---------------------------------------------------------------------------
 # Dashboard Data
 # ---------------------------------------------------------------------------
 
@@ -533,7 +540,7 @@ output$recent_tournaments <- renderReactable({
 
 output$meta_share_timeline <- renderHighchart({
 
-  chart_mode <- if (!is.null(input$dark_mode) && input$dark_mode == "dark") "dark" else "light"
+  chart_mode <- chart_mode()
   filters <- build_mv_filters(
     format = input$dashboard_format,
     event_type = input$dashboard_event_type,
@@ -789,7 +796,7 @@ output$conversion_threshold_note <- renderUI({
 
 # Top 3 Conversion Rate Chart - reads from deck_analytics batch
 output$conversion_rate_chart <- renderHighchart({
-  chart_mode <- if (!is.null(input$dark_mode) && input$dark_mode == "dark") "dark" else "light"
+  chart_mode <- chart_mode()
   show_all_scenes <- is.null(rv$current_scene) || rv$current_scene == "all"
 
   # Set minimum entries threshold based on scene selection
@@ -848,7 +855,7 @@ output$conversion_rate_chart <- renderHighchart({
 
 # Color Distribution Bar Chart - reads from deck_analytics batch
 output$color_dist_chart <- renderHighchart({
-  chart_mode <- if (!is.null(input$dark_mode) && input$dark_mode == "dark") "dark" else "light"
+  chart_mode <- chart_mode()
 
   data <- deck_analytics()
   if (is.null(data) || nrow(data) == 0) {
@@ -891,7 +898,7 @@ output$color_dist_chart <- renderHighchart({
 # Tournament Activity Chart (community section - scene-only filtering)
 output$tournaments_trend_chart <- renderHighchart({
 
-  chart_mode <- if (!is.null(input$dark_mode) && input$dark_mode == "dark") "dark" else "light"
+  chart_mode <- chart_mode()
 
   # Build community filter conditions (scene-only)
   filters <- build_community_filters("t", "s")
@@ -1001,7 +1008,7 @@ output$meta_diversity_decks_count <- renderUI({
 
 output$meta_diversity_gauge <- renderHighchart({
   data <- meta_diversity_data()
-  chart_mode <- if (!is.null(input$dark_mode) && input$dark_mode == "dark") "dark" else "light"
+  chart_mode <- chart_mode()
 
   if (is.null(data) || data$decks_with_wins == 0) {
     return(
@@ -1133,7 +1140,7 @@ output$meta_diversity_gauge <- renderHighchart({
 # Player Growth & Retention Chart (community section - scene-only filtering)
 output$player_growth_chart <- renderHighchart({
 
-  chart_mode <- if (!is.null(input$dark_mode) && input$dark_mode == "dark") "dark" else "light"
+  chart_mode <- chart_mode()
   filters <- build_community_filters("t", "s")
 
   # Get player participation by week with their first ever tournament (parameterized)

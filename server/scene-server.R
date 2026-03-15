@@ -358,6 +358,16 @@ observeEvent(input$continent_selector, {
   ))
 
   # Reset pill toggles and advanced filters
+  reset_all_advanced_filters()
+}, ignoreInit = TRUE)
+
+# -----------------------------------------------------------------------------
+# Shared Filter Reset Helper
+# -----------------------------------------------------------------------------
+
+#' Reset all advanced filters across tabs to their default values.
+#' Called when continent or scene changes to ensure clean state.
+reset_all_advanced_filters <- function() {
   session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = "0"))
   session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = "0"))
   updateSelectInput(session, "players_store_filter", selected = "")
@@ -371,7 +381,7 @@ observeEvent(input$continent_selector, {
   updateCheckboxInput(session, "meta_decklist_toggle", value = FALSE)
   updateDateInput(session, "tournaments_date_from", value = NA)
   updateDateInput(session, "tournaments_date_to", value = NA)
-}, ignoreInit = TRUE)
+}
 
 # -----------------------------------------------------------------------------
 # Scene Selector Dropdown
@@ -411,19 +421,7 @@ observeEvent(input$scene_selector, {
   rv$data_refresh <- Sys.time()
 
   # Reset pill toggles and advanced filters on scene change
-  session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = "0"))
-  session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = "0"))
-  updateSelectInput(session, "players_store_filter", selected = "")
-  updateSelectInput(session, "tournaments_store_filter", selected = "")
-  updateSelectInput(session, "players_win_pct_filter", selected = "0")
-  updateSelectInput(session, "meta_conversion_filter", selected = "0")
-  updateSelectInput(session, "tournaments_size_filter", selected = "0")
-  updateCheckboxInput(session, "players_top3_toggle", value = FALSE)
-  updateCheckboxInput(session, "players_decklist_toggle", value = FALSE)
-  updateCheckboxInput(session, "meta_top3_toggle", value = FALSE)
-  updateCheckboxInput(session, "meta_decklist_toggle", value = FALSE)
-  updateDateInput(session, "tournaments_date_from", value = NA)
-  updateDateInput(session, "tournaments_date_to", value = NA)
+  reset_all_advanced_filters()
 }, ignoreInit = TRUE)
 
 # -----------------------------------------------------------------------------
