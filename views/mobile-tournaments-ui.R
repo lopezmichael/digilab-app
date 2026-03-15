@@ -74,11 +74,11 @@ tagList(
     ),
     div(class = "mobile-filter-pair date-range-pair",
       div(class = "advanced-filter-group",
-        tags$label("From", class = "advanced-filter-label"),
+        tags$label("Date From", class = "advanced-filter-label"),
         dateInput("tournaments_date_from", NULL, value = NA, width = "100%")
       ),
       div(class = "advanced-filter-group",
-        tags$label("To", class = "advanced-filter-label"),
+        tags$label("Date To", class = "advanced-filter-label"),
         dateInput("tournaments_date_to", NULL, value = NA, width = "100%")
       )
     )

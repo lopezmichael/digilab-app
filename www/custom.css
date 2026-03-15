@@ -1388,9 +1388,11 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
   }
 
   .mobile-filter-pair .advanced-filter-group {
-    flex: 1 1 50%;
+    flex: 1 1 0;
+    min-width: 0;
     flex-direction: column;
     align-items: stretch;
+    overflow: hidden;
   }
 
   .mobile-filter-pair .advanced-filter-group > .advanced-filter-label {
@@ -1400,6 +1402,8 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
 
   .mobile-filter-pair .advanced-filter-group select {
     width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
   }
 
   /* Date range pair: centered labels */
@@ -1432,10 +1436,20 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
     white-space: nowrap;
   }
 
-  /* Color pills wrap naturally */
+  /* Color pills: fill width, equal size, larger on mobile */
   .mobile-filters-panel .color-filter-pills {
+    display: flex;
     flex-wrap: wrap;
-    gap: 0.3rem;
+    gap: 0.35rem;
+    width: 100%;
+  }
+
+  .mobile-filters-panel .color-pill {
+    flex: 1 1 calc(25% - 0.35rem);
+    justify-content: center;
+    padding: 0.35rem 0.4rem;
+    font-size: 0.75rem;
+    min-width: 0;
   }
 
   /* Selectize (store) filters: undo display:contents so container fills row */
@@ -1469,13 +1483,15 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
     flex: 1;
   }
 
-  /* Date inputs fill width */
+  /* Date inputs fill width (override desktop 110px) */
   .mobile-filter-pair .shiny-date-input {
-    width: 100%;
+    width: 100% !important;
   }
 
   .mobile-filter-pair .shiny-date-input input {
     width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
   }
 
   /* Checkbox row checkboxes: larger touch target */
