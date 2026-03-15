@@ -1093,12 +1093,21 @@ server <- function(input, output, session) {
 
     # === REFRESH TRIGGERS ===
     # Pattern: {scope}_refresh - increment to trigger reactive invalidation
-    data_refresh = 0,
+    data_refresh = 0,          # Global refresh (scene selection changes only)
     results_refresh = 0,
     format_refresh = 0,
     tournament_refresh = 0,
     schedules_refresh = 0,
     requests_refresh = 0,
+
+    # Domain-specific refresh triggers (admin writes)
+    refresh_tournaments = 0,
+    refresh_players = 0,
+    refresh_stores = 0,
+    refresh_decks = 0,
+    refresh_formats = 0,
+    refresh_scenes = 0,
+    refresh_users = 0,
 
     # === STORE FORM STATE ===
     pending_schedules = list(),  # Schedules to add when creating new store
@@ -1191,7 +1200,9 @@ server <- function(input, output, session) {
 
   # Reactive: Get cached competitive ratings for all players
   player_competitive_ratings <- reactive({
-    rv$data_refresh  # Invalidate when cache is refreshed
+    rv$data_refresh  # Invalidate on scene change (global)
+    rv$refresh_tournaments  # Invalidate when results change (triggers rating recalc)
+    rv$refresh_players  # Invalidate when players change
     safe_query(db_pool,
       "SELECT player_id, competitive_rating FROM player_ratings_cache",
       default = data.frame(player_id = integer(), competitive_rating = numeric()))
@@ -1200,6 +1211,8 @@ server <- function(input, output, session) {
   # Reactive: Get cached achievement scores for all players
   player_achievement_scores <- reactive({
     rv$data_refresh
+    rv$refresh_tournaments
+    rv$refresh_players
     safe_query(db_pool,
       "SELECT player_id, achievement_score FROM player_ratings_cache",
       default = data.frame(player_id = integer(), achievement_score = numeric()))
@@ -1208,6 +1221,8 @@ server <- function(input, output, session) {
   # Reactive: Get cached average player rating per store
   store_avg_ratings <- reactive({
     rv$data_refresh
+    rv$refresh_tournaments
+    rv$refresh_stores
     safe_query(db_pool,
       "SELECT store_id, avg_player_rating FROM store_ratings_cache",
       default = data.frame(store_id = integer(), avg_player_rating = numeric()))
