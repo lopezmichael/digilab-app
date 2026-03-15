@@ -56,22 +56,7 @@ tagList(
     # Row 1: Color pills + conversion %
     div(class = "advanced-filter-group",
       tags$label("Color", class = "advanced-filter-label"),
-      div(id = "meta_color_pills", class = "color-filter-pills",
-        tags$span(class = "color-pill", `data-color` = "Red",
-          tags$span(class = "color-dot"), "Red"),
-        tags$span(class = "color-pill", `data-color` = "Blue",
-          tags$span(class = "color-dot"), "Blue"),
-        tags$span(class = "color-pill", `data-color` = "Yellow",
-          tags$span(class = "color-dot"), "Yellow"),
-        tags$span(class = "color-pill", `data-color` = "Green",
-          tags$span(class = "color-dot"), "Green"),
-        tags$span(class = "color-pill", `data-color` = "Black",
-          tags$span(class = "color-dot"), "Black"),
-        tags$span(class = "color-pill", `data-color` = "Purple",
-          tags$span(class = "color-dot"), "Purple"),
-        tags$span(class = "color-pill", `data-color` = "White",
-          tags$span(class = "color-dot"), "White")
-      )
+      color_filter_pills()
     ),
     div(class = "advanced-filter-group",
       tags$label("Conv %", class = "advanced-filter-label", `for` = "meta_conversion_filter"),

@@ -38,6 +38,7 @@ source("R/digimoncard_api.R")
 source("R/ratings.R")
 source("R/geo_utils.R")
 source("R/constants.R")
+source("R/ui_helpers.R")
 source("R/discord_webhook.R")
 
 # Load environment variables

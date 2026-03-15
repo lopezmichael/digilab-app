@@ -41,27 +41,18 @@ admin_players_ui <- tagList(
         card_body(
           class = "admin-form-body",
           # Hidden field for edit mode
-          textInput("editing_player_id", NULL, value = ""),
-          tags$script("document.getElementById('editing_player_id').parentElement.style.display = 'none';"),
+          hidden_edit_field("editing_player_id"),
 
           p(class = "text-muted small", "Select a player from the list to edit or delete."),
 
           # --- Identity section ---
-          div(class = "admin-form-section",
-            div(class = "admin-form-section-label",
-              bsicons::bs_icon("person-fill"),
-              "Identity"
-            ),
+          admin_section("person-fill", "Identity",
             textInput("player_display_name", "Display Name", placeholder = "Enter player name..."),
             textInput("player_member_number", "Member Number", placeholder = "e.g. 0012345678")
           ),
 
           # --- Privacy section ---
-          div(class = "admin-form-section",
-            div(class = "admin-form-section-label",
-              bsicons::bs_icon("eye-slash"),
-              "Privacy"
-            ),
+          admin_section("eye-slash", "Privacy",
             checkboxInput("player_is_anonymized", "Anonymize Player", value = FALSE),
             tags$small(class = "form-text text-muted d-block mt-n2 mb-2",
               "Hides player name from all public views. Deck and tournament data still count toward meta stats."
@@ -69,11 +60,7 @@ admin_players_ui <- tagList(
           ),
 
           # --- Stats section ---
-          div(class = "admin-form-section",
-            div(class = "admin-form-section-label",
-              bsicons::bs_icon("bar-chart-fill"),
-              "Stats"
-            ),
+          admin_section("bar-chart-fill", "Stats",
             uiOutput("player_stats_info")
           ),
 

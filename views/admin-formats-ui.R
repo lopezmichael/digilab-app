@@ -25,15 +25,10 @@ admin_formats_ui <- tagList(
         card_body(
           class = "admin-form-body",
           # Hidden field for edit mode (stores the original format_id being edited)
-          textInput("editing_format_id", NULL, value = ""),
-          tags$script("document.getElementById('editing_format_id').parentElement.style.display = 'none';"),
+          hidden_edit_field("editing_format_id"),
 
           # --- Format Info section ---
-          div(class = "admin-form-section",
-            div(class = "admin-form-section-label",
-              bsicons::bs_icon("collection-fill"),
-              "Format Info"
-            ),
+          admin_section("collection-fill", "Format Info",
             textInput("format_id", "Set Code", placeholder = "e.g., BT20, EX09"),
             textInput("format_set_name", "Set Name", placeholder = "e.g., Xros Encounter"),
             dateInput("format_release_date", "Release Date", value = Sys.Date()),
