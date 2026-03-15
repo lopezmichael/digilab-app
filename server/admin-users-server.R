@@ -85,7 +85,7 @@ output$admin_users_grouped <- renderUI({
 
   # Split into groups
   supers <- df[df$role == "super_admin", ]
-  scene_admins <- df[df$role == "scene_admin", ]
+  scene_admins <- df[df$role == "scene_admin" & !is.na(df$scene_name), ]
   covered_scene_ids <- unique(scene_admins$scene_id)
   uncovered <- if (nrow(all_scenes) > 0) {
     all_scenes[!all_scenes$scene_id %in% covered_scene_ids, ]
@@ -99,7 +99,7 @@ output$admin_users_grouped <- renderUI({
       class = "admin-user-row",
       onclick = sprintf("Shiny.setInputValue('admin_user_clicked', {user_id: %d, nonce: Math.random()}, {priority: 'event'})", row$user_id),
       div(class = "admin-user-row-name", row$username),
-      div(class = "admin-user-row-status", if (row$is_active) "\u2705" else "\u274c")
+      div(class = "admin-user-row-status", if (isTRUE(row$is_active)) "\u2705" else "\u274c")
     )
   }
 

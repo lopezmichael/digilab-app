@@ -136,7 +136,8 @@ tournaments_data <- reactive({
     SELECT tournament_id, event_date as \"Date\", store_name as \"Store\",
            country, is_online,
            event_type as \"Type\", format as \"Format\", player_count as \"Players\",
-           rounds as \"Rounds\", winner_name as \"Winner\", winning_deck as \"Winning Deck\"
+           rounds as \"Rounds\", winner_name as \"Winner\", winning_deck as \"Winning Deck\",
+           winning_deck_color, winning_deck_secondary_color
     FROM mv_tournament_list
     WHERE 1=1 ", filters$sql, "
     ORDER BY event_date DESC
@@ -213,6 +214,16 @@ output$tournament_history <- renderReactable({
     )
   })
 
+  # Create Winning Deck column as HTML (with color badge, dual-color aware)
+  result$winning_deck_html <- sapply(seq_len(nrow(result)), function(i) {
+    deck <- result$`Winning Deck`[i]
+    if (is.na(deck) || deck == "" || deck == "-") return("-")
+    primary <- result$winning_deck_color[i]
+    secondary <- result$winning_deck_secondary_color[i]
+    sec <- if (!is.na(secondary) && secondary != "") secondary else NULL
+    as.character(deck_name_badge(deck, primary, sec))
+  })
+
   reactable(
     result,
     compact = TRUE,
@@ -230,6 +241,8 @@ output$tournament_history <- renderReactable({
       tournament_id = colDef(show = FALSE),
       country = colDef(show = FALSE),
       is_online = colDef(show = FALSE),
+      winning_deck_color = colDef(show = FALSE),
+      winning_deck_secondary_color = colDef(show = FALSE),
       Date = colDef(minWidth = 90),
       Scene = colDef(minWidth = 40, align = "center", name = ""),
       Store = colDef(minWidth = 150),
@@ -238,7 +251,8 @@ output$tournament_history <- renderReactable({
       Players = colDef(minWidth = 70, align = "center"),
       Rounds = colDef(minWidth = 60, align = "center"),
       Winner = colDef(minWidth = 120),
-      `Winning Deck` = colDef(minWidth = 120)
+      `Winning Deck` = colDef(show = FALSE),
+      winning_deck_html = colDef(name = "Winning Deck", minWidth = 120, html = TRUE)
     )
   )
 })
@@ -393,7 +407,7 @@ output$tournament_detail_modal <- renderUI({
     SELECT r.placement as \"Place\",
            CASE WHEN p.is_anonymized THEN 'Anonymous' ELSE p.display_name END as \"Player\",
            da.archetype_name as \"Deck\",
-           da.primary_color as color, r.wins as \"W\", r.losses as \"L\", r.ties as \"T\", r.decklist_url,
+           da.primary_color as color, da.secondary_color, r.wins as \"W\", r.losses as \"L\", r.ties as \"T\", r.decklist_url,
            p.is_anonymized
     FROM results r
     JOIN players p ON r.player_id = p.player_id
@@ -478,7 +492,7 @@ output$tournament_detail_modal <- renderUI({
                 ),
                 tags$td(row$Player),
                 tags$td(
-                  span(class = paste("deck-badge", paste0("deck-badge-", tolower(row$color))), row$Deck)
+                  deck_name_badge(row$Deck, row$color, row$secondary_color)
                 ),
                 tags$td(sprintf("%d-%d%s", row$W, row$L, if (row$T > 0) sprintf("-%d", row$T) else "")),
                 tags$td(decklist_link_icon(row$decklist_url))

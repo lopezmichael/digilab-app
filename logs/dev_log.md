@@ -4,6 +4,29 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-14: v1.7.2 — Dual-Color Badges, Rating Snapshots, Mobile Filters
+
+### Dual-Color Deck Badges
+Added gradient background badges for dual-color deck archetypes. New `deck_name_badge(name, primary, secondary)` helper renders a CSS `linear-gradient(135deg)` spanning both deck colors. Applied across all public views: Meta table/modal, Players table/modal/favorites, Tournaments table/modal, and all mobile card variants. Smart text color logic uses dark text only when both colors are light (yellow+white).
+
+New `get_color_hex()` utility maps color names to hex inline (separate from `digimon_deck_colors` which lives in dashboard server scope). `deck_color_badge_dual()` retained for color-indicator contexts (Meta Color column, Admin Decks table).
+
+Migration 009 adds `secondary_color` to `mv_player_store_stats` and `winning_deck_color`/`winning_deck_secondary_color` to `mv_tournament_list`.
+
+### Rating Snapshots Fix
+Historical format eras showed all players at 1500. Root cause: `generate_format_snapshot()` existed but was never called. Rewrote to derive from `player_rating_history` using `DISTINCT ON` instead of expensive Elo recalculation. Hooked into `recalculate_ratings_cache()` via non-fatal `tryCatch`. Backfilled BT19, BT20, BT21, BT24.
+
+### Mobile Players Tab Filters
+Store, win%, top 3, and decklist filters had no effect on mobile — desktop and mobile had independent data pipelines. Extracted shared `players_data()` reactive consumed by both renderers. Eliminated 69 lines of duplicated filter/sort logic.
+
+### Mobile Filter Layout Redesign
+Systematic redesign of all mobile advanced filter panels. Key patterns: `mobile-filter-pair` for side-by-side filters with vertical label+input stacking, `mobile-filter-checkbox-row` for note+checkboxes, `event-type-pair` with 3:2 flex ratio. Fixed overflow with `flex: 1 1 0` + `min-width: 0`.
+
+### Admin Users Bug
+Two pre-existing bugs exposed: (1) `if (row$is_active)` crashed on NA values, fixed with `isTRUE()`. (2) Scene admins with no scene assignment caused ghost NA rows in every scene group due to R's `NA == value` semantics. Fixed by filtering `!is.na(df$scene_name)`.
+
+---
+
 ## 2026-03-09: Safe Query Migration, Transaction Safety, Performance
 
 **Branch:** `feature/safe-query-migration`

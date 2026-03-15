@@ -380,6 +380,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.7.0** - Filter Redesign & Scene Restructure
+**v1.7.2** - Dual-Color Badges, Rating Snapshots & Bug Fixes
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

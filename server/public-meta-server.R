@@ -172,7 +172,10 @@ output$archetype_stats <- renderReactable({
       archetype_id = colDef(show = FALSE),
       secondary_color = colDef(show = FALSE),
       Deck = colDef(minWidth = 150),
-      Color = colDef(minWidth = 80, cell = function(value) deck_color_badge(value)),
+      Color = colDef(minWidth = 80, cell = function(value, index) {
+        secondary <- result$secondary_color[index]
+        deck_color_badge_dual(value, secondary)
+      }),
       Entries = colDef(minWidth = 70, align = "center"),
       `Meta %` = colDef(minWidth = 70, align = "center"),
       `1sts` = colDef(minWidth = 50, align = "center"),
@@ -232,6 +235,18 @@ output$mobile_meta_cards <- renderUI({
     color_hex <- digimon_deck_colors[row$Color]
     if (is.na(color_hex)) color_hex <- "#9CA3AF"
 
+    # Dual-color gradient border or single color
+    secondary_hex <- NULL
+    if (!is.na(row$secondary_color) && row$secondary_color != "") {
+      secondary_hex <- digimon_deck_colors[row$secondary_color]
+      if (is.na(secondary_hex)) secondary_hex <- NULL
+    }
+    border_style <- if (!is.null(secondary_hex)) {
+      sprintf("border-left: 3px solid; border-image: linear-gradient(%s, %s) 1;", color_hex, secondary_hex)
+    } else {
+      paste0("border-left-color: ", color_hex, ";")
+    }
+
     # Meta % badge with deck-color tint
     meta_pct <- sprintf("%.1f%%", row$`Meta %`)
     # Convert hex to rgba for translucent badge background
@@ -248,7 +263,7 @@ output$mobile_meta_cards <- renderUI({
 
     div(
       class = "mobile-list-card meta-deck-card",
-      style = paste0("border-left-color: ", color_hex, ";"),
+      style = border_style,
       onclick = sprintf(
         "Shiny.setInputValue('archetype_clicked', %d, {priority: 'event'})",
         row$archetype_id
@@ -393,9 +408,6 @@ output$deck_detail_modal <- renderUI({
     sprintf("https://images.digimoncard.io/images/cards/%s.jpg", archetype$display_card_id)
   } else NULL
 
-  # Color badge
-  color_class <- paste0("deck-badge-", tolower(archetype$primary_color))
-
   # Update URL for deep linking
   deck_slug <- if (!is.null(archetype$slug) && !is.na(archetype$slug) && archetype$slug != "") {
     archetype$slug
@@ -408,7 +420,7 @@ output$deck_detail_modal <- renderUI({
   showModal(modalDialog(
     title = div(
       class = "d-flex align-items-center gap-2",
-      span(class = paste("deck-badge", color_class), archetype$archetype_name)
+      deck_name_badge(archetype$archetype_name, archetype$primary_color, archetype$secondary_color)
     ),
     size = "l",
     easyClose = TRUE,

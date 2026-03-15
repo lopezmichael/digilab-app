@@ -1,6 +1,6 @@
 ---
-currentVersion: "1.7.0"
-lastUpdated: "2026-03-13"
+currentVersion: "1.7.2"
+lastUpdated: "2026-03-14"
 
 inProgress: []
 
@@ -40,9 +40,15 @@ planned:
 
   # v1.9.0 — Results Redesign & Data Entry
   - id: results-upload-redesign
-    title: "Results & Upload Tab Redesign"
-    description: "Paired redesign of Enter Results and Upload Results tabs. Touch-friendly grids, camera upload flow, mobile optimization, tournament data quality checks."
+    title: "Unified Upload Tab & Results Redesign"
+    description: "Consolidate all result entry into a single Upload tab with 4 entry-point cards: Bandai Screenshot (OCR), Bandai Export (CSV/paste), Manual Entry (grid), and Match-by-Match. Public users see Screenshot and Match-by-Match; admin login unlocks Export and Manual Entry. Replace current split between public Submit and admin Enter Results tabs. Touch-friendly grids, camera upload flow, mobile optimization, tournament data quality checks."
     tags: [admin, ux, mobile]
+    targetVersion: "v1.9.0"
+
+  - id: grid-ux-improvements
+    title: "Results Grid UX Improvements"
+    description: "Add explicit 'Add Player' button instead of relying on blank padding rows. Add drag-to-reorder for placements. Support tied placements (multiple players sharing same placement number — rating system already handles 0.5 draw score). Make placement column editable."
+    tags: [feature, admin, ux]
     targetVersion: "v1.9.0"
 
   - id: mobile-admin-tabs
@@ -529,7 +535,8 @@ No features currently in progress.
 ### v1.9.0 — Results Redesign & Data Entry
 | Feature | Description |
 |---------|-------------|
-| **Results & Upload Tab Redesign** | Paired redesign of Enter Results and Upload Results with mobile optimization and data quality checks |
+| **Unified Upload Tab & Results Redesign** | Single Upload tab with 4 entry-point cards (Screenshot OCR, Bandai Export, Manual, Match-by-Match). Public/admin gating per method. |
+| **Grid UX Improvements** | Add Player button, drag-to-reorder, tied placements, editable placement column |
 | **Mobile Admin Tabs** | Mobile layouts for all scene admin and super admin tabs |
 | **postMessage Origin Fix** | Tighten wildcard origin to app.digilab.cards (defense-in-depth) |
 

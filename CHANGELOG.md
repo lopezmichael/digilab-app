@@ -5,6 +5,28 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.2] - 2026-03-14
+
+### Added
+- **Dual-color deck badges**: Decks with two colors now display a gradient background spanning both colors across the full deck name. Applied across Meta table, Players table, Tournaments table, all detail modals, favorite decks, and mobile cards. New `deck_name_badge()` helper and `get_color_hex()` utility. Migration 009 adds `secondary_color` to `mv_player_store_stats` and winning deck color columns to `mv_tournament_list`.
+
+### Fixed
+- **Rating snapshots not populating**: Historical format eras (BT19–BT24) showed all players at 1500 rating because `generate_format_snapshot()` was never called. Rewrote to derive from `player_rating_history` table and hooked into `recalculate_ratings_cache()`. Backfilled all 4 completed formats.
+- **Mobile Players tab filters not wired up**: Store, win%, top 3, and has decklist filters had no effect on mobile. Extracted shared `players_data()` reactive consumed by both desktop and mobile renderers, eliminating 69 lines of duplicated code.
+- **Toast close button invisible**: Notification close button CSS selectors targeted `.close`/`.btn-close` instead of Shiny's `.shiny-notification-close`. Fixed with correct selectors and dark mode visibility.
+- **Store scene validation error sticky**: Scene validation error used `type = "error"` (sticky) instead of `type = "warning"` (auto-dismiss 8s).
+- **Mobile deck badge showing dash**: Shared `players_data()` reactive uses `COALESCE(main_deck, '-')` but mobile card only checked `nchar() > 0`. Added `!= "-"` guard.
+- **Edit tournament grid over-padding**: Reduced edit grid padding from `current_count + 4` to `current_count + 2` extra rows.
+- **Admin users table crash**: `if (row$is_active)` crashed with "missing value where TRUE/FALSE needed" when `is_active` was NA. Fixed with `isTRUE()`.
+- **Admin users NA row in every scene group**: Scene admins without a primary scene assignment (`scene_name = NA`) caused ghost NA rows in every scene group due to R's `NA == value` returning `NA`. Filtered unassigned admins from scene grouping.
+- **Mobile filter layout**: Redesigned advanced filter panels across all mobile tabs with proper label alignment, paired filter rows, checkbox notes, and color pill sizing. Fixed filter overlap issues with `flex: 1 1 0` + `min-width: 0`.
+- **Continent/scene dropdown sizing**: Split font sizes to 1.05rem for continent selector and 0.88rem for scene selector on mobile.
+
+### Changed
+- **Meta deck detail "Wins" → "1sts"**: Renamed column in deck detail table for consistency with other tables.
+- **Tournaments tab "Size" → "Event Size"**: Clarified label. Date filters renamed to "Date From"/"Date To".
+- **Event Type filter width**: 60/40 flex ratio for Event Type vs Event Size on mobile.
+
 ## [1.7.1] - 2026-03-14
 
 ### Fixed

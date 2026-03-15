@@ -28,7 +28,7 @@ library(bcrypt)
 # - httr: Lazy-loaded via namespacing in R/digimoncard_api.R (rarely used, cards cached)
 
 # App version (update with each release)
-APP_VERSION <- "1.7.1"
+APP_VERSION <- "1.7.2"
 
 # Load modules
 source("R/db_connection.R")
@@ -174,6 +174,45 @@ deck_color_badge_dual <- function(primary, secondary = NULL) {
     htmltools::span(class = get_color_class(primary), get_color_initial(primary)),
     htmltools::span(class = get_color_class(secondary), get_color_initial(secondary))
   )
+}
+
+# Map color name to hex (for inline gradient styles)
+get_color_hex <- function(color) {
+  if (is.null(color) || is.na(color) || color == "") return("#9CA3AF")
+  switch(tolower(trimws(color)),
+    "red" = "#E5383B", "blue" = "#2D7DD2", "yellow" = "#F5B700",
+    "green" = "#38A169", "black" = "#2D3748", "purple" = "#805AD5",
+    "white" = "#E2E8F0", "multi" = "#EC4899", "#9CA3AF"
+  )
+}
+
+# Render deck name with color badge (dual-color aware)
+# For single-color: deck name inside colored badge
+# For dual-color: deck name with gradient background spanning both colors
+deck_name_badge <- function(name, primary, secondary = NULL) {
+  if (is.null(name) || is.na(name) || name == "" || name == "-") return(htmltools::span("-"))
+
+  has_secondary <- !is.null(secondary) && !is.na(secondary) && secondary != ""
+
+  if (has_secondary) {
+    hex1 <- get_color_hex(primary)
+    hex2 <- get_color_hex(secondary)
+    # Use dark text only if both colors are light (yellow/white)
+    light_colors <- c("yellow", "white")
+    text_color <- if (tolower(primary) %in% light_colors && tolower(secondary) %in% light_colors) {
+      "#1A1A1A"
+    } else {
+      "#FFFFFF"
+    }
+    htmltools::span(
+      class = "deck-badge deck-badge-dual",
+      style = sprintf("background: linear-gradient(135deg, %s 0%%, %s 100%%); color: %s;",
+                       hex1, hex2, text_color),
+      name
+    )
+  } else {
+    htmltools::span(class = get_color_class(primary), name)
+  }
 }
 
 # =============================================================================
