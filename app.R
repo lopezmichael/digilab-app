@@ -39,6 +39,7 @@ source("R/ratings.R")
 source("R/geo_utils.R")
 source("R/constants.R")
 source("R/discord_webhook.R")
+source("R/ui_helpers.R")
 
 # Load environment variables
 if (file.exists(".env")) {
@@ -515,6 +516,8 @@ ui <- page_fillable(
     tags$script(src = "scene-selector.js"),
     # Pill toggle segmented controls
     tags$script(src = "pill-toggle.js"),
+    # Skeleton loader auto-hide
+    tags$script(src = "skeleton-loader.js"),
     # PWA service worker registration
     tags$script(HTML("if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js');}")),
     # JavaScript to handle active nav state and loading screen

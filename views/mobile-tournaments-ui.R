@@ -84,6 +84,9 @@ tagList(
     )
   ),
 
+  # Skeleton loading state (auto-hidden when cards render)
+  skeleton_cards(n = 3, id_prefix = "mobile_tournaments_cards"),
+
   # Card container rendered by server
   uiOutput("mobile_tournaments_cards"),
 

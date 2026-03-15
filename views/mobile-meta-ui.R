@@ -104,6 +104,9 @@ tagList(
     )
   ),
 
+  # Skeleton loading state (auto-hidden when cards render)
+  skeleton_cards(n = 3, id_prefix = "mobile_meta_cards"),
+
   # -- Mobile card container --------------------------------------------------
   uiOutput("mobile_meta_cards"),
 

@@ -45,7 +45,15 @@ tagList(
     ),
     card_body(
       class = "map-container-flush",
-      mapboxglOutput("stores_map", height = "475px")
+      div(
+        class = "map-loading-container",
+        div(class = "map-loading-placeholder",
+          div(class = "spinner-border", role = "status",
+            tags$span(class = "visually-hidden", "Loading map...")
+          )
+        ),
+        mapboxglOutput("stores_map", height = "475px")
+      )
     )
   ),
   card(
