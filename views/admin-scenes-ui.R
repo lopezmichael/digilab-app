@@ -29,9 +29,9 @@ admin_scenes_ui <- tagList(
         ),
         card_body(
           textInput("scene_display_name", "Display Name",
-                    placeholder = "e.g., Ohio (Cincinnati Area)"),
+                    placeholder = "e.g., Cincinnati Area"),
           tags$small(class = "form-text text-muted d-block mt-n2 mb-2",
-                     "Format: Country/State (City/Region)"),
+                     "Metro/city name. Country is derived automatically from coordinates."),
           textInput("scene_slug", "URL Slug",
                     placeholder = "e.g., houston"),
           tags$small(class = "form-text text-muted d-block mt-n2 mb-2",

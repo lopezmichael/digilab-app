@@ -1,0 +1,22 @@
+-- Scene Naming & Slug Standardization
+-- Run this migration LAST (Phase 5) to minimize disruption.
+--
+-- Changes:
+-- 1. display_name: remove country prefix (e.g., "Brazil (São Paulo)" → "São Paulo")
+-- 2. slug: acronyms → city names (e.g., "dfw" → "dallas-fort-worth")
+--
+-- IMPORTANT: Query current scene data first before running:
+--   SELECT scene_id, slug, display_name, country, state_region FROM scenes
+--   WHERE scene_type = 'metro' AND is_active = TRUE ORDER BY display_name;
+--
+-- Then write specific UPDATE statements below based on actual data.
+-- Template:
+--   UPDATE scenes SET display_name = 'New Name', slug = 'new-slug' WHERE scene_id = X;
+--
+-- Example transformations:
+--   UPDATE scenes SET display_name = 'Dallas-Fort Worth', slug = 'dallas-fort-worth' WHERE slug = 'dfw';
+--   UPDATE scenes SET display_name = 'São Paulo', slug = 'sao-paulo' WHERE display_name LIKE 'Brazil (São Paulo%';
+--   UPDATE scenes SET display_name = 'Houston Area', slug = 'houston' WHERE display_name LIKE 'Texas (Houston%';
+--
+-- NOTE: After running this, the slug redirect map in scene-server.R handles
+-- stale localStorage values (e.g., "dfw" → "dallas-fort-worth").

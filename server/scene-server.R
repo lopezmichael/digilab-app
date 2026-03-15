@@ -76,7 +76,9 @@ get_scene_choices <- function(db_con, continent = "all") {
 
   if (nrow(scenes) == 0) return(list("All Scenes" = "all"))
 
-  # --- Helper: extract metro name from "Country (Metro)" display_name ---
+  # --- Helper: extract metro name from display_name ---
+  # After scene rename (Phase 5), display_name is already the clean metro name.
+  # Falls back to parenthetical extraction for legacy "Country (Metro)" format.
   extract_metro <- function(display_name) {
     m <- regmatches(display_name, regexpr("\\(([^)]+)\\)", display_name))
     if (length(m) > 0 && nchar(m) > 0) gsub("^\\(|\\)$", "", m) else display_name
@@ -264,15 +266,24 @@ observeEvent(input$scene_from_storage, {
 
   # If there's a stored scene preference, apply it
   if (!is.null(stored$scene) && stored$scene != "") {
+    # Slug redirect map for stale localStorage values after scene renames
+    slug_redirects <- c(
+      "dfw" = "dallas-fort-worth"
+    )
+    scene_slug <- stored$scene
+    if (scene_slug %in% names(slug_redirects)) {
+      scene_slug <- slug_redirects[[scene_slug]]
+    }
+
     continent <- stored$continent %||% "all"
     rv$current_continent <- continent
     updateSelectInput(session, "continent_selector", selected = continent)
     session$sendCustomMessage("updateContinentIcon", get_continent_icon(continent))
 
     choices <- get_scene_choices(db_pool, continent)
-    if (stored$scene %in% unlist(choices)) {
-      rv$current_scene <- stored$scene
-      updateSelectInput(session, "scene_selector", choices = choices, selected = stored$scene)
+    if (scene_slug %in% unlist(choices)) {
+      rv$current_scene <- scene_slug
+      updateSelectInput(session, "scene_selector", choices = choices, selected = scene_slug)
       shinyjs::delay(200, {
         session$sendCustomMessage("resetPillToggle", list(inputId = "players_min_events", value = "0"))
         session$sendCustomMessage("resetPillToggle", list(inputId = "meta_min_entries", value = "0"))
