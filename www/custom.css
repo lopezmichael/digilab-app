@@ -2888,7 +2888,12 @@ a:hover, .nav-link:hover {
 .deck-badge-white { background-color: #E2E8F0; color: #1A1A1A; border: 1px solid #CBD5E0; }
 .deck-badge-multi-color { background-color: #EC4899; color: #FFFFFF; } /* Pink for multi-color */
 
-/* Multi-color badge container */
+/* Dual-color gradient badge (deck name spans both colors) */
+.deck-badge-dual {
+  border: none;
+}
+
+/* Multi-color badge container (initials only, used in admin) */
 .deck-badge-multi {
   display: inline-flex;
   gap: 0;

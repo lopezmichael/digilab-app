@@ -99,7 +99,7 @@ output$admin_users_grouped <- renderUI({
       class = "admin-user-row",
       onclick = sprintf("Shiny.setInputValue('admin_user_clicked', {user_id: %d, nonce: Math.random()}, {priority: 'event'})", row$user_id),
       div(class = "admin-user-row-name", row$username),
-      div(class = "admin-user-row-status", if (row$is_active) "\u2705" else "\u274c")
+      div(class = "admin-user-row-status", if (isTRUE(row$is_active)) "\u2705" else "\u274c")
     )
   }
 
