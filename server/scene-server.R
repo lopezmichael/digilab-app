@@ -6,7 +6,26 @@
 # Slug redirect map for stale localStorage values after scene renames (Phase 5)
 # Add entries here when renaming scene slugs, remove after sufficient time has passed
 SLUG_REDIRECTS <- c(
-  "dfw" = "dallas-fort-worth"
+  "scbr" = "santa-catarina",
+  "sampa" = "sao-paulo",
+  "gva" = "metro-vancouver",
+  "cph" = "copenhagen",
+  "prt" = "azores",
+  "mcr" = "manchester",
+  "wlg" = "wellington",
+  "ftlaudy" = "fort-lauderdale",
+  "bayarea" = "bay-area",
+  "cencal" = "central-valley",
+  "nwchi" = "nw-chicago",
+  "mci" = "kansas-city",
+  "nyc" = "new-york-city",
+  "cvg" = "cincinnati",
+  "colombus" = "columbus",
+  "oklahoma" = "tulsa-okc",
+  "nepa" = "northeastern-pa",
+  "dfw" = "dallas-fort-worth",
+  "dmv" = "dc-metro",
+  "rva" = "richmond"
 )
 
 # Helper: apply slug redirect if stale value found
