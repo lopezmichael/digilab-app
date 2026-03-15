@@ -8464,24 +8464,29 @@ div.player-match-indicator.new {
   border-top-color: rgba(255, 255, 255, 0.06);
 }
 
-/* --- Admin hint cards ---
-   Applies to ALL helper/hint text inside admin panels:
-   .form-text, .text-muted.small, p.text-muted, role hints, etc.
+/* --- Admin hint boxes ---
+   Style all helper/hint text inside admin panels to match the
+   info-hint-box pattern (grid background, cyan border, corner accents).
    Excludes: table cells, badges, card headers, stat labels, filter chips */
 .admin-panel .card-body .form-text.text-muted,
 .admin-panel .card-body p.text-muted.small,
 .admin-panel .card-body p.text-muted:not(.small),
 .admin-panel .card-body div.text-muted.small:not(.d-flex):not(.upload-tips):not(.stat-label),
 .admin-panel .card-body .admin-form-role-hint span,
-.admin-panel .card-body div.text-muted:not(.d-flex):not(.small):not(.stat-label):not(.digital-stat-box) {
+.admin-panel .card-body div.text-muted:not(.d-flex):not(.small):not(.stat-label):not(.digital-stat-box),
+.admin-panel .card-body .d-flex.text-muted.small {
+  position: relative;
   display: block;
-  font-size: 0.76rem;
+  font-size: 0.75rem;
   font-style: normal;
-  color: rgba(0, 0, 0, 0.55);
-  background: rgba(15, 76, 129, 0.04);
-  border-left: 2px solid rgba(0, 200, 255, 0.25);
-  border-radius: 0 4px 4px 0;
-  padding: 5px 10px;
+  color: #4a5568;
+  background:
+    repeating-linear-gradient(0deg, rgba(15, 76, 129, 0.03) 0px, transparent 1px, transparent 12px),
+    repeating-linear-gradient(90deg, rgba(15, 76, 129, 0.03) 0px, transparent 1px, transparent 12px),
+    linear-gradient(135deg, rgba(15, 76, 129, 0.08) 0%, rgba(0, 200, 255, 0.05) 100%);
+  border: 1px solid rgba(0, 200, 255, 0.35);
+  border-radius: 6px;
+  padding: 0.5rem 0.875rem;
   margin-top: 4px;
   margin-bottom: 8px;
   line-height: 1.4;
@@ -8492,27 +8497,14 @@ div.player-match-indicator.new {
 [data-bs-theme="dark"] .admin-panel .card-body p.text-muted:not(.small),
 [data-bs-theme="dark"] .admin-panel .card-body div.text-muted.small:not(.d-flex):not(.upload-tips):not(.stat-label),
 [data-bs-theme="dark"] .admin-panel .card-body .admin-form-role-hint span,
-[data-bs-theme="dark"] .admin-panel .card-body div.text-muted:not(.d-flex):not(.small):not(.stat-label):not(.digital-stat-box) {
-  color: rgba(255, 255, 255, 0.5);
-  background: rgba(0, 200, 255, 0.04);
-  border-left-color: rgba(0, 200, 255, 0.2);
-}
-
-/* Stat-row hints (tournament stats "6 results entered / Winner:") — same treatment */
-.admin-panel .card-body .d-flex.text-muted.small {
-  font-size: 0.76rem;
-  background: rgba(15, 76, 129, 0.04);
-  border-left: 2px solid rgba(0, 200, 255, 0.25);
-  border-radius: 0 4px 4px 0;
-  padding: 5px 10px;
-  margin-bottom: 8px;
-  color: rgba(0, 0, 0, 0.55);
-}
-
+[data-bs-theme="dark"] .admin-panel .card-body div.text-muted:not(.d-flex):not(.small):not(.stat-label):not(.digital-stat-box),
 [data-bs-theme="dark"] .admin-panel .card-body .d-flex.text-muted.small {
-  color: rgba(255, 255, 255, 0.5);
-  background: rgba(0, 200, 255, 0.04);
-  border-left-color: rgba(0, 200, 255, 0.2);
+  color: #a0aec0;
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 200, 255, 0.04) 0px, transparent 1px, transparent 12px),
+    repeating-linear-gradient(90deg, rgba(0, 200, 255, 0.04) 0px, transparent 1px, transparent 12px),
+    linear-gradient(135deg, rgba(0, 200, 255, 0.12) 0%, rgba(15, 76, 129, 0.08) 100%);
+  border-color: rgba(0, 200, 255, 0.4);
 }
 
 /* Subheaders like "Stores in Selected Scene" */
