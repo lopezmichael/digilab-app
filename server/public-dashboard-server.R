@@ -774,7 +774,7 @@ digimon_deck_colors <- c(
   "Green" = "#38A169",
   "Black" = "#2D3748",
   "Purple" = "#805AD5",
-  "White" = "#A0AEC0",
+  "White" = "#E2E8F0",
   "Multi" = "#EC4899",  # Pink for multi-color decks
   "Other" = "#9CA3AF"   # Gray for Other Decks category
 )

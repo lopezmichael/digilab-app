@@ -4255,7 +4255,7 @@ a:hover, .nav-link:hover {
     linear-gradient(135deg, #E8F4FD 0%, #F0F8FF 100%);
   border: 1px solid rgba(0, 200, 255, 0.25);
   border-left: 3px solid #0F4C81;
-  border-radius: 6px;
+  border-radius: 8px;
   margin-bottom: 1rem;
 }
 
@@ -7490,14 +7490,6 @@ div.player-match-indicator.new {
   background: transparent;
 }
 
-/* Tournament summary bar */
-.tournament-summary-bar {
-  background: linear-gradient(135deg, rgba(15, 76, 129, 0.1), rgba(15, 76, 129, 0.05));
-  border: 1px solid rgba(15, 76, 129, 0.2);
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
-}
-
 .summary-bar-content {
   display: flex;
   flex-wrap: wrap;
@@ -7629,11 +7621,6 @@ div.player-match-indicator.new {
 [data-bs-theme="dark"] .player-match-indicator.new .bi,
 [data-bs-theme="dark"] .player-match-indicator.new .match-label {
   color: #9ca3af !important;
-}
-
-[data-bs-theme="dark"] .tournament-summary-bar {
-  background: linear-gradient(135deg, rgba(34, 211, 238, 0.1), rgba(34, 211, 238, 0.05));
-  border-color: rgba(34, 211, 238, 0.2);
 }
 
 [data-bs-theme="dark"] .summary-item {
@@ -7928,12 +7915,6 @@ div.player-match-indicator.new {
   .app-footer {
     padding-bottom: calc(70px + env(safe-area-inset-bottom));
   }
-}
-
-/* Dark mode mobile tab bar */
-[data-bs-theme="dark"] .mobile-tab-bar {
-  background: linear-gradient(135deg, #1A202C 0%, #2D3748 100%);
-  border-top-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Admin account info in modal */

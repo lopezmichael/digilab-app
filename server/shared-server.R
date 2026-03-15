@@ -1153,11 +1153,6 @@ observeEvent(input$change_password_btn, {
   }
 
   # Update password
-  old <- safe_query(db_pool,
-    "SELECT * FROM admin_users WHERE user_id = $1",
-    params = list(rv$admin_user$user_id),
-    default = data.frame())
-
   new_hash <- bcrypt::hashpw(new_pw)
   safe_execute(db_pool,
     "UPDATE admin_users SET password_hash = $1 WHERE user_id = $2",
