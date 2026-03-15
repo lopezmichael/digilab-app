@@ -1079,7 +1079,7 @@ observeEvent(input$bootstrap_btn, {
 observe({
   rv$current_nav
   req(rv$current_nav == "admin_results")
-  rv$data_refresh
+  rv$refresh_stores
   req(rv$is_admin)
 
   # Check if UI has rendered yet (tournament_date is a sibling input that's always visible)
@@ -1299,7 +1299,7 @@ get_latest_format_id <- reactive({
     "SELECT format_id FROM formats WHERE is_active = TRUE ORDER BY release_date DESC NULLS LAST LIMIT 1",
     default = data.frame(format_id = character()))
   if (nrow(result) > 0) result$format_id[1] else NULL
-}) |> bindCache(rv$data_refresh)
+}) |> bindCache(rv$refresh_formats)
 
 # =============================================================================
 # Community Filter Banner
@@ -1619,7 +1619,10 @@ mv_views_exist <- function(pool) {
 
 # Auto-refresh materialized views when data changes
 observe({
-  rv$data_refresh
-  req(rv$data_refresh > 0)  # Skip initial value
+  rv$refresh_tournaments
+  rv$refresh_players
+  rv$refresh_stores
+  rv$refresh_decks
+  req(rv$refresh_tournaments > 0 || rv$refresh_players > 0 || rv$refresh_stores > 0 || rv$refresh_decks > 0)  # Skip initial value
   refresh_materialized_views(db_pool)
 })

@@ -57,7 +57,7 @@ output$stores_view_hint <- renderUI({
 output$stores_schedule_content <- renderUI({
   req("stores" %in% visited_tabs())  # Lazy load: skip until tab visited
 
-  rv$data_refresh  # Trigger refresh on admin changes
+  rv$refresh_stores  # Trigger refresh on admin changes
 
   # For "All Scenes", show scene summary cards (same as cards view)
   scene <- rv$current_scene
@@ -252,7 +252,7 @@ output$stores_schedule_content <- renderUI({
 
 # Store list
 output$store_list <- renderReactable({
-  rv$data_refresh  # Trigger refresh on admin changes
+  rv$refresh_stores  # Trigger refresh on admin changes
   stores <- stores_data()
 
   if (is.null(stores) || nrow(stores) == 0) {
@@ -321,12 +321,12 @@ output$store_list <- renderReactable({
       store_id = colDef(show = FALSE)
     )
   )
-}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, rv$data_refresh)
+}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, rv$refresh_stores)
 
 # Store cards view (replaces table for both physical and online)
 output$stores_cards_content <- renderUI({
   req("stores" %in% visited_tabs())  # Lazy load: skip until tab visited
-  rv$data_refresh
+  rv$refresh_stores
   scene <- rv$current_scene
 
   # For online scene, show online organizers
@@ -383,7 +383,7 @@ output$stores_cards_content <- renderUI({
   }
 
   render_store_cards(stores, is_online = FALSE)
-}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, rv$data_refresh)
+}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, rv$refresh_stores)
 
 # Helper: Render store cards grid
 render_store_cards <- function(stores, is_online = FALSE) {
@@ -908,12 +908,12 @@ output$online_stores_section <- renderUI({
       )
     )
   )
-}) |> bindCache(rv$current_scene, rv$current_continent, rv$data_refresh)
+}) |> bindCache(rv$current_scene, rv$current_continent, rv$refresh_stores)
 
 # Reactive: All stores data with activity metrics (for filtering and map)
 stores_data <- reactive({
   req("stores" %in% visited_tabs())  # Lazy load: skip until tab visited
-  rv$data_refresh  # Trigger refresh on admin changes
+  rv$refresh_stores  # Trigger refresh on admin changes
 
   scene <- rv$current_scene
 
@@ -1408,7 +1408,7 @@ output$stores_map <- renderMapboxgl({
     mapgl::fit_bounds(bounds_sf, padding = 50, maxZoom = 9)
 
   map
-}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$data_refresh)
+}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$refresh_stores)
 
 # =============================================================================
 # Mobile Stores Map (compact 200px)
@@ -1502,7 +1502,7 @@ output$mobile_stores_map <- renderMapboxgl({
       popup = "popup"
     ) |>
     mapgl::fit_bounds(bounds_sf, padding = 30, maxZoom = 9)
-}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$data_refresh)
+}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$refresh_stores)
 
 # =============================================================================
 # Mobile Store Cards
@@ -1523,7 +1523,7 @@ observeEvent(input$load_more_mobile_stores, {
 
 output$mobile_stores_cards <- renderUI({
   req(is_mobile())
-  rv$data_refresh
+  rv$refresh_stores
 
   scene <- rv$current_scene
 

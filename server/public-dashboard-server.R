@@ -59,7 +59,7 @@ output$total_players_val <- renderText({
 })
 
 output$total_stores_val <- renderText({
-  rv$data_refresh
+  rv$refresh_tournaments; rv$refresh_decks; rv$refresh_players
   filters <- build_mv_filters(
     format = input$dashboard_format,
     event_type = input$dashboard_event_type,
@@ -74,10 +74,10 @@ output$total_stores_val <- renderText({
     WHERE 1=1", filters$sql),
     params = filters$params, default = data.frame(n = 0))
   result$n
-}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, rv$data_refresh)
+}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)
 
 output$total_decks_val <- renderText({
-  rv$data_refresh
+  rv$refresh_tournaments; rv$refresh_decks; rv$refresh_players
   filters <- build_mv_filters(
     format = input$dashboard_format,
     event_type = input$dashboard_event_type,
@@ -92,7 +92,7 @@ output$total_decks_val <- renderText({
     WHERE 1=1", filters$sql),
     params = filters$params, default = data.frame(n = 0))
   result$n
-}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, rv$data_refresh)
+}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)
 
 # Most popular deck (Top Deck) reactive - reads from deck_analytics batch
 most_popular_deck <- reactive({
@@ -227,7 +227,7 @@ output$hot_deck_name <- renderUI({
   }
 
   HTML(htmltools::htmlEscape(hd$archetype_name))
-}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, rv$data_refresh)
+}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)
 
 output$hot_deck_trend <- renderUI({
   hd <- hot_deck()
@@ -243,7 +243,7 @@ output$hot_deck_trend <- renderUI({
   }
 
   HTML(sprintf("<span class='vb-trend-up'>+%s%% share</span>", hd$delta))
-}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, rv$data_refresh)
+}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)
 
 # Hot Deck card image
 output$hot_deck_image <- renderUI({
@@ -260,7 +260,7 @@ output$hot_deck_image <- renderUI({
     src = img_url,
     alt = hd$archetype_name
   )
-}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, rv$data_refresh)
+}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)
 
 # Legacy output for backward compatibility (if needed elsewhere)
 output$most_popular_deck_image <- renderUI({
@@ -313,7 +313,7 @@ build_community_filters <- function(table_alias = "t", store_alias = NULL, start
 # ==========================================================================
 deck_analytics <- reactive({
 
-  rv$data_refresh
+  rv$refresh_tournaments; rv$refresh_decks; rv$refresh_players
 
   filters <- build_mv_filters(
     format = input$dashboard_format,
@@ -337,14 +337,14 @@ deck_analytics <- reactive({
              primary_color, is_multi_color
     ORDER BY entries DESC
   "), params = filters$params, default = data.frame())
-}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, rv$data_refresh)
+}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)
 
 # ==========================================================================
 # Batch reactive: core metrics (tournament + player counts)
 # ==========================================================================
 core_metrics <- reactive({
 
-  rv$data_refresh
+  rv$refresh_tournaments; rv$refresh_decks; rv$refresh_players
 
   filters <- build_mv_filters(
     format = input$dashboard_format,
@@ -367,13 +367,13 @@ core_metrics <- reactive({
   "), params = filters$params, default = data.frame(tournaments = 0, players = 0))
 
   if (nrow(result) > 0) as.list(result[1, ]) else list(tournaments = 0, players = 0)
-}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, rv$data_refresh)
+}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)
 
 # Recent tournaments (community section - scene-only filtering)
 # Shows Winner column, formatted Type, and Store Rating
 # When "All Scenes" selected, also shows the Scene column
 output$recent_tournaments <- renderReactable({
-  rv$data_refresh  # Trigger refresh on admin changes
+  rv$refresh_tournaments; rv$refresh_decks; rv$refresh_players  # Trigger refresh on admin changes
 
   show_all_scenes <- is.null(rv$current_scene) || rv$current_scene == "all"
   filters <- build_community_filters("t", "s")
@@ -526,7 +526,7 @@ output$recent_tournaments <- renderReactable({
     }"),
     columns = columns
   )
-}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, rv$data_refresh)
+}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)
 
 # Meta Share Timeline - curved area chart showing deck popularity over time
 # Shows top 5 or all decks based on toggle
@@ -680,7 +680,7 @@ output$meta_share_timeline <- renderHighchart({
     hc_legend(enabled = FALSE) |>
     hc_add_series_list(series_list) |>
     hc_add_theme(hc_theme_atom_switch(chart_mode))
-}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$data_refresh)
+}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)
 
 # Reactive: Total tournaments count for current filters - reads from core_metrics batch
 filtered_tournament_count <- reactive({
@@ -844,7 +844,7 @@ output$conversion_rate_chart <- renderHighchart({
       headerFormat = "<b>{point.key}</b><br/>"
     ) |>
     hc_add_theme(hc_theme_atom_switch(chart_mode))
-}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$data_refresh)
+}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)
 
 # Color Distribution Bar Chart - reads from deck_analytics batch
 output$color_dist_chart <- renderHighchart({
@@ -886,7 +886,7 @@ output$color_dist_chart <- renderHighchart({
     ) |>
     hc_tooltip(pointFormat = "<b>{point.y}</b> entries") |>
     hc_add_theme(hc_theme_atom_switch(chart_mode))
-}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$data_refresh)
+}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)
 
 # Tournament Activity Chart (community section - scene-only filtering)
 output$tournaments_trend_chart <- renderHighchart({
@@ -963,7 +963,7 @@ output$tournaments_trend_chart <- renderHighchart({
       pointFormat = "<b>{series.name}:</b> {point.y} players<br/>"
     ) |>
     hc_add_theme(hc_theme_atom_switch(chart_mode))
-}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$data_refresh)
+}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)
 
 # ---------------------------------------------------------------------------
 # Scene Health Section
@@ -1128,7 +1128,7 @@ output$meta_diversity_gauge <- renderHighchart({
       ", health_label, health_desc, decks_with_wins, total_wins))
     ) |>
     hc_add_theme(hc_theme_atom_switch(chart_mode))
-}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$data_refresh)
+}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)
 
 # Player Growth & Retention Chart (community section - scene-only filtering)
 output$player_growth_chart <- renderHighchart({
@@ -1224,7 +1224,7 @@ output$player_growth_chart <- renderHighchart({
       verticalAlign = "bottom"
     ) |>
     hc_add_theme(hc_theme_atom_switch(chart_mode))
-}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$data_refresh)
+}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, input$dark_mode, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)
 
 # Rising Stars - players with strong recent performance (community section - scene-only filtering)
 output$rising_stars_cards <- renderUI({
@@ -1311,7 +1311,7 @@ output$rising_stars_cards <- renderUI({
       )
     })
   )
-}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, rv$data_refresh)
+}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)
 
 # Rising Stars click -> open player modal on overview
 observeEvent(input$overview_rising_star_clicked, {
@@ -1407,7 +1407,7 @@ output$mobile_rising_stars <- renderUI({
       )
     })
   )
-}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, rv$data_refresh)
+}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)
 
 # Mobile Top Decks — horizontal scroll cards reusing deck_analytics() reactive
 output$mobile_top_decks <- renderUI({
@@ -1476,7 +1476,7 @@ output$mobile_top_decks <- renderUI({
       )
     })
   )
-}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, rv$data_refresh)
+}) |> bindCache(input$dashboard_format, input$dashboard_event_type, rv$current_scene, rv$current_continent, rv$community_filter, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)
 
 # Mobile Recent Tournaments — vertical card list replacing reactable
 output$mobile_recent_tournaments <- renderUI({
@@ -1587,4 +1587,4 @@ output$mobile_recent_tournaments <- renderUI({
       )
     })
   )
-}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, rv$data_refresh)
+}) |> bindCache(rv$current_scene, rv$current_continent, rv$community_filter, rv$refresh_tournaments, rv$refresh_decks, rv$refresh_players)

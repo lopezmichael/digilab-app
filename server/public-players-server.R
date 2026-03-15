@@ -96,7 +96,7 @@ observeEvent(input$reset_players_filters, {
 # Update store filter choices when scene changes or tab is first visited
 observe({
   req("players" %in% visited_tabs())
-  rv$data_refresh
+  rv$refresh_players; rv$refresh_tournaments
   scene <- rv$current_scene
   continent <- rv$current_continent
   scene_sql <- ""
@@ -157,7 +157,7 @@ output$historical_rating_badge <- renderUI({
 # ---------------------------------------------------------------------------
 players_data <- reactive({
   req("players" %in% visited_tabs())  # Lazy load: skip until tab visited
-  rv$data_refresh  # Trigger refresh on admin changes
+  rv$refresh_players; rv$refresh_tournaments  # Trigger refresh on admin changes
 
   # Build MV filters
   filters <- build_mv_filters(
@@ -285,7 +285,7 @@ players_data <- reactive({
   rv$current_scene,
   rv$current_continent,
   rv$community_filter,
-  rv$data_refresh
+  rv$refresh_players, rv$refresh_tournaments
 )
 
 # ---------------------------------------------------------------------------
