@@ -635,7 +635,7 @@ observeEvent(input$admin_user_clicked, {
       "SELECT scene_id FROM admin_user_scenes WHERE user_id = $1",
       params = list(row$user_id), default = data.frame())
     accessible <- get_admin_accessible_scene_ids(db_pool, rv$admin_user)
-    if (nrow(target_scenes) > 0 && !any(target_scenes$scene_id %in% accessible)) {
+    if (nrow(target_scenes) == 0 || !any(target_scenes$scene_id %in% accessible)) {
       notify("This admin is outside your region", type = "warning")
       return()
     }
@@ -1084,7 +1084,7 @@ observeEvent(input$toggle_admin_active_btn, {
       "SELECT scene_id FROM admin_user_scenes WHERE user_id = $1",
       params = list(uid), default = data.frame())
     accessible <- get_admin_accessible_scene_ids(db_pool, rv$admin_user)
-    if (nrow(target_scenes) > 0 && !any(target_scenes$scene_id %in% accessible)) {
+    if (nrow(target_scenes) == 0 || !any(target_scenes$scene_id %in% accessible)) {
       notify("This admin is outside your region", type = "error")
       return()
     }

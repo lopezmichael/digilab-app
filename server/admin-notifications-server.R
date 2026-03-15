@@ -13,6 +13,8 @@ admin_refresh_timer <- reactiveTimer(300000)
 
 get_pending_request_counts <- function(pool, scene_id, is_superadmin, admin_user = NULL) {
   is_regional <- isTRUE(admin_user$role == "regional_admin")
+  # Compute accessible scenes once for regional admins (used in multiple queries below)
+  regional_scene_ids <- if (is_regional) get_admin_accessible_scene_ids(pool, admin_user) else NULL
 
   if (is_superadmin) {
     counts <- safe_query(pool, "
@@ -21,6 +23,13 @@ get_pending_request_counts <- function(pool, scene_id, is_superadmin, admin_user
       WHERE status = 'pending'
       GROUP BY request_type
     ", default = data.frame(request_type = character(), n = integer()))
+  } else if (is_regional) {
+    counts <- safe_query(pool, "
+      SELECT request_type, COUNT(*) as n
+      FROM admin_requests
+      WHERE status = 'pending' AND scene_id = ANY($1::int[])
+      GROUP BY request_type
+    ", params = list(as.integer(regional_scene_ids)), default = data.frame(request_type = character(), n = integer()))
   } else {
     counts <- safe_query(pool, "
       SELECT request_type, COUNT(*) as n
@@ -73,8 +82,7 @@ get_pending_request_counts <- function(pool, scene_id, is_superadmin, admin_user
     ", default = data.frame(n = 0))
     type_counts$suggested_merge <- merge_count$n[1]
   } else if (is_regional) {
-    accessible <- get_admin_accessible_scene_ids(pool, admin_user)
-    if (length(accessible) > 0) {
+    if (length(regional_scene_ids) > 0) {
       merge_count <- safe_query(pool, "
         SELECT COUNT(*) as n
         FROM players l
@@ -93,7 +101,7 @@ get_pending_request_counts <- function(pool, scene_id, is_superadmin, admin_user
               WHERE r3.player_id = loc.player_id AND s3.scene_id = ANY($1::int[])
             )
           )
-      ", params = list(as.integer(accessible)), default = data.frame(n = 0))
+      ", params = list(as.integer(regional_scene_ids)), default = data.frame(n = 0))
       type_counts$suggested_merge <- merge_count$n[1]
     } else {
       type_counts$suggested_merge <- 0
@@ -109,6 +117,13 @@ get_pending_request_counts <- function(pool, scene_id, is_superadmin, admin_user
       WHERE s.is_active = TRUE AND s.is_online = FALSE
         AND NOT EXISTS (SELECT 1 FROM store_schedules ss WHERE ss.store_id = s.store_id AND ss.is_active = TRUE)
     ", default = data.frame(n = 0))
+    type_counts$missing_schedule <- missing$n[1]
+  } else if (is_regional) {
+    missing <- safe_query(pool, "
+      SELECT COUNT(*) as n FROM stores s
+      WHERE s.is_active = TRUE AND s.is_online = FALSE AND s.scene_id = ANY($1::int[])
+        AND NOT EXISTS (SELECT 1 FROM store_schedules ss WHERE ss.store_id = s.store_id AND ss.is_active = TRUE)
+    ", params = list(as.integer(regional_scene_ids)), default = data.frame(n = 0))
     type_counts$missing_schedule <- missing$n[1]
   } else {
     missing <- safe_query(pool, "
@@ -356,8 +371,12 @@ output$pending_scene_requests <- renderUI({
       paste0("Pending Scene Requests (", nrow(reqs), ")")
     ),
     div(class = "pending-requests-hint",
-      "These are community requests \u2014 they don't add anything automatically.",
-      "Use the form below to add the scene, then mark the request as done."
+      if (isTRUE(rv$is_superadmin)) {
+        tagList("These are community requests \u2014 they don't add anything automatically.",
+                "Use the form below to add the scene, then mark the request as done.")
+      } else {
+        "These are community requests \u2014 review the details and mark as done or reject."
+      }
     ),
     lapply(seq_len(nrow(reqs)), function(i) render_request_card(reqs[i, ])),
     tags$hr()
