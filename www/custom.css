@@ -8414,10 +8414,16 @@ div.player-match-indicator.new {
   border-top-color: rgba(255, 255, 255, 0.06);
 }
 
-/* --- Admin form hint cards --- */
-.admin-form-body .form-text.text-muted,
-.admin-form-body .admin-form-role-hint span,
-.admin-form-body p.text-muted.small {
+/* --- Admin hint cards ---
+   Applies to ALL helper/hint text inside admin panels:
+   .form-text, .text-muted.small, p.text-muted, role hints, etc.
+   Excludes: table cells, badges, card headers, stat labels, filter chips */
+.admin-panel .card-body .form-text.text-muted,
+.admin-panel .card-body p.text-muted.small,
+.admin-panel .card-body p.text-muted:not(.small),
+.admin-panel .card-body div.text-muted.small:not(.d-flex):not(.upload-tips):not(.stat-label),
+.admin-panel .card-body .admin-form-role-hint span,
+.admin-panel .card-body div.text-muted:not(.d-flex):not(.small):not(.stat-label):not(.digital-stat-box) {
   display: block;
   font-size: 0.76rem;
   font-style: normal;
@@ -8431,32 +8437,47 @@ div.player-match-indicator.new {
   line-height: 1.4;
 }
 
-[data-bs-theme="dark"] .admin-form-body .form-text.text-muted,
-[data-bs-theme="dark"] .admin-form-body .admin-form-role-hint span,
-[data-bs-theme="dark"] .admin-form-body p.text-muted.small {
+[data-bs-theme="dark"] .admin-panel .card-body .form-text.text-muted,
+[data-bs-theme="dark"] .admin-panel .card-body p.text-muted.small,
+[data-bs-theme="dark"] .admin-panel .card-body p.text-muted:not(.small),
+[data-bs-theme="dark"] .admin-panel .card-body div.text-muted.small:not(.d-flex):not(.upload-tips):not(.stat-label),
+[data-bs-theme="dark"] .admin-panel .card-body .admin-form-role-hint span,
+[data-bs-theme="dark"] .admin-panel .card-body div.text-muted:not(.d-flex):not(.small):not(.stat-label):not(.digital-stat-box) {
   color: rgba(255, 255, 255, 0.5);
   background: rgba(0, 200, 255, 0.04);
   border-left-color: rgba(0, 200, 255, 0.2);
 }
 
-/* Keep Discord hint + password hint compact (already have their own layout) */
-.admin-form-discord-group .form-text.text-muted,
-.admin-form-password-group .form-text.text-muted {
-  background: none;
-  border-left: none;
-  border-radius: 0;
-  padding: 0;
-  margin-top: 4px;
-  margin-bottom: 0;
-  font-size: 0.75rem;
-  color: rgba(0, 0, 0, 0.4);
+/* Stat-row hints (tournament stats "6 results entered / Winner:") — same treatment */
+.admin-panel .card-body .d-flex.text-muted.small {
+  font-size: 0.76rem;
+  background: rgba(15, 76, 129, 0.04);
+  border-left: 2px solid rgba(0, 200, 255, 0.25);
+  border-radius: 0 4px 4px 0;
+  padding: 5px 10px;
+  margin-bottom: 8px;
+  color: rgba(0, 0, 0, 0.55);
 }
 
-[data-bs-theme="dark"] .admin-form-discord-group .form-text.text-muted,
-[data-bs-theme="dark"] .admin-form-password-group .form-text.text-muted {
-  background: none;
-  border-left: none;
-  color: rgba(255, 255, 255, 0.35);
+[data-bs-theme="dark"] .admin-panel .card-body .d-flex.text-muted.small {
+  color: rgba(255, 255, 255, 0.5);
+  background: rgba(0, 200, 255, 0.04);
+  border-left-color: rgba(0, 200, 255, 0.2);
+}
+
+/* Subheaders like "Stores in Selected Scene" */
+.admin-panel .card-body h6 {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: rgba(0, 200, 255, 0.6);
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+[data-bs-theme="dark"] .admin-panel .card-body h6 {
+  color: rgba(0, 200, 255, 0.5);
 }
 
 /* =============================================================================
