@@ -569,6 +569,14 @@ recalculate_ratings_cache <- function(db_con, from_date = NULL, use_legacy = FAL
     }
 
     message("[ratings] Cache updated: ", nrow(player_ratings), " players, ", nrow(store_ratings), " stores")
+
+    # Regenerate historical format snapshots (uses player_rating_history, fast)
+    tryCatch({
+      backfill_rating_snapshots(db_con)
+    }, error = function(e) {
+      message("[ratings] Snapshot backfill failed (non-fatal): ", e$message)
+    })
+
     TRUE
   }, error = function(e) {
     message("[ratings] Cache update failed: ", e$message)
@@ -582,7 +590,7 @@ recalculate_ratings_cache <- function(db_con, from_date = NULL, use_legacy = FAL
 # -----------------------------------------------------------------------------
 
 #' Generate rating snapshot for a specific format era
-#' Computes ratings using all tournaments up to the format's end date
+#' Derives ratings from player_rating_history (no recalculation needed)
 #'
 #' @param db_con Database connection (pool or DBI)
 #' @param format_id Format identifier (e.g., "BT18")
@@ -590,27 +598,57 @@ recalculate_ratings_cache <- function(db_con, from_date = NULL, use_legacy = FAL
 #' @return Number of player snapshots created
 generate_format_snapshot <- function(db_con, format_id, end_date) {
   tryCatch({
-    # Calculate global cumulative ratings up to this date (Elo accumulates across format eras)
-    ratings <- calculate_competitive_ratings(db_con, date_cutoff = end_date)
-    scores <- calculate_achievement_scores(db_con)  # Achievement is cumulative
+    # Get each player's final rating from player_rating_history
+    # Uses the last tournament played on or before end_date
+    ratings <- safe_query_impl(db_con, "
+      SELECT DISTINCT ON (h.player_id)
+             h.player_id, h.rating_after AS competitive_rating, h.events_played
+      FROM player_rating_history h
+      JOIN tournaments t ON h.tournament_id = t.tournament_id
+      WHERE t.event_date <= $1
+      ORDER BY h.player_id, t.event_date DESC, h.tournament_id DESC
+    ", params = list(end_date))
 
     if (nrow(ratings) == 0) return(0L)
 
-    # Merge ratings with achievement scores
-    snapshot <- merge(ratings, scores, by = "player_id", all.x = TRUE)
+    # Achievement scores up to the cutoff date
+    scores <- safe_query_impl(db_con, "
+      SELECT r.player_id, r.tournament_id, r.placement, r.archetype_id,
+             t.player_count, t.store_id, t.format, da.archetype_name
+      FROM results r
+      JOIN tournaments t ON r.tournament_id = t.tournament_id
+      LEFT JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
+      WHERE r.placement IS NOT NULL AND t.event_date <= $1
+    ", params = list(end_date))
+
+    ach_scores <- if (nrow(scores) > 0) {
+      get_placement_points <- function(placement, player_count) {
+        base_points <- if (placement == 1) 50
+          else if (placement == 2) 30
+          else if (placement == 3) 20
+          else if (placement <= 4) 15
+          else if (placement <= 8) 10
+          else 5
+        size_mult <- if (is.na(player_count) || player_count < 8) 1.0
+          else if (player_count < 12) 1.0
+          else if (player_count < 16) 1.25
+          else if (player_count < 24) 1.5
+          else if (player_count < 32) 1.75
+          else 2.0
+        round(base_points * size_mult)
+      }
+      players <- unique(scores$player_id)
+      pts <- sapply(players, function(pid) {
+        pr <- scores[scores$player_id == pid, ]
+        sum(sapply(1:nrow(pr), function(i) get_placement_points(pr$placement[i], pr$player_count[i])))
+      })
+      data.frame(player_id = players, achievement_score = as.integer(pts))
+    } else {
+      data.frame(player_id = integer(), achievement_score = integer())
+    }
+
+    snapshot <- merge(ratings, ach_scores, by = "player_id", all.x = TRUE)
     snapshot$achievement_score[is.na(snapshot$achievement_score)] <- 0
-
-    # Count events per player up to cutoff
-    events <- safe_query_impl(db_con,
-      "SELECT r.player_id, COUNT(DISTINCT r.tournament_id) as events_played
-       FROM results r
-       JOIN tournaments t ON r.tournament_id = t.tournament_id
-       WHERE t.event_date <= $1
-       GROUP BY r.player_id",
-      params = list(end_date))
-
-    snapshot <- merge(snapshot, events, by = "player_id", all.x = TRUE)
-    snapshot$events_played[is.na(snapshot$events_played)] <- 0
 
     # Add rank
     snapshot <- snapshot[order(-snapshot$competitive_rating), ]
