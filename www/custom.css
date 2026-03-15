@@ -1323,33 +1323,6 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
   flex-wrap: nowrap;
 }
 
-/* Light mode adjustments */
-[data-bs-theme="light"] .advanced-filters-row {
-  background-image:
-    repeating-linear-gradient(0deg, rgba(255,255,255,0.03) 0px, transparent 1px, transparent 24px),
-    repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0px, transparent 1px, transparent 24px),
-    linear-gradient(135deg, var(--dl-navy) 0%, var(--dl-blue) 100%);
-  border-top-color: rgba(255, 255, 255, 0.1);
-  color: #FFFFFF;
-}
-
-[data-bs-theme="light"] .btn-title-strip-filters {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.25);
-  color: rgba(255, 255, 255, 0.9);
-}
-
-[data-bs-theme="light"] .btn-title-strip-filters:hover {
-  background: rgba(255, 255, 255, 0.25);
-  color: #FFFFFF;
-}
-
-[data-bs-theme="light"] .btn-title-strip-filters.active {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.5);
-  color: #FFFFFF;
-}
-
 [data-bs-theme="light"] .advanced-filter-group select {
   background-color: rgba(255, 255, 255, 0.1) !important;
   border-color: rgba(255, 255, 255, 0.2) !important;
@@ -1788,25 +1761,6 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
     linear-gradient(135deg, var(--dl-navy) 0%, var(--dl-blue) 100%);
 }
 
-/* Reuse title strip content styles */
-.page-title-strip .title-strip-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-}
-
-.page-title-strip .title-strip-context {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: #FFFFFF;
-}
-
-.page-title-strip .title-strip-icon {
-  font-size: 1.1rem;
-  opacity: 0.8;
-}
 
 .page-title-strip .title-strip-text {
   font-size: 1rem;
@@ -2982,27 +2936,14 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
   padding: 0.5rem !important;
 }
 
-.controls-compact .bootstrap-select > .dropdown-toggle {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.875rem;
-}
-
-/* =============================================================================
-   DROPDOWNS
-   ============================================================================= */
-
-.bootstrap-select .dropdown-menu {
-  z-index: 1060 !important;
-  max-height: 50vh !important;
-}
-
 /* =============================================================================
    DIGIMON THEME ACCENTS
    ============================================================================= */
 
 /* Orange accent on interactive elements */
-a:hover, .nav-link:hover {
-  color: var(--dl-orange) !important;
+.main-content a:hover,
+.main-content .nav-link:hover {
+  color: var(--dl-orange);
 }
 
 /* Primary button with orange hover */
