@@ -231,7 +231,7 @@ output$player_list <- renderReactable({
     return(admin_empty_state("No players found", "// add players via tournament entry", "people"))
   }
 
-  reactable(data, compact = TRUE, striped = TRUE,
+  reactable(data, compact = TRUE, striped = FALSE,
     highlight = TRUE,
     onClick = JS("function(rowInfo, column) {
       if (rowInfo) {
@@ -248,11 +248,11 @@ output$player_list <- renderReactable({
     columns = list(
       player_id = colDef(show = FALSE),
       `Player Name` = colDef(minWidth = 160, style = list(whiteSpace = "normal")),
-      competitive_rating = colDef(name = "Rating", width = 65, align = "right",
+      competitive_rating = colDef(name = "Rating", width = 75, align = "right",
         cell = function(value) if (is.na(value)) "\u2014" else as.character(value)
       ),
-      Results = colDef(name = "Res.", width = 55),
-      Wins = colDef(width = 50),
+      Results = colDef(width = 70, align = "center"),
+      Wins = colDef(show = FALSE),
       scenes = colDef(name = "Scene(s)", minWidth = 100, style = list(whiteSpace = "normal"),
         cell = function(value) if (is.null(value) || is.na(value) || !nzchar(value)) "\u2014" else value
       ),

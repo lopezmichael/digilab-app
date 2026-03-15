@@ -536,14 +536,8 @@ output$admin_store_list <- renderReactable({
       status <- data$status[index]
       base_style <- list(cursor = "pointer")
 
-      if (status == "missing_both") {
-        base_style$backgroundColor <- "rgba(229, 56, 59, 0.15)"  # Red tint
-        base_style$borderLeft <- "3px solid #E5383B"
-      } else if (status == "missing_schedule") {
-        base_style$backgroundColor <- "rgba(245, 183, 0, 0.15)"  # Yellow tint
-        base_style$borderLeft <- "3px solid #F5B700"
-      } else if (status == "missing_zip") {
-        base_style$backgroundColor <- "rgba(245, 183, 0, 0.1)"  # Light yellow tint
+      if (status != "complete") {
+        base_style$backgroundColor <- "rgba(245, 183, 0, 0.12)"
         base_style$borderLeft <- "3px solid #F5B700"
       }
 
@@ -553,9 +547,9 @@ output$admin_store_list <- renderReactable({
       store_id = colDef(show = FALSE),
       zip_code = colDef(show = FALSE),
       status = colDef(show = FALSE),
-      Store = colDef(minWidth = 160, style = list(whiteSpace = "normal")),
-      City = colDef(minWidth = 90, style = list(whiteSpace = "normal")),
-      State = colDef(width = 55),
+      Store = colDef(minWidth = 180, style = list(whiteSpace = "normal")),
+      City = colDef(minWidth = 100, style = list(whiteSpace = "normal")),
+      State = colDef(show = FALSE),
       is_online = colDef(
         name = "Type",
         width = 75,
