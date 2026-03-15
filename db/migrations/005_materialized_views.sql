@@ -32,6 +32,7 @@ SELECT
   r.archetype_id,
   da.archetype_name,
   da.primary_color,
+  da.secondary_color,
   COUNT(DISTINCT r.tournament_id) as events,
   SUM(r.wins) as wins,
   SUM(r.losses) as losses,
@@ -47,7 +48,7 @@ JOIN scenes sc ON s.scene_id = sc.scene_id
 LEFT JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
 GROUP BY p.player_id, p.display_name, p.is_anonymized, s.store_id, s.slug, s.scene_id, s.is_online,
          sc.country, sc.state_region, t.format,
-         r.archetype_id, da.archetype_name, da.primary_color;
+         r.archetype_id, da.archetype_name, da.primary_color, da.secondary_color;
 
 CREATE UNIQUE INDEX ON mv_player_store_stats
   (player_id, store_id, COALESCE(format, '__null__'), COALESCE(archetype_id, -1));
@@ -126,7 +127,9 @@ SELECT
   sc.state_region,
   sc.scene_type,
   CASE WHEN p.is_anonymized THEN 'Anonymous' ELSE p.display_name END as winner_name,
-  da.archetype_name as winning_deck
+  da.archetype_name as winning_deck,
+  da.primary_color as winning_deck_color,
+  da.secondary_color as winning_deck_secondary_color
 FROM tournaments t
 JOIN stores s ON t.store_id = s.store_id
 JOIN scenes sc ON s.scene_id = sc.scene_id

@@ -200,15 +200,17 @@ players_data <- reactive({
     ),
     deck_ranked AS (
       SELECT player_id, archetype_name as main_deck, primary_color as main_deck_color,
+             secondary_color as main_deck_secondary_color,
              ROW_NUMBER() OVER (PARTITION BY player_id ORDER BY SUM(times_played) DESC) as rn
       FROM mv_player_store_stats
       WHERE NOT is_anonymized %s
         AND archetype_name IS NOT NULL AND archetype_name != 'UNKNOWN'
-      GROUP BY player_id, archetype_name, primary_color
+      GROUP BY player_id, archetype_name, primary_color, secondary_color
     )
     SELECT pa.*,
            COALESCE(dr.main_deck, '-') as main_deck,
-           COALESCE(dr.main_deck_color, '') as main_deck_color
+           COALESCE(dr.main_deck_color, '') as main_deck_color,
+           COALESCE(dr.main_deck_secondary_color, '') as main_deck_secondary_color
     FROM player_agg pa
     LEFT JOIN deck_ranked dr ON pa.player_id = dr.player_id AND dr.rn = 1
   ", filters$sql, having_idx, filters$sql),
@@ -323,17 +325,14 @@ output$player_standings <- renderReactable({
     )
   })
 
-  # Create Main Deck column as HTML (with color badge)
+  # Create Main Deck column as HTML (with color badge, dual-color aware)
   result$main_deck_html <- sapply(1:nrow(result), function(i) {
     deck <- result$main_deck[i]
     if (is.na(deck) || deck == "-") return("-")
-    color <- result$main_deck_color[i]
-    color_class <- if (!is.na(color) && color != "") {
-      paste0("deck-badge deck-badge-", tolower(color))
-    } else {
-      "deck-badge"
-    }
-    sprintf("<span class='%s'>%s</span>", htmltools::htmlEscape(color_class), htmltools::htmlEscape(deck))
+    primary <- result$main_deck_color[i]
+    secondary <- result$main_deck_secondary_color[i]
+    sec <- if (!is.na(secondary) && secondary != "") secondary else NULL
+    as.character(deck_name_badge(deck, primary, sec))
   })
 
   # Rating tier badge HTML
@@ -411,6 +410,7 @@ output$player_standings <- renderReactable({
       `Win %` = colDef(minWidth = 60, align = "center"),
       main_deck = colDef(show = FALSE),
       main_deck_color = colDef(show = FALSE),
+      main_deck_secondary_color = colDef(show = FALSE),
       main_deck_html = colDef(
         name = "Main Deck",
         minWidth = 120,
@@ -492,14 +492,11 @@ output$mobile_players_cards <- renderUI({
       if (!is.na(row$T) && row$T > 0) tagList("-", span(style = "color: #f97316;", as.integer(row$T)))
     )
 
-    # Main deck badge
+    # Main deck badge (dual-color aware)
     deck_tag <- if (nchar(row$main_deck) > 0 && row$main_deck != "-") {
-      color_class <- if (nchar(row$main_deck_color) > 0) {
-        paste0("deck-badge deck-badge-", tolower(row$main_deck_color))
-      } else {
-        "deck-badge"
-      }
-      tags$span(class = color_class, row$main_deck)
+      secondary <- row$main_deck_secondary_color
+      sec <- if (!is.na(secondary) && nchar(secondary) > 0) secondary else NULL
+      deck_name_badge(row$main_deck, row$main_deck_color, sec)
     } else {
       NULL
     }
@@ -605,12 +602,13 @@ output$player_detail_modal <- renderUI({
   # Exclude UNKNOWN archetype from player profiles
   favorite_decks <- safe_query(db_pool, "
     SELECT da.archetype_name as \"Deck\", da.primary_color as color,
+           da.secondary_color,
            COUNT(*) as \"Times\",
            COUNT(CASE WHEN r.placement = 1 THEN 1 END) as \"Wins\"
     FROM results r
     JOIN deck_archetypes da ON r.archetype_id = da.archetype_id
     WHERE r.player_id = $1 AND da.archetype_name != 'UNKNOWN'
-    GROUP BY da.archetype_id, da.archetype_name, da.primary_color
+    GROUP BY da.archetype_id, da.archetype_name, da.primary_color, da.secondary_color
     ORDER BY COUNT(*) DESC
     LIMIT 5
   ", params = list(player_id), default = data.frame())
@@ -744,10 +742,10 @@ output$player_detail_modal <- renderUI({
           class = "d-flex flex-wrap gap-2 mb-3",
           lapply(1:nrow(favorite_decks), function(i) {
             deck <- favorite_decks[i, ]
-            color_class <- paste0("deck-badge-", tolower(deck$color))
+            sec <- if (!is.na(deck$secondary_color) && deck$secondary_color != "") deck$secondary_color else NULL
             div(
               class = "d-flex align-items-center gap-1",
-              span(class = paste("deck-badge", color_class), deck$Deck),
+              deck_name_badge(deck$Deck, deck$color, sec),
               span(class = "small text-muted", sprintf("(%dx, %d wins)", as.integer(deck$Times), as.integer(deck$Wins)))
             )
           })
