@@ -48,41 +48,97 @@ admin_users_ui <- tagList(
           )
         ),
         card_body(
-          textInput("admin_username", "Username", placeholder = "e.g., sarah"),
-          textInput("admin_discord_id", "Discord User ID (optional)",
-                    placeholder = "e.g., 123456789012345678"),
-          tags$small(class = "form-text text-muted mt-n2 mb-2",
-            "Numeric ID from Discord (right-click user → Copy User ID). Enables @mentions in webhooks."
-          ),
-          div(
-            passwordInput("admin_password", "Password"),
-            div(class = "d-flex justify-content-between align-items-center mt-n2 mb-2",
-              tags$small(class = "form-text text-muted", id = "password_hint",
-                         "Leave blank when editing to keep existing password."),
-              actionLink("generate_password_btn", "Generate",
-                         class = "btn btn-sm btn-outline-secondary py-0 px-2",
-                         style = "font-size: 0.75rem;")
+          class = "admin-form-body",
+
+          # --- Identity section ---
+          div(class = "admin-form-section",
+            div(class = "admin-form-section-label",
+              bsicons::bs_icon("person-fill"),
+              "Identity"
+            ),
+            textInput("admin_username", "Username", placeholder = "e.g., sarah"),
+            div(class = "admin-form-discord-group",
+              tags$label("Discord User ID", class = "form-label",
+                `for` = "admin_discord_id"),
+              div(class = "admin-form-discord-input",
+                span(class = "admin-form-input-icon",
+                  bsicons::bs_icon("discord")
+                ),
+                tags$input(
+                  id = "admin_discord_id",
+                  type = "text",
+                  class = "form-control shiny-input-text admin-form-discord-field",
+                  placeholder = "123456789012345678"
+                )
+              ),
+              tags$small(class = "form-text text-muted",
+                "Right-click user in Discord → Copy User ID"
+              )
             )
           ),
-          selectInput("admin_role", "Role",
-                      choices = c("Scene Admin" = "scene_admin",
-                                  "Regional Admin" = "regional_admin",
-                                  "Super Admin" = "super_admin"),
-                      selected = "scene_admin",
-                      selectize = FALSE),
-          conditionalPanel(
-            condition = "input.admin_role == 'scene_admin'",
-            selectInput("admin_scene", "Assigned Scene",
-                        choices = list("Select scene..." = ""),
-                        selectize = FALSE)
+
+          # --- Authentication section ---
+          div(class = "admin-form-section",
+            div(class = "admin-form-section-label",
+              bsicons::bs_icon("key-fill"),
+              "Authentication"
+            ),
+            div(class = "admin-form-password-group",
+              div(class = "admin-form-password-header",
+                tags$label("Password", class = "form-label mb-0",
+                  `for` = "admin_password"),
+                actionLink("generate_password_btn", "Generate",
+                  class = "admin-form-generate-btn")
+              ),
+              passwordInput("admin_password", NULL),
+              tags$small(class = "form-text text-muted", id = "password_hint",
+                "Leave blank when editing to keep existing password."
+              )
+            )
           ),
-          conditionalPanel(
-            condition = "input.admin_role == 'regional_admin'",
-            uiOutput("admin_region_selector")
+
+          # --- Assignment section ---
+          div(class = "admin-form-section",
+            div(class = "admin-form-section-label",
+              bsicons::bs_icon("shield-fill"),
+              "Assignment"
+            ),
+            selectInput("admin_role", "Role",
+                        choices = c("Scene Admin" = "scene_admin",
+                                    "Regional Admin" = "regional_admin",
+                                    "Super Admin" = "super_admin"),
+                        selected = "scene_admin",
+                        selectize = FALSE),
+            div(class = "admin-form-role-hint",
+              id = "admin_role_hint",
+              conditionalPanel(
+                condition = "input.admin_role == 'scene_admin'",
+                span("Manages data for a single assigned scene.")
+              ),
+              conditionalPanel(
+                condition = "input.admin_role == 'regional_admin'",
+                span("Inherits admin access for all scenes in selected regions.")
+              ),
+              conditionalPanel(
+                condition = "input.admin_role == 'super_admin'",
+                span("Full access to all scenes and admin settings.")
+              )
+            ),
+            conditionalPanel(
+              condition = "input.admin_role == 'scene_admin'",
+              selectInput("admin_scene", "Assigned Scene",
+                          choices = list("Select scene..." = ""),
+                          selectize = FALSE)
+            ),
+            conditionalPanel(
+              condition = "input.admin_role == 'regional_admin'",
+              uiOutput("admin_region_selector")
+            )
           ),
-          div(
-            class = "d-flex gap-2 mt-3",
-            actionButton("save_admin_btn", "Save", class = "btn-primary"),
+
+          # --- Action buttons ---
+          div(class = "admin-form-actions",
+            actionButton("save_admin_btn", "Save Admin", class = "btn-primary"),
             conditionalPanel(
               condition = "output.editing_admin == true",
               actionButton("toggle_admin_active_btn", "Deactivate",

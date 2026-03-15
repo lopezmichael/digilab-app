@@ -8229,6 +8229,134 @@ div.player-match-indicator.new {
   font-size: 0.85rem;
 }
 
+/* --- Admin form sections --- */
+.admin-form-body {
+  padding: 0.75rem !important;
+}
+
+.admin-form-section {
+  padding: 10px 0;
+}
+
+.admin-form-section + .admin-form-section {
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+[data-bs-theme="dark"] .admin-form-section + .admin-form-section {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+.admin-form-section-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: rgba(0, 200, 255, 0.6);
+  margin-bottom: 8px;
+}
+
+[data-bs-theme="dark"] .admin-form-section-label {
+  color: rgba(0, 200, 255, 0.5);
+}
+
+.admin-form-section-label .bi {
+  font-size: 0.7rem;
+}
+
+/* Discord ID input with icon prefix */
+.admin-form-discord-group {
+  margin-bottom: 0.75rem;
+}
+
+.admin-form-discord-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.admin-form-input-icon {
+  position: absolute;
+  left: 10px;
+  z-index: 2;
+  color: rgba(88, 101, 242, 0.5);
+  font-size: 0.9rem;
+  pointer-events: none;
+}
+
+.admin-form-discord-field {
+  padding-left: 32px !important;
+}
+
+.admin-form-discord-group .form-text {
+  display: block;
+  margin-top: 4px;
+}
+
+/* Password group with inline generate */
+.admin-form-password-group {
+  margin-bottom: 0.5rem;
+}
+
+.admin-form-password-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.admin-form-generate-btn {
+  font-size: 0.75rem !important;
+  font-weight: 600;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: rgba(0, 200, 255, 0.08);
+  border: 1px solid rgba(0, 200, 255, 0.2);
+  color: rgba(0, 200, 255, 0.8);
+  text-decoration: none !important;
+  transition: all 0.15s ease;
+}
+
+.admin-form-generate-btn:hover {
+  background: rgba(0, 200, 255, 0.15);
+  color: rgba(0, 200, 255, 1);
+}
+
+.admin-form-password-group .form-text {
+  display: block;
+  margin-top: 2px;
+}
+
+/* Role hint text */
+.admin-form-role-hint {
+  font-size: 0.78rem;
+  font-style: italic;
+  color: rgba(0, 0, 0, 0.4);
+  margin-top: -4px;
+  margin-bottom: 10px;
+  min-height: 1.2em;
+}
+
+[data-bs-theme="dark"] .admin-form-role-hint {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* Action buttons */
+.admin-form-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  margin-top: 4px;
+}
+
+[data-bs-theme="dark"] .admin-form-actions {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
 /* =============================================================================
    STORES SCHEDULE VIEW
    ============================================================================= */
