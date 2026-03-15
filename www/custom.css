@@ -578,9 +578,17 @@ body {
   }
 
   .header-scene-selector select {
-    font-size: 0.96rem;
     padding: 0.35rem 0.5rem;
     padding-right: 1.4rem;
+  }
+
+  .continent-selector-wrapper select {
+    font-size: 1.05rem;
+  }
+
+  .header-scene-selector > .form-group select,
+  .header-scene-selector > .shiny-input-container select {
+    font-size: 0.88rem;
   }
 
   /* Scene dropdown fills remaining space on mobile */
