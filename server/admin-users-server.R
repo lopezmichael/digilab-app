@@ -203,23 +203,44 @@ output$admin_users_grouped <- renderUI({
     default = data.frame())
 
   # Helper to build a user row
-  make_user_row <- function(username, user_id, is_active, role_label = NULL, inherited = FALSE) {
-    badge <- if (!is.null(role_label)) {
-      cls <- if (role_label == "Regional") "bg-info" else "bg-secondary"
-      span(class = paste("badge", cls, "ms-1"), role_label)
+  make_user_row <- function(username, user_id, is_active, role_label = NULL,
+                            inherited = FALSE, discord_user_id = NULL) {
+    role_badge <- if (!is.null(role_label)) {
+      cls <- switch(role_label,
+        "Regional" = "admin-role-badge--regional",
+        "Scene" = "admin-role-badge--scene",
+        "Super" = "admin-role-badge--super",
+        "admin-role-badge--scene"
+      )
+      span(class = paste("admin-role-badge", cls), role_label)
     }
-    inherit_marker <- if (inherited) {
-      span(class = "text-muted small ms-1", "(inherited)")
+    inherit_tag <- if (inherited) {
+      span(class = "admin-inherited-tag", "inherited")
     }
+    status_cls <- if (isTRUE(is_active)) "admin-status--active" else "admin-status--inactive"
+    status_label <- if (isTRUE(is_active)) "Active" else "Inactive"
+
+    # Discord indicator
+    discord_indicator <- if (!is.null(discord_user_id) && !is.na(discord_user_id) && nchar(discord_user_id) > 0) {
+      span(class = "admin-discord-indicator", title = "Discord linked",
+        bsicons::bs_icon("discord", class = "admin-discord-icon"))
+    }
+
     div(
       class = "admin-user-row",
       onclick = sprintf("Shiny.setInputValue('admin_user_clicked', {user_id: %d, nonce: Math.random()}, {priority: 'event'})", user_id),
-      div(class = "admin-user-row-name",
-        username,
-        badge,
-        inherit_marker
+      div(class = "admin-user-row-info",
+        div(class = "admin-user-row-top",
+          span(class = "admin-user-row-name", username),
+          role_badge,
+          inherit_tag,
+          discord_indicator
+        )
       ),
-      div(class = "admin-user-row-status", if (isTRUE(is_active)) "\u2705" else "\u274c")
+      div(class = paste("admin-status", status_cls),
+        span(class = "admin-status-dot"),
+        span(class = "admin-status-label", status_label)
+      )
     )
   }
 
@@ -237,6 +258,7 @@ output$admin_users_grouped <- renderUI({
           user_id = direct$user_id[j],
           username = direct$username[j],
           is_active = direct$is_active[j],
+          discord_user_id = direct$discord_user_id[j],
           role_label = "Scene",
           inherited = FALSE
         )
@@ -258,6 +280,7 @@ output$admin_users_grouped <- renderUI({
                 user_id = ra$user_id,
                 username = ra$username,
                 is_active = ra$is_active,
+                discord_user_id = ra$discord_user_id,
                 role_label = "Regional",
                 inherited = TRUE
               )
@@ -295,7 +318,8 @@ output$admin_users_grouped <- renderUI({
   # Super admins section
   if (show_supers && nrow(supers) > 0) {
     super_rows <- lapply(seq_len(nrow(supers)), function(i) {
-      make_user_row(supers$username[i], supers$user_id[i], supers$is_active[i])
+      make_user_row(supers$username[i], supers$user_id[i], supers$is_active[i],
+                    role_label = "Super", discord_user_id = supers$discord_user_id[i])
     })
     sections <- tagAppendChildren(sections,
       div(class = "admin-users-group",
@@ -339,7 +363,8 @@ output$admin_users_grouped <- renderUI({
         for (k in seq_len(nrow(cty_regional))) {
           country_content <- tagAppendChild(country_content,
             make_user_row(cty_regional$username[k], cty_regional$user_id[k],
-                          cty_regional$is_active[k], "Regional"))
+                          cty_regional$is_active[k], "Regional",
+                          discord_user_id = cty_regional$discord_user_id[k]))
         }
       }
 
@@ -365,7 +390,8 @@ output$admin_users_grouped <- renderUI({
             for (k in seq_len(nrow(st_regional))) {
               state_content <- tagAppendChild(state_content,
                 make_user_row(st_regional$username[k], st_regional$user_id[k],
-                              st_regional$is_active[k], "Regional"))
+                              st_regional$is_active[k], "Regional",
+                              discord_user_id = st_regional$discord_user_id[k]))
             }
           }
 
@@ -378,20 +404,24 @@ output$admin_users_grouped <- renderUI({
 
             if (length(admins) > 0) {
               admin_rows <- lapply(admins, function(a) {
-                make_user_row(a$username, a$user_id, a$is_active, a$role_label, a$inherited)
+                make_user_row(a$username, a$user_id, a$is_active, a$role_label, a$inherited, a$discord_user_id)
               })
               state_content <- tagAppendChild(state_content,
-                div(class = "admin-tree-scene ms-3 mb-1",
-                  div(class = "admin-tree-scene-name text-muted small", scene_name),
+                div(class = "admin-tree-scene",
+                  div(class = "admin-tree-scene-header",
+                    bsicons::bs_icon("geo-alt-fill", class = "admin-tree-scene-icon"),
+                    span(scene_name)
+                  ),
                   tagList(admin_rows)
                 )
               )
             } else {
               state_content <- tagAppendChild(state_content,
-                div(class = "admin-tree-scene ms-3 mb-1",
-                  div(class = "admin-tree-scene-name text-muted small",
-                    scene_name,
-                    span(class = "uncovered-scene-badge ms-1", "No admin")
+                div(class = "admin-tree-scene admin-tree-scene--uncovered",
+                  div(class = "admin-tree-scene-header",
+                    bsicons::bs_icon("geo-alt", class = "admin-tree-scene-icon"),
+                    span(scene_name),
+                    span(class = "uncovered-scene-badge", "No admin")
                   )
                 )
               )
@@ -399,8 +429,8 @@ output$admin_users_grouped <- renderUI({
           }
 
           country_content <- tagAppendChild(country_content,
-            div(class = "admin-tree-state ms-2 mb-1",
-              div(class = "admin-tree-state-name fw-semibold small", st),
+            div(class = "admin-tree-state",
+              div(class = "admin-tree-state-header", st),
               state_content
             )
           )

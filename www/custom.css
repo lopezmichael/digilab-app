@@ -7929,96 +7929,296 @@ div.player-match-indicator.new {
 }
 
 /* =============================================================================
-   ADMIN USERS GROUPED VIEW
+   ADMIN USERS TREE VIEW
+   Scene-centric tree: Country → State → Scene → Admin rows
    ============================================================================= */
 
 .admin-users-scroll {
-  max-height: 500px;
+  max-height: 560px;
   overflow-y: auto;
-  padding: 12px;
+  padding: 8px;
 }
 
+/* --- Country groups --- */
 .admin-users-group {
   margin-bottom: 0;
 }
 
 .admin-users-group + .admin-users-group {
-  border-top: 1px solid rgba(0, 0, 0, 0.1);
-  padding-top: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  margin-top: 4px;
+  padding-top: 4px;
 }
 
 [data-bs-theme="dark"] .admin-users-group + .admin-users-group {
-  border-top-color: rgba(255, 255, 255, 0.1);
+  border-top-color: rgba(255, 255, 255, 0.08);
 }
 
 .admin-users-group-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 10px;
+  padding: 6px 10px;
   margin-bottom: 2px;
-  font-weight: 600;
-  font-size: 0.85rem;
+  font-weight: 700;
+  font-size: 0.8rem;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: rgba(0, 0, 0, 0.5);
+  letter-spacing: 0.8px;
+  color: rgba(0, 200, 255, 0.7);
 }
 
 [data-bs-theme="dark"] .admin-users-group-header {
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(0, 200, 255, 0.6);
 }
 
 .admin-users-group-header .badge {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
+  font-weight: 600;
 }
 
+/* --- State sub-level --- */
+.admin-tree-state {
+  margin-left: 10px;
+  margin-bottom: 2px;
+  border-left: 2px solid rgba(0, 200, 255, 0.12);
+  padding-left: 10px;
+}
+
+.admin-tree-state-header {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.55);
+  padding: 4px 0;
+  letter-spacing: 0.3px;
+}
+
+[data-bs-theme="dark"] .admin-tree-state-header {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+/* --- Scene row (header + admins) --- */
+.admin-tree-scene {
+  margin-left: 10px;
+  margin-bottom: 2px;
+  border-left: 2px solid rgba(15, 76, 129, 0.15);
+  padding-left: 8px;
+}
+
+[data-bs-theme="dark"] .admin-tree-scene {
+  border-left-color: rgba(15, 76, 129, 0.3);
+}
+
+.admin-tree-scene--uncovered {
+  border-left-color: rgba(245, 183, 0, 0.25);
+  opacity: 0.7;
+}
+
+.admin-tree-scene-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.6);
+}
+
+[data-bs-theme="dark"] .admin-tree-scene-header {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.admin-tree-scene-icon {
+  font-size: 0.7rem;
+  opacity: 0.5;
+}
+
+/* --- Admin user row --- */
 .admin-user-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 10px;
+  padding: 6px 10px;
+  margin: 1px 0;
+  border-radius: 6px;
   cursor: pointer;
   transition: background 0.15s ease;
 }
 
 .admin-user-row:hover {
-  background: rgba(0, 123, 255, 0.08);
+  background: rgba(0, 200, 255, 0.06);
 }
 
-.admin-user-row.selected {
-  background: rgba(0, 123, 255, 0.1);
+[data-bs-theme="dark"] .admin-user-row:hover {
+  background: rgba(0, 200, 255, 0.08);
+}
+
+.admin-user-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-user-row-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .admin-user-row-name {
-  flex: 1;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+/* --- Role badges --- */
+.admin-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  line-height: 1.5;
+}
+
+.admin-role-badge--scene {
+  background: rgba(15, 76, 129, 0.12);
+  color: rgba(15, 76, 129, 0.85);
+  border: 1px solid rgba(15, 76, 129, 0.2);
+}
+
+[data-bs-theme="dark"] .admin-role-badge--scene {
+  background: rgba(15, 76, 129, 0.25);
+  color: rgba(100, 180, 255, 0.9);
+  border-color: rgba(15, 76, 129, 0.4);
+}
+
+.admin-role-badge--regional {
+  background: rgba(0, 200, 255, 0.1);
+  color: rgba(0, 160, 210, 0.9);
+  border: 1px solid rgba(0, 200, 255, 0.25);
+}
+
+[data-bs-theme="dark"] .admin-role-badge--regional {
+  background: rgba(0, 200, 255, 0.15);
+  color: rgba(0, 200, 255, 0.85);
+  border-color: rgba(0, 200, 255, 0.3);
+}
+
+.admin-role-badge--super {
+  background: rgba(155, 89, 182, 0.1);
+  color: rgba(142, 68, 173, 0.9);
+  border: 1px solid rgba(155, 89, 182, 0.2);
+}
+
+[data-bs-theme="dark"] .admin-role-badge--super {
+  background: rgba(155, 89, 182, 0.2);
+  color: rgba(190, 140, 220, 0.9);
+  border-color: rgba(155, 89, 182, 0.35);
+}
+
+/* --- Inherited tag --- */
+.admin-inherited-tag {
+  font-size: 0.65rem;
+  font-style: italic;
+  color: rgba(0, 0, 0, 0.35);
+  letter-spacing: 0.2px;
+}
+
+[data-bs-theme="dark"] .admin-inherited-tag {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* --- Status indicator --- */
+.admin-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.admin-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.admin-status-label {
+  font-size: 0.7rem;
   font-weight: 500;
+  letter-spacing: 0.2px;
 }
 
-.admin-user-row-username {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 0.85rem;
+.admin-status--active .admin-status-dot {
+  background: rgba(46, 204, 113, 0.85);
+  box-shadow: 0 0 4px rgba(46, 204, 113, 0.4);
 }
 
-.admin-user-row-status {
-  width: 24px;
-  text-align: center;
+.admin-status--active .admin-status-label {
+  color: rgba(46, 204, 113, 0.8);
 }
 
+.admin-status--inactive .admin-status-dot {
+  background: rgba(231, 76, 60, 0.7);
+}
+
+.admin-status--inactive .admin-status-label {
+  color: rgba(231, 76, 60, 0.7);
+}
+
+/* --- Discord indicator --- */
+.admin-discord-indicator {
+  display: inline-flex;
+  align-items: center;
+}
+
+.admin-discord-icon {
+  font-size: 0.75rem;
+  color: rgba(88, 101, 242, 0.6);
+}
+
+[data-bs-theme="dark"] .admin-discord-icon {
+  color: rgba(88, 101, 242, 0.7);
+}
+
+/* --- Uncovered scenes --- */
 .uncovered-scenes-list {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 4px 12px;
+  padding: 6px 12px;
 }
 
 .uncovered-scene-badge {
   padding: 2px 8px;
   border-radius: 4px;
-  font-size: 0.8rem;
-  background: rgba(245, 183, 0, 0.15);
-  color: rgba(245, 183, 0, 0.9);
-  border: 1px solid rgba(245, 183, 0, 0.3);
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: rgba(245, 183, 0, 0.1);
+  color: rgba(245, 183, 0, 0.85);
+  border: 1px solid rgba(245, 183, 0, 0.25);
+}
+
+/* --- Region selector (regional_admin form) --- */
+.region-selector-scroll {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.02);
+}
+
+[data-bs-theme="dark"] .region-selector-scroll {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.region-country-group .form-check {
+  margin-bottom: 2px;
+}
+
+.region-country-group .form-check-label {
+  font-size: 0.85rem;
 }
 
 /* =============================================================================
