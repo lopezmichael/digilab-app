@@ -43,8 +43,9 @@ discord_send <- function(webhook_url, body, thread_id = NULL) {
 
 # Create a new forum thread via webhook. Returns thread_id (channel_id) or NULL.
 # Generic thread creator — accepts title, content, and optional tags list.
-discord_create_action_thread <- function(thread_title, message_content,
-                                         tags = list(), webhook_url = NULL) {
+discord_create_action_thread <- function(thread_title, message_content = NULL,
+                                         tags = list(), webhook_url = NULL,
+                                         embeds = NULL) {
   if (is.null(webhook_url)) {
     webhook_url <- Sys.getenv("DISCORD_WEBHOOK_SCENE_COORDINATION")
   }
@@ -58,9 +59,18 @@ discord_create_action_thread <- function(thread_title, message_content,
   url <- paste0(webhook_url, "?wait=true")
 
   body <- list(
-    thread_name = substr(thread_title, 1, 100),
-    content = message_content
+    thread_name = substr(thread_title, 1, 100)
   )
+
+  # Embeds go in the body if provided
+  if (!is.null(embeds)) {
+    body$embeds <- embeds
+  }
+
+  # Content (used for @mentions) goes alongside embeds
+  if (!is.null(message_content) && nchar(message_content) > 0) {
+    body$content <- message_content
+  }
 
   # Apply tags (filter out empty strings)
   valid_tags <- Filter(function(t) nchar(t) > 0, tags)
@@ -126,9 +136,34 @@ get_scene_admin_mentions <- function(scene_id, db_pool) {
   })
 }
 
+# Query super admins for @mention strings
+# Returns "<@id1> <@id2>" string, or "" if none found
+get_super_admin_mentions <- function(db_pool) {
+  tryCatch({
+    mentions <- pool::dbGetQuery(db_pool, "
+      SELECT DISTINCT discord_user_id
+      FROM admin_users
+      WHERE role = 'super_admin'
+        AND is_active = TRUE
+        AND discord_user_id IS NOT NULL
+        AND discord_user_id != ''
+    ")
+
+    if (nrow(mentions) == 0) return("")
+
+    ids <- mentions$discord_user_id[!is.na(mentions$discord_user_id) & nchar(mentions$discord_user_id) > 0]
+    if (length(ids) == 0) return("")
+    paste0("<@", ids, ">", collapse = " ")
+  }, error = function(e) {
+    warning(paste("Failed to fetch super admin mentions:", e$message))
+    ""
+  })
+}
+
 # Post a store request — creates a NEW forum thread per request (not routed to scene thread)
 # Returns thread_id or NULL
-discord_post_to_scene <- function(scene_id, store_name, city_state, db_pool) {
+discord_post_to_scene <- function(scene_id, store_name, city_state, db_pool,
+                                  request_id = NULL) {
   scene <- tryCatch(
     pool::dbGetQuery(db_pool,
       "SELECT display_name, latitude, longitude, country FROM scenes WHERE scene_id = $1",
@@ -136,27 +171,29 @@ discord_post_to_scene <- function(scene_id, store_name, city_state, db_pool) {
     error = function(e) data.frame()
   )
 
-  timestamp <- format(Sys.time(), "%m/%d/%Y %I:%M %p %Z")
+  scene_display_name <- if (nrow(scene) > 0) scene$display_name[1] else "Unknown"
+
+  # Build embed
+  embed <- list(
+    title = "New Store Request",
+    color = 5793266L,
+    fields = list(
+      list(name = "Store", value = store_name, inline = TRUE),
+      list(name = "Location", value = city_state, inline = TRUE),
+      list(name = "Scene", value = scene_display_name, inline = TRUE)
+    ),
+    timestamp = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+  )
+
+  # Add footer with request ID
+  footer_text <- "Submitted via DigiLab"
+  if (!is.null(request_id)) {
+    footer_text <- paste0("Request #", request_id, " \u2022 ", footer_text)
+  }
+  embed$footer <- list(text = footer_text)
+
+  # Mentions go in content (outside embed) so notifications work
   mentions <- get_scene_admin_mentions(scene_id, db_pool)
-
-  content_lines <- c(
-    "**New Store Request**",
-    paste0("**Store:** ", store_name),
-    paste0("**Location:** ", city_state)
-  )
-
-  if (nrow(scene) > 0) {
-    content_lines <- c(content_lines, paste0("**Scene:** ", scene$display_name[1]))
-  }
-
-  content_lines <- c(content_lines,
-    paste0("**Submitted:** ", timestamp),
-    "*Submitted via DigiLab*"
-  )
-
-  if (nchar(mentions) > 0) {
-    content_lines <- c(content_lines, "", mentions)
-  }
 
   # Build tags: continent + STORE_REQUEST
   tags <- list()
@@ -171,40 +208,50 @@ discord_post_to_scene <- function(scene_id, store_name, city_state, db_pool) {
 
   discord_create_action_thread(
     thread_title = thread_title,
-    message_content = paste(content_lines, collapse = "\n"),
+    message_content = mentions,
+    embeds = list(embed),
     tags = tags
   )
 }
 
 # Post a new scene/store request to #scene-requests Forum
 # Returns thread_id or NULL
-discord_post_scene_request <- function(store_name, location, discord_username = NA_character_) {
+discord_post_scene_request <- function(store_name, location, discord_username = NA_character_,
+                                       db_pool = NULL, request_id = NULL) {
   webhook_url <- Sys.getenv("DISCORD_WEBHOOK_SCENE_REQUESTS")
   tag_id <- Sys.getenv("DISCORD_TAG_NEW_REQUEST")
 
-  timestamp <- format(Sys.time(), "%m/%d/%Y %I:%M %p %Z")
-
-  content_lines <- c(
-    paste0("**New Scene Request**"),
-    paste0("**Store/Community:** ", store_name),
-    paste0("**Location:** ", location)
+  # Build embed
+  embed <- list(
+    title = "New Scene Request",
+    color = 10181046L,
+    fields = list(
+      list(name = "Store/Community", value = store_name, inline = TRUE),
+      list(name = "Location", value = location, inline = TRUE)
+    ),
+    timestamp = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
   )
 
   if (!is.na(discord_username) && nchar(discord_username) > 0) {
-    content_lines <- c(content_lines, paste0("**Discord:** ", discord_username))
+    embed$fields <- c(embed$fields, list(list(name = "Discord", value = discord_username, inline = TRUE)))
   }
 
-  content_lines <- c(content_lines,
-    paste0("**Submitted:** ", timestamp),
-    "*Submitted via DigiLab*"
-  )
+  footer_text <- "Submitted via DigiLab"
+  if (!is.null(request_id)) {
+    footer_text <- paste0("Request #", request_id, " \u2022 ", footer_text)
+  }
+  embed$footer <- list(text = footer_text)
+
+  # Mention super_admins for triage
+  mentions <- if (!is.null(db_pool)) get_super_admin_mentions(db_pool) else ""
 
   thread_title <- paste0("Scene Request: ", location)
   tags <- if (nchar(tag_id) > 0) list(tag_id) else list()
 
   discord_create_action_thread(
     thread_title = thread_title,
-    message_content = paste(content_lines, collapse = "\n"),
+    message_content = mentions,
+    embeds = list(embed),
     tags = tags,
     webhook_url = webhook_url
   )
@@ -213,7 +260,8 @@ discord_post_scene_request <- function(store_name, location, discord_username = 
 # Post a data error report — creates a NEW forum thread per error
 # Returns thread_id or NULL. Falls back to bug_report if no scene.
 discord_post_data_error <- function(scene_id, item_type, item_name, description,
-                                    discord_username = NA_character_, db_pool) {
+                                    discord_username = NA_character_, db_pool,
+                                    request_id = NULL) {
   scene <- tryCatch(
     pool::dbGetQuery(db_pool,
       "SELECT display_name, latitude, longitude, country FROM scenes WHERE scene_id = $1",
@@ -221,33 +269,32 @@ discord_post_data_error <- function(scene_id, item_type, item_name, description,
     error = function(e) data.frame()
   )
 
-  timestamp <- format(Sys.time(), "%m/%d/%Y %I:%M %p %Z")
-  mentions <- get_scene_admin_mentions(scene_id, db_pool)
+  scene_display_name <- if (nrow(scene) > 0) scene$display_name[1] else "Unknown"
 
-  content_lines <- c(
-    "**Data Error Report**",
-    paste0("**Type:** ", item_type),
-    paste0("**Item:** ", item_name)
+  # Build embed
+  embed <- list(
+    title = "Data Error Report",
+    color = 15105570L,
+    fields = list(
+      list(name = "Type", value = item_type, inline = TRUE),
+      list(name = "Item", value = item_name, inline = TRUE),
+      list(name = "Scene", value = scene_display_name, inline = TRUE),
+      list(name = "Description", value = description, inline = FALSE)
+    ),
+    timestamp = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
   )
-
-  if (nrow(scene) > 0) {
-    content_lines <- c(content_lines, paste0("**Scene:** ", scene$display_name[1]))
-  }
-
-  content_lines <- c(content_lines, paste0("**Description:** ", description))
 
   if (!is.na(discord_username) && nchar(discord_username) > 0) {
-    content_lines <- c(content_lines, paste0("**Discord:** ", discord_username))
+    embed$fields <- c(embed$fields, list(list(name = "Discord", value = discord_username, inline = TRUE)))
   }
 
-  content_lines <- c(content_lines,
-    paste0("**Submitted:** ", timestamp),
-    "*Submitted via DigiLab*"
-  )
-
-  if (nchar(mentions) > 0) {
-    content_lines <- c(content_lines, "", mentions)
+  footer_text <- "Submitted via DigiLab"
+  if (!is.null(request_id)) {
+    footer_text <- paste0("Request #", request_id, " \u2022 ", footer_text)
   }
+  embed$footer <- list(text = footer_text)
+
+  mentions <- get_scene_admin_mentions(scene_id, db_pool)
 
   # Build tags: continent + DATA_ERROR
   tags <- list()
@@ -260,52 +307,66 @@ discord_post_data_error <- function(scene_id, item_type, item_name, description,
     thread_title <- paste0("Data Error: ", item_type, " - ", item_name)
     return(discord_create_action_thread(
       thread_title = thread_title,
-      message_content = paste(content_lines, collapse = "\n"),
+      message_content = mentions,
+      embeds = list(embed),
       tags = tags
     ))
   }
 
-  # Fallback: post as bug report
+  # Fallback: post as bug report (super_admin mentions added via discord_post_bug_report)
   discord_post_bug_report(
     title = paste("Data Error:", item_type, "-", item_name),
     description = description,
-    context = if (nrow(scene) > 0) paste("Scene:", scene$display_name[1]) else "",
-    discord_username = discord_username
+    context = "",
+    discord_username = discord_username,
+    db_pool = db_pool,
+    request_id = request_id
   )
 }
 
 # Post a bug report to #bug-reports Forum channel
 # Returns thread_id or NULL
 discord_post_bug_report <- function(title, description, context = "",
-                                    discord_username = NA_character_) {
+                                    discord_username = NA_character_,
+                                    db_pool = NULL, request_id = NULL) {
   webhook_url <- Sys.getenv("DISCORD_WEBHOOK_BUG_REPORTS")
   tag_id <- Sys.getenv("DISCORD_TAG_NEW_BUG")
 
-  timestamp <- format(Sys.time(), "%m/%d/%Y %I:%M %p %Z")
-
-  content_lines <- c(
-    paste0("**Description:** ", description)
+  # Build embed
+  bug_fields <- list(
+    list(name = "Description", value = substr(description, 1, 1024), inline = FALSE)
   )
-
   if (nchar(context) > 0) {
-    content_lines <- c(content_lines, paste0("**Context:** ", context))
+    bug_fields <- c(bug_fields, list(list(name = "Context", value = context, inline = TRUE)))
   }
+
+  embed <- list(
+    title = paste0("Bug: ", substr(title, 1, 90)),
+    color = 15158332L,
+    fields = bug_fields,
+    timestamp = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+  )
 
   if (!is.na(discord_username) && nchar(discord_username) > 0) {
-    content_lines <- c(content_lines, paste0("**Discord:** ", discord_username))
+    embed$fields <- c(embed$fields, list(list(name = "Discord", value = discord_username, inline = TRUE)))
   }
 
-  content_lines <- c(content_lines,
-    paste0("**Submitted:** ", timestamp),
-    "*Submitted via DigiLab*"
-  )
+  footer_text <- "Submitted via DigiLab"
+  if (!is.null(request_id)) {
+    footer_text <- paste0("Request #", request_id, " \u2022 ", footer_text)
+  }
+  embed$footer <- list(text = footer_text)
+
+  # Mention super_admins for triage
+  mentions <- if (!is.null(db_pool)) get_super_admin_mentions(db_pool) else ""
 
   thread_title <- paste0("Bug: ", substr(title, 1, 90))
   tags <- if (nchar(tag_id) > 0) list(tag_id) else list()
 
   discord_create_action_thread(
     thread_title = thread_title,
-    message_content = paste(content_lines, collapse = "\n"),
+    message_content = mentions,
+    embeds = list(embed),
     tags = tags,
     webhook_url = webhook_url
   )
@@ -379,12 +440,18 @@ discord_resolve_thread <- function(thread_id, resolved_by, action = "resolved") 
   }
 
   label <- if (action == "resolved") "Resolved" else "Rejected"
+  color <- if (action == "resolved") 3066993L else 9807270L
 
   tryCatch({
-    # 1. Post resolution message to the thread
+    # 1. Post resolution embed to the thread
     msg_url <- paste0("https://discord.com/api/v10/channels/", thread_id, "/messages")
     msg_body <- list(
-      content = paste0("**", label, "** by ", resolved_by, " via DigiLab")
+      embeds = list(list(
+        title = label,
+        description = paste0("by ", resolved_by, " via DigiLab"),
+        color = color,
+        timestamp = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+      ))
     )
 
     httr2::request(msg_url) |>
@@ -495,39 +562,45 @@ discord_send_welcome_dm <- function(discord_user_id, message) {
 
 # Post a short announcement to #scene-updates
 # Randomly selects from a pool of message templates for variety
-discord_post_scene_update <- function(scene_name) {
-  webhook_url <- Sys.getenv("DISCORD_WEBHOOK_SCENE_UPDATES")
-
-  if (is.null(webhook_url) || nchar(webhook_url) == 0) return(invisible(FALSE))
+discord_post_scene_update <- function(scene_name, country = NULL, state_region = NULL, continent = NULL) {
+  webhook_url <- Sys.getenv("DISCORD_WEBHOOK_SCENE_UPDATES", "")
+  if (nchar(webhook_url) == 0) return(invisible(FALSE))
 
   templates <- c(
-    paste0(
-      "**New Scene:** ", scene_name, " just joined DigiLab! ",
-      "Check out their local leaderboard and tournament history at <https://app.digilab.cards>"
-    ),
-    paste0(
-      "Welcome to the family, **", scene_name, "**! ",
-      "Your scene is now live — start tracking tournaments, players, and meta at <https://app.digilab.cards>"
-    ),
-    paste0(
-      "**", scene_name, "** is officially on the map! ",
-      "Local players can now find their stats, standings, and tournament history at <https://app.digilab.cards>"
-    ),
-    paste0(
-      "Another scene enters the fray — **", scene_name, "** is now live on DigiLab! ",
-      "Explore the local meta and leaderboard at <https://app.digilab.cards>"
-    ),
-    paste0(
-      "The DigiLab network keeps growing! **", scene_name, "** is now live. ",
-      "Track your local tournaments and climb the leaderboard at <https://app.digilab.cards>"
-    ),
-    paste0(
-      "**", scene_name, "** has arrived! ",
-      "Your community now has its own leaderboard, tournament history, and meta breakdown at <https://app.digilab.cards>"
-    )
+    paste0("**", scene_name, "** just joined DigiLab! Check out their local leaderboard and tournament history."),
+    paste0("Welcome to the family, **", scene_name, "**! Your scene is now live."),
+    paste0("**", scene_name, "** is officially on the map! Local players can now find their stats and standings."),
+    paste0("A new scene has arrived! **", scene_name, "** is ready to track tournaments, players, and meta."),
+    paste0("The DigiLab network grows! Welcome **", scene_name, "** to the community."),
+    paste0("**", scene_name, "** has entered the arena! Another scene joins the DigiLab family.")
   )
 
-  body <- list(content = sample(templates, 1))
+  embed <- list(
+    title = paste0("New Scene: ", scene_name),
+    description = sample(templates, 1),
+    color = 5763719L,
+    timestamp = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"),
+    footer = list(text = "DigiLab")
+  )
 
+  # Add location fields if available
+  fields <- list()
+  if (!is.null(country) && !is.na(country) && nchar(country) > 0) {
+    location <- country
+    if (!is.null(state_region) && !is.na(state_region) && nchar(state_region) > 0) {
+      location <- paste0(state_region, ", ", country)
+    }
+    fields <- c(fields, list(list(name = "Location", value = location, inline = TRUE)))
+  }
+  if (!is.null(continent) && !is.na(continent) && nchar(continent) > 0) {
+    continent_label <- gsub("_", " ", continent)
+    continent_label <- paste0(toupper(substr(continent_label, 1, 1)), substr(continent_label, 2, nchar(continent_label)))
+    fields <- c(fields, list(list(name = "Continent", value = continent_label, inline = TRUE)))
+  }
+  if (length(fields) > 0) {
+    embed$fields <- fields
+  }
+
+  body <- list(embeds = list(embed))
   discord_send(webhook_url, body)
 }

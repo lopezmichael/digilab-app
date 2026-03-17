@@ -394,6 +394,14 @@ execute_scene_save <- function() {
       notify(paste0("Scene '", form$display_name, "' created"), type = "message")
       rv$refresh_scenes <- rv$refresh_scenes + 1
 
+      # Post scene update announcement to Discord
+      discord_post_scene_update(
+        scene_name = form$display_name,
+        country = form$country,
+        state_region = form$state_region,
+        continent = derive_continent(form$country)
+      )
+
       # Clear form
       editing_scene_id(NULL)
       updateTextInput(session, "scene_display_name", value = "")

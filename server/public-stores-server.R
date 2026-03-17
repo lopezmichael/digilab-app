@@ -1913,7 +1913,8 @@ submit_store_request_final <- function(store_name, city, state, scene_id, discor
     ", params = list("store_request", scene_id, jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username),
     default = data.frame())
 
-    thread_id <- discord_post_to_scene(scene_id, store_name, location, db_pool)
+    request_id <- if (nrow(req_result) > 0) req_result$id[1] else NULL
+    thread_id <- discord_post_to_scene(scene_id, store_name, location, db_pool, request_id = request_id)
 
     # Capture thread_id on the request
     if (!is.null(thread_id) && nrow(req_result) > 0) {
@@ -2022,7 +2023,9 @@ submit_scene_request_final <- function(city_name, state, stores, notes, discord_
     ", params = list("scene_request", jsonlite::toJSON(payload, auto_unbox = TRUE), discord_username),
     default = data.frame())
 
-    thread_id <- discord_post_scene_request(city_name, location, discord_username)
+    request_id <- if (nrow(req_result) > 0) req_result$id[1] else NULL
+    thread_id <- discord_post_scene_request(city_name, location, discord_username,
+                                             db_pool = db_pool, request_id = request_id)
 
     # Capture thread_id on the request
     if (!is.null(thread_id) && nrow(req_result) > 0) {

@@ -669,6 +669,7 @@ observeEvent(input$submit_data_error, {
     default = data.frame())
 
     # Fire Discord webhook
+    request_id <- if (nrow(req_result) > 0) req_result$id[1] else NULL
     thread_id <- NULL
     if (!is.null(scene_id)) {
       thread_id <- discord_post_data_error(
@@ -677,14 +678,17 @@ observeEvent(input$submit_data_error, {
         item_name = data_error_context$item_name,
         description = description,
         discord_username = discord_username,
-        db_pool = db_pool
+        db_pool = db_pool,
+        request_id = request_id
       )
     } else {
       thread_id <- discord_post_bug_report(
         title = paste("Data Error:", data_error_context$item_type, "-", data_error_context$item_name),
         description = description,
         context = paste("Tab:", rv$current_nav),
-        discord_username = discord_username
+        discord_username = discord_username,
+        db_pool = db_pool,
+        request_id = request_id
       )
     }
 
@@ -775,11 +779,14 @@ observeEvent(input$submit_bug_report, {
     default = data.frame())
 
     # Fire Discord webhook
+    request_id <- if (nrow(req_result) > 0) req_result$id[1] else NULL
     thread_id <- discord_post_bug_report(
       title = title,
       description = description,
       context = context,
-      discord_username = discord_username
+      discord_username = discord_username,
+      db_pool = db_pool,
+      request_id = request_id
     )
 
     # Capture thread_id on the request
