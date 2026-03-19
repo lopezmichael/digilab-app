@@ -389,11 +389,12 @@ observeEvent(input$add_store, {
     # Use NA for empty city/region
     store_city_db <- if (nchar(store_city) > 0) store_city else NA_character_
 
+    store_slug <- generate_unique_store_slug(db_pool, store_name)
     store_result <- safe_query(db_pool, "
-      INSERT INTO stores (name, address, city, state, zip_code, latitude, longitude, website, is_online, country, scene_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      INSERT INTO stores (name, slug, address, city, state, zip_code, latitude, longitude, website, is_online, country, scene_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING store_id
-    ", params = list(store_name, address, store_city_db,
+    ", params = list(store_name, store_slug, address, store_city_db,
                      state, zip_code, lat, lng, website, is_online, store_country, scene_id),
        default = data.frame(store_id = integer()))
     new_id <- store_result$store_id[1]
@@ -746,13 +747,14 @@ observeEvent(input$update_store, {
     website <- if (nchar(input$store_website) > 0) input$store_website else NA_character_
     scene_id <- if (!is.null(input$store_scene) && input$store_scene != "") as.integer(input$store_scene) else NA_integer_
 
+    updated_slug <- generate_unique_store_slug(db_pool, store_name, exclude_store_id = store_id)
     safe_execute(db_pool, "
       UPDATE stores
-      SET name = $1, address = $2, city = $3, state = $4, zip_code = $5,
-          latitude = $6, longitude = $7, website = $8, is_online = $9, country = $10, scene_id = $11,
-          updated_at = CURRENT_TIMESTAMP, updated_by = $12
-      WHERE store_id = $13
-    ", params = list(store_name, address, store_city_db, state, zip_code, lat, lng, website, is_online, store_country, scene_id, current_admin_username(rv), store_id))
+      SET name = $1, slug = $2, address = $3, city = $4, state = $5, zip_code = $6,
+          latitude = $7, longitude = $8, website = $9, is_online = $10, country = $11, scene_id = $12,
+          updated_at = CURRENT_TIMESTAMP, updated_by = $13
+      WHERE store_id = $14
+    ", params = list(store_name, updated_slug, address, store_city_db, state, zip_code, lat, lng, website, is_online, store_country, scene_id, current_admin_username(rv), store_id))
 
     notify(sprintf("Updated store: %s", store_name), type = "message")
 

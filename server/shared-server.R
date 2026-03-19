@@ -60,6 +60,40 @@ generate_unique_slug <- function(db_pool, text, exclude_player_id = NULL) {
   return(paste0(base_slug, "-", as.integer(Sys.time())))
 }
 
+#' Generate unique store slug, appending suffix if needed
+#' @param db_pool Database connection pool
+#' @param text Store name to slugify
+#' @param exclude_store_id Store ID to exclude from uniqueness check (for updates)
+#' @return Unique slug string, or NA if text is empty
+generate_unique_store_slug <- function(db_pool, text, exclude_store_id = NULL) {
+  base_slug <- generate_slug(text)
+  if (is.na(base_slug)) return(NA_character_)
+
+  # Check for existing slug
+  if (!is.null(exclude_store_id)) {
+    existing <- safe_query(db_pool,
+      "SELECT COUNT(*) as n FROM stores WHERE slug = $1 AND store_id != $2",
+      params = list(base_slug, as.integer(exclude_store_id)), default = data.frame(n = 0))
+  } else {
+    existing <- safe_query(db_pool,
+      "SELECT COUNT(*) as n FROM stores WHERE slug = $1",
+      params = list(base_slug), default = data.frame(n = 0))
+  }
+
+  if (existing$n[1] == 0) return(base_slug)
+
+  # Append suffix for uniqueness
+  for (i in 2:100) {
+    candidate <- paste0(base_slug, "-", i)
+    check <- safe_query(db_pool,
+      "SELECT COUNT(*) as n FROM stores WHERE slug = $1",
+      params = list(candidate), default = data.frame(n = 0))
+    if (check$n[1] == 0) return(candidate)
+  }
+
+  return(paste0(base_slug, "-", as.integer(Sys.time())))
+}
+
 # ---------------------------------------------------------------------------
 # Shared Helper: Fuzzy Match Check (pg_trgm)
 # ---------------------------------------------------------------------------

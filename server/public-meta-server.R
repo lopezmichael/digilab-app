@@ -47,7 +47,7 @@ observe({
   stores <- safe_query(db_pool, sprintf(
     "SELECT DISTINCT s.slug, s.name FROM stores s
      JOIN tournaments t ON s.store_id = t.store_id
-     WHERE s.is_active = TRUE %s
+     WHERE s.is_active = TRUE AND s.slug IS NOT NULL %s
      ORDER BY s.name", scene_filters$sql),
   params = scene_filters$params,
   default = data.frame(slug = character(), name = character()))
@@ -56,7 +56,7 @@ observe({
   if (nrow(stores) > 0) {
     for (i in seq_len(nrow(stores))) {
       nm <- stores$name[i]
-      if (is.na(nm) || nm == "") next
+      if (is.na(nm) || nm == "" || is.na(stores$slug[i])) next
       store_choices[[nm]] <- stores$slug[i]
     }
   }
