@@ -635,7 +635,7 @@ match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
 
   # Step 2: Name match — identity-status-aware
   if (!is.null(scene_id)) {
-    # Scene-scoped: verified players who've competed here + unverified players homed here
+    # Scene-scoped: players homed here OR verified players who've competed here
     candidates <- safe_query_impl(con, "
       SELECT DISTINCT p.player_id, p.display_name, p.member_number,
              p.identity_status, p.home_scene_id
@@ -646,9 +646,9 @@ match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
       WHERE LOWER(p.display_name) = LOWER($1)
         AND p.is_active IS NOT FALSE
         AND (
-          (p.identity_status = 'verified' AND s.scene_id = $2)
+          p.home_scene_id = $2
           OR
-          (p.identity_status = 'unverified' AND p.home_scene_id = $2)
+          (p.identity_status = 'verified' AND s.scene_id = $2)
         )
     ", params = list(name, scene_id))
   } else {

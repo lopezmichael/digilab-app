@@ -1096,6 +1096,17 @@ observeEvent(input$edit_grid_save, {
     return()
   }
 
+  # Block submission if any rows have unresolved ambiguous matches
+  ambiguous_rows <- filled_rows[filled_rows$match_status == "ambiguous", ]
+  if (nrow(ambiguous_rows) > 0) {
+    notify(
+      sprintf("Resolve duplicate player names before submitting: %s. Click the warning icon to pick the correct player.",
+              paste(unique(ambiguous_rows$player_name), collapse = ", ")),
+      type = "error"
+    )
+    return()
+  }
+
   tryCatch({
     update_count <- 0L
     insert_count <- 0L
@@ -1137,24 +1148,47 @@ observeEvent(input$edit_grid_save, {
         # Resolve player - prioritize existing result's player to preserve data
         player_id <- NULL
 
-        # If this is an existing result, get the original player and update their name
+        member_num <- normalize_member_number(row$member_number)
+        if (is.na(member_num)) member_num <- ""
+
         if (!is.na(row$result_id)) {
+          # Existing result — check if admin changed the player name
           original <- DBI::dbGetQuery(conn, "
-            SELECT player_id FROM results WHERE result_id = $1
+            SELECT r.player_id, p.display_name AS original_name
+            FROM results r JOIN players p ON r.player_id = p.player_id
+            WHERE r.result_id = $1
           ", params = list(row$result_id))
+
           if (nrow(original) > 0) {
-            player_id <- original$player_id[1]
-            # Update the player's display_name and slug if it changed
-            updated_slug <- generate_unique_slug(db_pool, name, exclude_player_id = player_id)
-            DBI::dbExecute(conn, "
-              UPDATE players SET display_name = $1, slug = $2, updated_at = CURRENT_TIMESTAMP, updated_by = $3 WHERE player_id = $4
-            ", params = list(name, updated_slug, current_admin_username(rv), player_id))
+            if (tolower(trimws(name)) == tolower(trimws(original$original_name[1]))) {
+              # Name unchanged — keep existing player
+              player_id <- original$player_id[1]
+            } else {
+              # Name changed — resolve the new name to decide: reassign or rename?
+              # Don't pass member_number — match by name only to avoid Bandai ID
+              # matching back to the same player
+              match_info <- match_player(name, conn, scene_id = scene_id)
+              if (match_info$status == "matched" && match_info$player_id != original$player_id[1]) {
+                # New name matches a DIFFERENT existing player — reassign result to them
+                player_id <- match_info$player_id
+              } else if (match_info$status == "ambiguous") {
+                # Multiple matches — should be caught by pre-submit block, fallback to first
+                player_id <- match_info$candidates$player_id[1]
+              } else {
+                # No match or matched same player — treat as name correction, rename
+                player_id <- original$player_id[1]
+                updated_slug <- generate_unique_slug(db_pool, name, exclude_player_id = player_id)
+                DBI::dbExecute(conn, "
+                  UPDATE players SET display_name = $1, slug = $2,
+                         updated_at = CURRENT_TIMESTAMP, updated_by = $3
+                  WHERE player_id = $4
+                ", params = list(name, updated_slug, current_admin_username(rv), player_id))
+              }
+            }
           }
         }
 
-        # If no existing result, use pre-matched player_id or match by name/member_number
-        member_num <- normalize_member_number(row$member_number) %||% ""
-
+        # New row (no result_id) — use pre-matched player_id or match by name
         if (is.null(player_id)) {
           if (!is.na(row$matched_player_id)) {
             player_id <- row$matched_player_id

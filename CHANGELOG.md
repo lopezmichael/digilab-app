@@ -5,6 +5,18 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.7] - 2026-03-20 - Duplicate Player Name Fixes
+
+### Fixed
+- **Ambiguous player matches no longer silently default to first candidate**: Entry wizard and edit grid now block submission when any row has an unresolved ambiguous match (2+ players with the same name). Admins must use the disambiguation modal to pick the correct player before saving.
+- **Edit grid name changes no longer rename the original player**: Changing a player name on an existing result now correctly distinguishes between name correction (no match found → renames player) and player reassignment (matches a different existing player → reassigns result). Previously, any name edit would rename the original player record across all their results.
+- **Edit Players allows duplicate display names with confirmation**: Renaming a player to a name that already exists now shows a warning instead of a hard block. Click Save again to confirm. Two real people can share a name.
+- **`normalize_member_number` NA crash**: Fixed `%||%` (null-or) not catching `NA` values from `normalize_member_number()`, causing "missing value where TRUE/FALSE needed" errors when submitting results without a Bandai ID. Affected entry wizard, edit grid, and public submit.
+- **Scene-scoped player matching missed players homed to scene**: `match_player()` now finds players homed to a scene regardless of identity status, not just verified players who've previously competed there. Fixes false "new player" results for known players entering their first tournament in their home scene.
+
+### Changed
+- **Player merge uses single transaction**: Both merge handlers (suggested merge + manual merge) now run all operations inside `with_transaction()` for atomicity. Member number transfer clears source first to avoid unique constraint violations.
+
 ## [1.7.6] - 2026-03-17 - Country-Grouped Scene Dropdowns & Store Filters
 
 ### Added

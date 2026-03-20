@@ -1077,6 +1077,17 @@ observeEvent(input$admin_submit_results, {
     return()
   }
 
+  # Block submission if any rows have unresolved ambiguous matches
+  ambiguous_rows <- filled_rows[filled_rows$match_status == "ambiguous", ]
+  if (nrow(ambiguous_rows) > 0) {
+    notify(
+      sprintf("Resolve duplicate player names before submitting: %s. Click the warning icon to pick the correct player.",
+              paste(unique(ambiguous_rows$player_name), collapse = ", ")),
+      type = "error"
+    )
+    return()
+  }
+
   # Get UNKNOWN archetype ID for release events or fallback
   unknown_row <- safe_query(db_pool, "SELECT archetype_id FROM deck_archetypes WHERE archetype_name = 'UNKNOWN' LIMIT 1",
                             default = data.frame(archetype_id = integer(0)))
@@ -1112,7 +1123,8 @@ observeEvent(input$admin_submit_results, {
         name <- trimws(row$player_name)
 
         # 1. Resolve player - use pre-matched player_id if available
-        member_num <- normalize_member_number(row$member_number) %||% ""
+        member_num <- normalize_member_number(row$member_number)
+        if (is.na(member_num)) member_num <- ""
 
         if (!is.na(row$matched_player_id)) {
           player_id <- row$matched_player_id
@@ -1311,5 +1323,6 @@ observeEvent(input$admin_done_decklists, {
 })
 
 observeEvent(input$admin_skip_decklists, {
+  notify("Tournament submitted successfully!", type = "message")
   reset_admin_wizard()
 })

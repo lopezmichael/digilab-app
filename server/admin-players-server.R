@@ -124,45 +124,86 @@ observeEvent(input$suggested_merge_action, {
 
   if (info$action == "merge") {
     tryCatch({
-      # Check for conflicting results
-      conflicts <- safe_query(db_pool, "
-        SELECT a.tournament_id FROM results a
-        JOIN results b ON a.tournament_id = b.tournament_id
-        WHERE a.player_id = $1 AND b.player_id = $2
-      ", params = list(source_id, target_id), default = data.frame())
+      admin_name <- current_admin_username(rv)
 
-      if (nrow(conflicts) > 0) {
-        safe_execute(db_pool, "
-          DELETE FROM results WHERE player_id = $1
-          AND tournament_id IN (SELECT tournament_id FROM results WHERE player_id = $2)
+      conflict_count <- with_transaction(db_pool, function(conn) {
+        # Check for conflicting results
+        conflicts <- DBI::dbGetQuery(conn, "
+          SELECT a.tournament_id FROM results a
+          JOIN results b ON a.tournament_id = b.tournament_id
+          WHERE a.player_id = $1 AND b.player_id = $2
         ", params = list(source_id, target_id))
+
+        if (nrow(conflicts) > 0) {
+          DBI::dbExecute(conn, "
+            DELETE FROM results WHERE player_id = $1
+            AND tournament_id IN (SELECT tournament_id FROM results WHERE player_id = $2)
+          ", params = list(source_id, target_id))
+        }
+
+        # Move results
+        DBI::dbExecute(conn, "UPDATE results SET player_id = $1 WHERE player_id = $2",
+                     params = list(target_id, source_id))
+
+        # Move matches
+        DBI::dbExecute(conn, "UPDATE matches SET player_id = $1 WHERE player_id = $2",
+                     params = list(target_id, source_id))
+        DBI::dbExecute(conn, "UPDATE matches SET opponent_id = $1 WHERE opponent_id = $2",
+                     params = list(target_id, source_id))
+
+        # Copy limitless_username to target
+        DBI::dbExecute(conn, "
+          UPDATE players
+          SET limitless_username = (SELECT limitless_username FROM players WHERE player_id = $1),
+              identity_status = 'verified',
+              updated_at = CURRENT_TIMESTAMP, updated_by = $2
+          WHERE player_id = $3 AND (limitless_username IS NULL OR limitless_username = '')
+        ", params = list(source_id, admin_name, target_id))
+
+        # Transfer member_number: clear from source first to avoid unique constraint
+        source_member <- DBI::dbGetQuery(conn, "
+          SELECT member_number FROM players WHERE player_id = $1
+        ", params = list(source_id))$member_number
+
+        if (length(source_member) > 0 && !is.na(source_member) && nchar(source_member) > 0) {
+          DBI::dbExecute(conn, "
+            UPDATE players SET member_number = NULL WHERE player_id = $1
+          ", params = list(source_id))
+
+          DBI::dbExecute(conn, "
+            UPDATE players
+            SET member_number = $1,
+                identity_status = 'verified',
+                updated_at = CURRENT_TIMESTAMP, updated_by = $3
+            WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
+          ", params = list(source_member, target_id, admin_name))
+        }
+
+        # Promote to verified if target now has any identity fields
+        DBI::dbExecute(conn, "
+          UPDATE players
+          SET identity_status = 'verified', updated_at = CURRENT_TIMESTAMP, updated_by = $2
+          WHERE player_id = $1
+            AND identity_status != 'verified'
+            AND (member_number IS NOT NULL AND member_number != ''
+                 OR limitless_username IS NOT NULL AND limitless_username != '')
+        ", params = list(target_id, admin_name))
+
+        # Soft-delete source player
+        DBI::dbExecute(conn, "
+          UPDATE players SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP, updated_by = $2
+          WHERE player_id = $1
+        ", params = list(source_id, admin_name))
+
+        nrow(conflicts)
+      })
+
+      if (conflict_count > 0) {
+        notify(
+          sprintf("Note: %d conflicting result(s) removed from source player", conflict_count),
+          type = "warning", duration = 5
+        )
       }
-
-      # Move results
-      safe_execute(db_pool, "UPDATE results SET player_id = $1 WHERE player_id = $2",
-                   params = list(target_id, source_id))
-
-      # Move matches
-      safe_execute(db_pool, "UPDATE matches SET player_id = $1 WHERE player_id = $2",
-                   params = list(target_id, source_id))
-      safe_execute(db_pool, "UPDATE matches SET opponent_id = $1 WHERE opponent_id = $2",
-                   params = list(target_id, source_id))
-
-      # Copy limitless_username to target
-      safe_execute(db_pool, "
-        UPDATE players
-        SET limitless_username = (SELECT limitless_username FROM players WHERE player_id = $1),
-            identity_status = 'verified',
-            updated_at = CURRENT_TIMESTAMP, updated_by = $2
-        WHERE player_id = $3 AND (limitless_username IS NULL OR limitless_username = '')
-      ", params = list(source_id, current_admin_username(rv), target_id))
-
-      # Soft-delete source + clear member_number to avoid unique index conflict
-      safe_execute(db_pool, "
-        UPDATE players SET is_active = FALSE, member_number = NULL,
-               updated_at = CURRENT_TIMESTAMP, updated_by = $1
-        WHERE player_id = $2
-      ", params = list(current_admin_username(rv), source_id))
 
       notify("Players merged successfully!", type = "message")
       rv$refresh_players <- rv$refresh_players + 1
@@ -301,7 +342,8 @@ observeEvent(input$player_list_clicked, {
 
   if (nrow(player) == 0) return()
 
-  # Populate form for editing
+  # Populate form for editing (reset duplicate-name confirmation flag)
+  rv$confirm_duplicate_name <- FALSE
   updateTextInput(session, "editing_player_id", value = as.character(player$player_id))
   updateTextInput(session, "player_display_name", value = player$display_name)
   updateTextInput(session, "player_member_number",
@@ -364,6 +406,7 @@ output$player_stats_info <- renderUI({
 
 # Cancel edit
 observeEvent(input$cancel_edit_player, {
+  rv$confirm_duplicate_name <- FALSE
   updateTextInput(session, "editing_player_id", value = "")
   updateTextInput(session, "player_display_name", value = "")
   updateTextInput(session, "player_member_number", value = "")
@@ -394,16 +437,18 @@ observeEvent(input$update_player, {
     return()
   }
 
-  # Check for duplicate name (excluding current player)
+  # Check for duplicate name (excluding current player) — warn but allow with confirmation
   existing <- safe_query(db_pool, "
     SELECT player_id FROM players
     WHERE LOWER(display_name) = LOWER($1) AND player_id != $2
   ", params = list(new_name, player_id), default = data.frame())
 
-  if (nrow(existing) > 0) {
-    notify(sprintf("A player named '%s' already exists", new_name), type = "error")
+  if (nrow(existing) > 0 && !isTRUE(rv$confirm_duplicate_name)) {
+    rv$confirm_duplicate_name <- TRUE
+    notify(sprintf("Another player named '%s' already exists. Click Save again to confirm.", new_name), type = "warning")
     return()
   }
+  rv$confirm_duplicate_name <- FALSE
 
   new_member <- trimws(input$player_member_number)
   if (nchar(new_member) == 0) new_member <- NA_character_
@@ -626,70 +671,98 @@ observeEvent(input$confirm_merge_players, {
   }
 
   tryCatch({
-    # Check for conflicting results (both players in same tournament)
-    conflicts <- safe_query(db_pool, "
-      SELECT r1.tournament_id
-      FROM results r1
-      INNER JOIN results r2 ON r1.tournament_id = r2.tournament_id
-      WHERE r1.player_id = $1 AND r2.player_id = $2
-    ", params = list(source_id, target_id), default = data.frame())
+    admin_name <- current_admin_username(rv)
 
-    if (nrow(conflicts) > 0) {
-      # Delete source results that conflict (target's result takes priority)
-      safe_execute(db_pool, "
-        DELETE FROM results
-        WHERE player_id = $1 AND tournament_id IN (
-          SELECT r2.tournament_id FROM results r2 WHERE r2.player_id = $2
-        )
+    # Run entire merge in a single transaction so it's all-or-nothing
+    conflict_count <- with_transaction(db_pool, function(conn) {
+
+      # Check for conflicting results (both players in same tournament)
+      conflicts <- DBI::dbGetQuery(conn, "
+        SELECT r1.tournament_id
+        FROM results r1
+        INNER JOIN results r2 ON r1.tournament_id = r2.tournament_id
+        WHERE r1.player_id = $1 AND r2.player_id = $2
       ", params = list(source_id, target_id))
+
+      if (nrow(conflicts) > 0) {
+        # Delete source results that conflict (target's result takes priority)
+        DBI::dbExecute(conn, "
+          DELETE FROM results
+          WHERE player_id = $1 AND tournament_id IN (
+            SELECT r2.tournament_id FROM results r2 WHERE r2.player_id = $2
+          )
+        ", params = list(source_id, target_id))
+      }
+
+      # Move remaining results from source to target
+      DBI::dbExecute(conn, "
+        UPDATE results SET player_id = $1 WHERE player_id = $2
+      ", params = list(target_id, source_id))
+
+      # Transfer matches (as player)
+      DBI::dbExecute(conn, "
+        UPDATE matches SET player_id = $1 WHERE player_id = $2
+      ", params = list(target_id, source_id))
+
+      # Transfer matches (as opponent)
+      DBI::dbExecute(conn, "
+        UPDATE matches SET opponent_id = $1 WHERE opponent_id = $2
+      ", params = list(target_id, source_id))
+
+      # Copy limitless_username from source to target (if target doesn't have one)
+      DBI::dbExecute(conn, "
+        UPDATE players
+        SET limitless_username = (
+          SELECT limitless_username FROM players WHERE player_id = $1
+        ), updated_at = CURRENT_TIMESTAMP, updated_by = $3
+        WHERE player_id = $2 AND (limitless_username IS NULL OR limitless_username = '')
+      ", params = list(source_id, target_id, admin_name))
+
+      # Transfer member_number: clear from source first to avoid unique constraint,
+      # then set on target if it doesn't already have one
+      source_member <- DBI::dbGetQuery(conn, "
+        SELECT member_number FROM players WHERE player_id = $1
+      ", params = list(source_id))$member_number
+
+      if (length(source_member) > 0 && !is.na(source_member) && nchar(source_member) > 0) {
+        DBI::dbExecute(conn, "
+          UPDATE players SET member_number = NULL WHERE player_id = $1
+        ", params = list(source_id))
+
+        DBI::dbExecute(conn, "
+          UPDATE players
+          SET member_number = $1,
+              identity_status = 'verified',
+              updated_at = CURRENT_TIMESTAMP, updated_by = $3
+          WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
+        ", params = list(source_member, target_id, admin_name))
+      }
+
+      # Promote to verified if target now has any identity fields
+      DBI::dbExecute(conn, "
+        UPDATE players
+        SET identity_status = 'verified', updated_at = CURRENT_TIMESTAMP, updated_by = $2
+        WHERE player_id = $1
+          AND identity_status != 'verified'
+          AND (member_number IS NOT NULL AND member_number != ''
+               OR limitless_username IS NOT NULL AND limitless_username != '')
+      ", params = list(target_id, admin_name))
+
+      # Soft-delete source player
+      DBI::dbExecute(conn, "
+        UPDATE players SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP, updated_by = $2
+        WHERE player_id = $1
+      ", params = list(source_id, admin_name))
+
+      nrow(conflicts)
+    })
+
+    if (conflict_count > 0) {
       notify(
-        sprintf("Note: %d conflicting result(s) removed from source player", nrow(conflicts)),
+        sprintf("Note: %d conflicting result(s) removed from source player", conflict_count),
         type = "warning", duration = 5
       )
     }
-
-    # Move remaining results from source to target
-    safe_execute(db_pool, "
-      UPDATE results SET player_id = $1 WHERE player_id = $2
-    ", params = list(target_id, source_id))
-
-    # Transfer matches (as player)
-    safe_execute(db_pool, "
-      UPDATE matches SET player_id = $1 WHERE player_id = $2
-    ", params = list(target_id, source_id))
-
-    # Transfer matches (as opponent)
-    safe_execute(db_pool, "
-      UPDATE matches SET opponent_id = $1 WHERE opponent_id = $2
-    ", params = list(target_id, source_id))
-
-    # Copy limitless_username from source to target (if target doesn't have one)
-    safe_execute(db_pool, "
-      UPDATE players
-      SET limitless_username = (
-        SELECT limitless_username FROM players WHERE player_id = $1
-      ), updated_at = CURRENT_TIMESTAMP, updated_by = $3
-      WHERE player_id = $2 AND (limitless_username IS NULL OR limitless_username = '')
-    ", params = list(source_id, target_id, current_admin_username(rv)))
-
-    # Copy member_number from source to target (if target doesn't have one) + promote to verified
-    safe_execute(db_pool, "
-      UPDATE players
-      SET member_number = COALESCE(
-            NULLIF(member_number, ''),
-            (SELECT member_number FROM players WHERE player_id = $1)
-          ),
-          identity_status = CASE
-            WHEN COALESCE(NULLIF(member_number, ''), (SELECT member_number FROM players WHERE player_id = $1)) IS NOT NULL
-            THEN 'verified' ELSE identity_status
-          END,
-          updated_at = CURRENT_TIMESTAMP, updated_by = $3
-      WHERE player_id = $2
-    ", params = list(source_id, target_id, current_admin_username(rv)))
-
-    # Soft-delete source player instead of hard DELETE
-    safe_execute(db_pool, "UPDATE players SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP, updated_by = $2 WHERE player_id = $1",
-                 params = list(source_id, current_admin_username(rv)))
 
     notify("Players merged successfully", type = "message")
 

@@ -1685,6 +1685,7 @@ observeEvent(input$submit_done_decklists, {
 })
 
 observeEvent(input$submit_skip_decklists, {
+  notify("Tournament submitted successfully!", type = "message")
   reset_submit_wizard()
 })
 
@@ -2072,7 +2073,8 @@ observeEvent(input$match_submit, {
   results <- rv$match_ocr_results
   tournament_id <- as.integer(input$match_tournament)
   submitter_username <- trimws(input$match_player_username)
-  submitter_member <- normalize_member_number(input$match_player_member) %||% ""
+  submitter_member <- normalize_member_number(input$match_player_member)
+  if (is.na(submitter_member)) submitter_member <- ""
 
   tryCatch({
     # Check out a dedicated connection for the transaction

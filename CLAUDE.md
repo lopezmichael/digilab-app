@@ -95,9 +95,9 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.7.6 - Country-Grouped Scene Dropdowns & Store Filters
+### Latest Release: v1.7.7 - Duplicate Player Name Fixes
 
-All admin scene dropdowns now show scenes grouped by country with optgroups (matching navbar style). Store filter added to Meta tab. Multiple notification and dropdown bugs fixed. See `CHANGELOG.md` for full details.
+Fixed cascading bugs around duplicate player names in the same scene: ambiguous matches now block submission until resolved, edit grid distinguishes name corrections from player reassignment, and Edit Players allows duplicate names with a save-twice confirmation. Also fixed a `normalize_member_number` NA crash and broadened scene-scoped player matching. See `CHANGELOG.md` for full details.
 
 See `ROADMAP.md` for the full version plan.
 
@@ -105,6 +105,7 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v1.7.7 | Duplicate Player Name Fixes |
 | v1.7.6 | Country-Grouped Scene Dropdowns & Store Filters |
 | v1.7.5 | Discord Webhook Embeds |
 | v1.7.4 | Admin Permission Tier Scoping |
@@ -383,6 +384,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.7.6** - Country-Grouped Scene Dropdowns & Store Filters
+**v1.7.7** - Duplicate Player Name Fixes
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.
