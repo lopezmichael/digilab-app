@@ -50,80 +50,175 @@ planned:
     tags: [security, fix]
     targetVersion: "v1.9.0"
 
-  # v1.10.0 — Tournament Data & Ingestion
-  - id: decklist-entry-expansion
-    title: "Decklist Entry Expansion"
-    description: "Tier 2: Deck builder integration, text paste import, and richer decklist display beyond URL links."
-    tags: [feature, data]
-    targetVersion: "v1.10.0"
-
   - id: ocr-improvements
     title: "OCR Upload Improvements"
     description: "Bug fixes and process improvements for screenshot-based OCR uploads including better error handling and accuracy."
     tags: [feature, data]
+    targetVersion: "v1.9.0"
+
+  # v1.10.0 — Onboarding & Dashboard Rework
+  - id: onboarding-rework
+    title: "Onboarding Flow Redesign"
+    description: "Rework the 3-step welcome modal: Step 1 becomes scene picker (promoted from Step 2), Step 2 becomes 'Find Yourself' (player search by name or Bandai ID — personal connection), Step 3 becomes scene-at-a-glance data preview. Remove 'Join Community' from onboarding (move Discord/Ko-fi to footer). Improve skip behavior with locale detection and continent fallback. Never land on empty 'All Scenes' view."
+    tags: [ux, activation, feature]
     targetVersion: "v1.10.0"
 
-  - id: round-by-round
-    title: "Round-by-Round Enhancements"
-    description: "Improved UX for match history uploads, better database handling, and player-facing visibility for round-by-round data."
-    tags: [feature, data]
+  - id: dashboard-reorder
+    title: "Dashboard Reorder & Empty States"
+    description: "Reorganize dashboard into three clear sections: 'Your Scene' (recent tournaments, rising stars — what happened at my locals), 'Meta Snapshot' (top decks, conversion rates, diversity — what should I play), and 'Scene Health' (attendance trends, growth — is my scene thriving). Add qualitative meta diversity labels. Add empty state handling for scenes with thin data using fallback cascade (Scene → Country → Continent → Global)."
+    tags: [ux, activation, feature]
     targetVersion: "v1.10.0"
 
-  # v1.11.0 — UX Polish & Modals
-  - id: modal-improvements
-    title: "Modal Improvements"
-    description: "Enhanced player, store, and deck modals with rating sparklines, global vs local rank, deck history, and other data-rich additions."
-    tags: [ux, feature]
-    targetVersion: "v1.11.0"
+  # v2.0.0 — Astro Content Platform (digilab-web)
+  # Platform shift: public read-only pages move to Astro SSR for shareability, SEO, and performance.
+  # Shiny app scope narrows to admin/data-entry tools. Same Neon PostgreSQL database serves both.
+  - id: astro-db-utility
+    title: "Astro Database Utility Module"
+    description: "Neon PostgreSQL connection module for Astro SSR pages and API routes. Connection pooling via pg package, shared query helpers, type-safe result mapping. Foundation for all Astro content pages. API routes serve JSON for Astro islands that need client-side data fetching (search, filters)."
+    tags: [infrastructure, astro]
+    targetVersion: "v2.0.0"
 
-  - id: accessibility-pass
-    title: "Accessibility Pass"
-    description: "WCAG compliance audit covering color contrast, screen reader labels, keyboard navigation, and ARIA attributes."
-    tags: [ux]
-    targetVersion: "v1.11.0"
+  - id: astro-tournament-pages
+    title: "Tournament Pages"
+    description: "SSR tournament detail pages at /tournament/[slug] — full results table, deck breakdown, store info, date/format. Highest shareability: TOs will link these immediately after events. Open Graph meta tags for rich Discord/social previews."
+    tags: [astro, feature, seo]
+    targetVersion: "v2.0.0"
 
-  # v1.12.0 — Achievement Badges & Gamification
+  - id: astro-player-pages
+    title: "Player Profile Pages"
+    description: "SSR player profile pages at /player/[slug] — rating history chart, tournament history, deck usage breakdown, win rates, head-to-head records, scenes competed in. Astro island for interactive rating history chart (Highcharts JS). Achievement badges when available."
+    tags: [astro, feature, seo]
+    targetVersion: "v2.0.0"
+
+  - id: astro-store-pages
+    title: "Store Pages"
+    description: "SSR store detail pages at /store/[slug] — location, schedule, upcoming/recent tournaments, regular players, store rating. TOs can use as their store's public page."
+    tags: [astro, feature, seo]
+    targetVersion: "v2.0.0"
+
+  - id: astro-deck-pages
+    title: "Deck Archetype Pages"
+    description: "SSR deck archetype pages at /deck/[slug] — meta stats (play rate, conversion rate, avg placement), top pilots, tournament history, format trends. Foundation for deeper meta analysis in v2.1.0."
+    tags: [astro, feature, seo]
+    targetVersion: "v2.0.0"
+
+  - id: astro-seo-foundation
+    title: "SEO Foundation"
+    description: "Dynamic Open Graph meta tags on all content pages, schema.org structured data (Event, Person, Organization), auto-generated sitemap from database, internal linking across page types, Google Search Console setup. Thousands of indexable pages from existing data."
+    tags: [astro, seo, infrastructure]
+    targetVersion: "v2.0.0"
+
+  - id: shiny-modal-links
+    title: "Shiny Modal → Astro Page Links"
+    description: "Add 'View Full Profile' / 'Share' links to existing Shiny player, store, tournament, and deck modals that open the corresponding Astro page. Astro pages get 'Open in App' links back to Shiny for admin actions. Bridges the two platforms."
+    tags: [ux, astro]
+    targetVersion: "v2.0.0"
+
+  # v2.1.0 — Meta Analysis Expansion (digilab-web)
+  # Top community request (20 votes). Builds on v2.0.0 deck pages with deep analytical tools.
+  - id: deck-explorer
+    title: "Deck Explorer"
+    description: "Comprehensive archetype analysis hub at /meta — global and scene-level meta overview with play rates, conversion rates, tier lists. Archetype detail pages expanded with card frequency analysis across decklists, sample/popular lists display, tech card tracking. Astro island for interactive filtering (format, scene, date range)."
+    tags: [astro, feature, meta]
+    targetVersion: "v2.1.0"
+
+  - id: matchup-tables
+    title: "Matchup Analysis"
+    description: "Deck-vs-deck matchup tables built from 10.5k+ match records. Win rates with sample size indicators and confidence levels. Filterable by format, scene, date range. Transparency about data sources (mostly online Limitless data). Astro island for interactive matchup matrix (Highcharts JS heatmap)."
+    tags: [astro, feature, meta]
+    targetVersion: "v2.1.0"
+
+  - id: format-trends
+    title: "Format Meta Trends"
+    description: "Meta share over time charts per format, deck rise/fall tracking, format health metrics (diversity index, top-heaviness). Compare meta across scenes and formats. Astro islands for interactive Highcharts time series."
+    tags: [astro, feature, meta]
+    targetVersion: "v2.1.0"
+
+  - id: decklist-entry-expansion
+    title: "Decklist Entry & Display Expansion"
+    description: "Richer decklist display on Astro deck/tournament pages — card images from cached DigimonCard.io CDN, card grouping by type, visual deck builder integration. Text paste import for decklists. Feeds the deck explorer with more data."
+    tags: [feature, data, astro]
+    targetVersion: "v2.1.0"
+
+  # v2.2.0 — Homepage Redesign & Retention (digilab-web)
+  # Depends on content pages existing (v2.0.0) so homepage has real content to showcase.
+  - id: homepage-redesign
+    title: "Homepage Redesign"
+    description: "Transform digilab.cards landing page from static marketing page to living hub with real data. Different experience for first-time vs returning visitors. Live tournament feed, trending decks, featured scenes, recent results. Circuit background animation, Agumon guide character. Reduce 55.6% bounce rate by showing value immediately."
+    tags: [astro, ux, activation]
+    targetVersion: "v2.2.0"
+
+  - id: scene-pages
+    title: "Scene Landing Pages"
+    description: "SSR scene pages at /scene/[slug] — local leaderboard, recent tournaments, meta snapshot, active stores, community stats. Replaces Shiny Overview tab for public viewers. Astro island for leaderboard search/filter."
+    tags: [astro, feature, community]
+    targetVersion: "v2.2.0"
+
+  - id: global-leaderboard
+    title: "Global Leaderboard Page"
+    description: "SSR leaderboard page at /players with scene/format filtering. Astro island for search-as-you-type and filter controls. Replaces Shiny Players tab for public viewers."
+    tags: [astro, feature]
+    targetVersion: "v2.2.0"
+
+  # v2.3.0 — Mobile Polish & Platform Cleanup
+  - id: mobile-responsive-pass
+    title: "Mobile Responsive Pass"
+    description: "Responsive design audit across all Astro pages — mobile-first layouts, touch targets, performance on slow connections. Astro pages should feel native on mobile at locals. PWA caching of previously visited pages for offline viewing. Review Shiny mobile views for consistency."
+    tags: [mobile, ux, astro]
+    targetVersion: "v2.3.0"
+
   - id: achievement-badges
     title: "Achievement Badges"
-    description: "Auto-calculated player achievements displayed in player modals — tournament streaks, deck mastery, and scene milestones."
-    tags: [gamification, feature]
-    targetVersion: "v1.12.0"
+    description: "Auto-calculated player achievements displayed on Astro player profile pages — tournament streaks, deck mastery, scene milestones, format specialization. Gamification layer on top of existing data."
+    tags: [gamification, feature, astro]
+    targetVersion: "v2.3.0"
 
-  # v1.13.0 — Admin Infrastructure & Multi-Region
+  # Infrastructure — float as needed
   - id: admin-audit-log
     title: "Admin Audit Log"
     description: "Track who changed what and when across all admin actions with before/after snapshots and optional undo."
     tags: [admin, security]
-    targetVersion: "v1.13.0"
+    targetVersion: "Infrastructure"
 
   - id: tournament-tiers
     title: "Tournament Tiers"
-    description: "Add tier classification to tournaments (local, regional, national, international) for filtering and ranking context."
+    description: "Add tier classification to tournaments (local, regional, national, international) for filtering and ranking context on both Shiny admin and Astro public pages."
     tags: [feature, data]
-    targetVersion: "v1.13.0"
-
-  - id: cross-scene-badges
-    title: "Cross-Scene Player Badges"
-    description: "Show which scenes a player has competed in within their player modal, with home scene inference."
-    tags: [feature, community]
-    targetVersion: "v1.13.0"
+    targetVersion: "Infrastructure"
 
   - id: login-rate-limiting
     title: "Login Rate Limiting & Brute Force Protection"
     description: "Add per-username failed attempt tracking with exponential backoff and temporary lockout after 5 failures. Current admin login has no rate limiting — low risk given small user base and unlisted login page, but good hardening for scale."
     tags: [security, admin]
-    targetVersion: "v1.13.0"
+    targetVersion: "Infrastructure"
 
   - id: automated-testing
     title: "Automated Testing & CI"
     description: "Integration test suite for app loading, key queries, OCR parser accuracy, and regression prevention in CI."
     tags: [scaling]
-    targetVersion: "v1.13.0"
+    targetVersion: "Infrastructure"
 
-  # Future
+  - id: accessibility-pass
+    title: "Accessibility Pass"
+    description: "WCAG compliance audit covering color contrast, screen reader labels, keyboard navigation, and ARIA attributes. Apply across both Shiny admin and Astro public pages."
+    tags: [ux]
+    targetVersion: "Infrastructure"
+
+  - id: round-by-round
+    title: "Round-by-Round Enhancements"
+    description: "Improved UX for match history uploads, better database handling, and player-facing visibility for round-by-round data on Astro tournament pages."
+    tags: [feature, data]
+    targetVersion: "Infrastructure"
+
+  - id: cross-scene-badges
+    title: "Cross-Scene Player Badges"
+    description: "Show which scenes a player has competed in on their Astro profile page, with home scene inference."
+    tags: [feature, community]
+    targetVersion: "Infrastructure"
+
   - id: mascot-branding
     title: "Mascot & Branding"
-    description: "Commission custom Digimon SVG set, Digivice footer watermark, and expanded Agumon poses for achievements and celebrations."
+    description: "Commission custom Digimon SVG set, Digivice footer watermark, and expanded Agumon poses for achievements, celebrations, and Astro homepage guide character."
     tags: [ux, content]
     targetVersion: "Future"
 
