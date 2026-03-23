@@ -150,7 +150,7 @@ observeEvent(input$url_initial, {
   # 2. Tab navigation
   if (!is.null(params$tab)) {
     valid_tabs <- c("dashboard", "players", "meta", "tournaments", "stores",
-                    "submit", "about", "faq", "for_tos")
+                    "submit_results", "about", "faq", "for_tos")
     if (params$tab %in% valid_tabs) {
       # Use slight delay to ensure UI is ready
       shinyjs::delay(100, {
@@ -249,11 +249,11 @@ observeEvent(rv$current_nav, {
   # Public tabs that should have URL support
 
   public_tabs <- c("dashboard", "players", "meta", "tournaments", "stores",
-                   "submit", "about", "faq", "for_tos")
+                   "submit_results", "about", "faq", "for_tos")
 
   # Admin tabs should clear URL back to base
 
-  admin_tabs <- c("admin_results", "admin_tournaments", "admin_decks",
+  admin_tabs <- c("admin_tournaments", "admin_decks",
                   "admin_stores", "admin_formats", "admin_players",
                   "admin_users", "admin_scenes")
 

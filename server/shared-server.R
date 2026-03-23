@@ -339,9 +339,9 @@ observeEvent(input$nav_tournaments, {
   rv$current_nav <- "tournaments"
 })
 
-observeEvent(input$nav_submit, {
-  nav_select("main_content", "submit")
-  rv$current_nav <- "submit"
+observeEvent(input$nav_submit_results, {
+  nav_select("main_content", "submit_results")
+  rv$current_nav <- "submit_results"
 })
 
 # Mobile bottom tab bar navigation
@@ -371,9 +371,9 @@ observeEvent(input$mob_stores, {
   session$sendCustomMessage("updateSidebarNav", "nav_stores")
 })
 
-observeEvent(input$nav_admin_results, {
-  nav_select("main_content", "admin_results")
-  rv$current_nav <- "admin_results"
+observeEvent(input$nav_admin_submit_results, {
+  nav_select("main_content", "submit_results")
+  rv$current_nav <- "submit_results"
 })
 
 observeEvent(input$nav_admin_tournaments, {
@@ -414,8 +414,8 @@ observeEvent(input$nav_admin_scenes, {
 # Admin modal navigation (for mobile access)
 observeEvent(input$modal_admin_results, {
   removeModal()
-  nav_select("main_content", "admin_results")
-  rv$current_nav <- "admin_results"
+  nav_select("main_content", "submit_results")
+  rv$current_nav <- "submit_results"
 })
 observeEvent(input$modal_admin_tournaments, {
   removeModal()
@@ -538,9 +538,9 @@ observeEvent(input$store_req_switch_to_scene, {
 
 observeEvent(input$help_modal_upload, {
   removeModal()
-  nav_select("main_content", "submit")
-  rv$current_nav <- "submit"
-  session$sendCustomMessage("updateSidebarNav", "nav_submit")
+  nav_select("main_content", "submit_results")
+  rv$current_nav <- "submit_results"
+  session$sendCustomMessage("updateSidebarNav", "nav_submit_results")
 })
 
 # ---------------------------------------------------------------------------
@@ -930,7 +930,7 @@ observeEvent(input$admin_login_link, {
     # Mobile nav links (hidden on desktop)
     admin_links <- tagList(
       actionLink("modal_admin_results",
-                 tagList(bsicons::bs_icon("pencil-square"), " Enter Results"),
+                 tagList(bsicons::bs_icon("cloud-upload"), " Submit Results"),
                  class = "admin-modal-link"),
       actionLink("modal_admin_tournaments",
                  tagList(bsicons::bs_icon("trophy"), " Edit Tournaments"),
@@ -1159,19 +1159,17 @@ observeEvent(input$bootstrap_btn, {
   }
 })
 
-# Refresh tournament_store when stores are added/updated (only if a scene is selected)
-# The primary population is handled by observeEvent(input$tournament_scene) in admin-stores-server.R
+# Refresh sr_store when stores are added/updated (only if a scene is selected)
 observe({
   rv$refresh_stores
-  req(rv$is_admin, rv$current_nav == "admin_results")
+  req(rv$current_nav == "submit_results")
 
-  # Only refresh if a scene is already selected (don't pre-populate with all stores)
-  scene_val <- isolate(input$tournament_scene)
+  # Only refresh if a scene is already selected
+  scene_val <- isolate(input$sr_scene)
   if (is.null(scene_val) || scene_val == "") return()
 
   # Re-trigger the scene-based store filtering by bumping the scene input
-  # This causes the observeEvent(input$tournament_scene) handler to re-fire
-  updateSelectInput(session, "tournament_scene", selected = scene_val)
+  updateSelectInput(session, "sr_scene", selected = scene_val)
 })
 
 # Handle logout
@@ -1392,31 +1390,23 @@ get_format_choices_with_all <- function(pool) {
   )
 }
 
-# Update ADMIN format dropdown (Enter Results wizard)
-# Only fires when on admin_results tab (prevents race condition with lazy-loaded UI)
+# Update format dropdown on submit_results tab when formats change
 observe({
   rv$current_nav
-  req(rv$current_nav == "admin_results")
+  req(rv$current_nav == "submit_results")
   rv$format_refresh
-  req(rv$is_admin)
 
-  # Check if UI has rendered yet (tournament_date is a sibling input that's always visible)
-  if (is.null(input$tournament_date)) {
-    # UI not ready yet, retry shortly
-    invalidateLater(100)
-    return()
-  }
-
-  format_choices <- get_format_choices(db_pool)
-
-  # If format choices came back as fallback (likely prepared stmt collision), retry
-  if (length(format_choices) == 1 && names(format_choices)[1] == "No formats configured") {
-    invalidateLater(500)
-  }
-
-  current_tournament <- isolate(input$tournament_format)
-  updateSelectInput(session, "tournament_format", choices = format_choices,
-                    selected = current_tournament)
+  formats <- safe_query(db_pool, "
+    SELECT format_id, display_name FROM formats
+    WHERE is_active = TRUE
+    ORDER BY release_date DESC, sort_order ASC
+  ")
+  if (nrow(formats) == 0) return()
+  choices <- setNames(formats$format_id, formats$display_name)
+  current_format <- isolate(input$sr_format)
+  updateSelectInput(session, "sr_format",
+                    choices = c("Select format..." = "", choices),
+                    selected = current_format)
 })
 
 # Reactive: get the latest (current) format_id

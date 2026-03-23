@@ -443,7 +443,7 @@ if (nzchar(Sys.getenv("SENTRY_DSN", ""))) {
 # Public page UIs (dashboard, stores, players, meta, tournaments) are sourced
 # at render time inside each page's renderUI so format choices can be populated
 # from the database. See server/public-*-server.R files.
-source("views/submit-ui.R", local = TRUE)
+source("views/submit-results-ui.R", local = TRUE)
 source("views/onboarding-modal-ui.R", local = TRUE)
 source("views/community-banner-ui.R", local = TRUE)
 
@@ -880,16 +880,19 @@ ui <- page_fillable(
         actionLink("nav_stores",
                    tagList(bsicons::bs_icon("geo-alt"), " Stores"),
                    class = "nav-link-sidebar"),
-        actionLink("nav_submit",
-                   tagList(bsicons::bs_icon("cloud-upload"), " Upload Results"),
-                   class = "nav-link-sidebar"),
+        conditionalPanel(
+          condition = "!output.is_admin",
+          actionLink("nav_submit_results",
+                     tagList(bsicons::bs_icon("cloud-upload"), " Submit Results"),
+                     class = "nav-link-sidebar")
+        ),
 
         # Admin Section (conditionally shown, ordered by frequency of use)
         conditionalPanel(
           condition = "output.is_admin",
           tags$div(class = "nav-section-label", "Admin"),
-          actionLink("nav_admin_results",
-                     tagList(bsicons::bs_icon("pencil-square"), " Enter Results"),
+          actionLink("nav_admin_submit_results",
+                     tagList(bsicons::bs_icon("cloud-upload"), " Submit Results"),
                      class = "nav-link-sidebar"),
           actionLink("nav_admin_tournaments",
                      tagList(bsicons::bs_icon("trophy"), " Edit Tournaments"),
@@ -946,8 +949,7 @@ ui <- page_fillable(
         nav_panel_hidden(value = "players", uiOutput("players_page")),
         nav_panel_hidden(value = "meta", uiOutput("meta_page")),
         nav_panel_hidden(value = "tournaments", uiOutput("tournaments_page")),
-        nav_panel_hidden(value = "submit", submit_ui),
-        nav_panel_hidden(value = "admin_results", uiOutput("admin_results_ui")),
+        nav_panel_hidden(value = "submit_results", submit_results_ui),
         nav_panel_hidden(value = "admin_tournaments", uiOutput("admin_tournaments_ui")),
         nav_panel_hidden(value = "admin_decks", uiOutput("admin_decks_ui")),
         nav_panel_hidden(value = "admin_stores", uiOutput("admin_stores_ui")),
@@ -1160,7 +1162,10 @@ server <- function(input, output, session) {
   source("server/public-tournaments-server.R", local = TRUE)
   source("server/public-players-server.R", local = TRUE)
   source("server/public-dashboard-server.R", local = TRUE)
-  source("server/public-submit-server.R", local = TRUE)
+  source("server/submit-shared-server.R", local = TRUE)
+  source("server/submit-upload-server.R", local = TRUE)
+  source("server/submit-match-server.R", local = TRUE)
+  source("server/submit-decklist-server.R", local = TRUE)
 
   # ---------------------------------------------------------------------------
   # Lazy-load Admin Modules (only when user logs in as admin)
@@ -1170,7 +1175,6 @@ server <- function(input, output, session) {
   observeEvent(rv$is_admin, {
     if (rv$is_admin && !admin_modules_loaded()) {
       # Source admin UI views (defines admin_*_ui variables)
-      source("views/admin-results-ui.R", local = TRUE)
       source("views/admin-tournaments-ui.R", local = TRUE)
       source("views/admin-decks-ui.R", local = TRUE)
       source("views/admin-stores-ui.R", local = TRUE)
@@ -1180,7 +1184,6 @@ server <- function(input, output, session) {
       source("views/admin-scenes-ui.R", local = TRUE)
 
       # Render admin UI into placeholders
-      output$admin_results_ui <- renderUI(admin_results_ui)
       output$admin_tournaments_ui <- renderUI(admin_tournaments_ui)
       output$admin_decks_ui <- renderUI(admin_decks_ui)
       output$admin_stores_ui <- renderUI(admin_stores_ui)
@@ -1190,7 +1193,7 @@ server <- function(input, output, session) {
       output$admin_scenes_ui <- renderUI(admin_scenes_ui)
 
       # Source admin server modules
-      source("server/admin-results-server.R", local = TRUE)
+      source("server/submit-grid-server.R", local = TRUE)
       source("server/admin-tournaments-server.R", local = TRUE)
       source("server/admin-decks-server.R", local = TRUE)
       source("server/admin-stores-server.R", local = TRUE)
