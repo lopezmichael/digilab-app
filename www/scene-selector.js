@@ -16,6 +16,7 @@
   // PostMessage Storage Bridge
   // ==========================================================================
 
+  var VALID_PARENT_ORIGINS = ['https://app.digilab.cards', 'https://digilab.cards'];
   var isInIframe = window !== window.parent;
   var pendingRequests = {};
   var REQUEST_TIMEOUT = 2000; // 2 seconds
@@ -32,6 +33,7 @@
    * Listen for storage responses from parent frame
    */
   window.addEventListener('message', function(event) {
+    if (VALID_PARENT_ORIGINS.indexOf(event.origin) === -1) return;
     if (event.data && event.data.type === 'digilab-storage-result') {
       var requestId = event.data.requestId;
       if (requestId && pendingRequests[requestId]) {
@@ -76,7 +78,9 @@
         timer: timer
       };
 
-      window.parent.postMessage(message, '*');
+      VALID_PARENT_ORIGINS.forEach(function(origin) {
+        window.parent.postMessage(message, origin);
+      });
     });
   }
 
