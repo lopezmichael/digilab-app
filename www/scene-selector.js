@@ -345,6 +345,8 @@
     // Handler for clearing onboarding (for testing)
     Shiny.addCustomMessageHandler('clearOnboarding', function(message) {
       DigilabStorage.removeItem(STORAGE_KEY).then(function() {
+        return DigilabStorage.removeItem(CONTINENT_KEY);
+      }).then(function() {
         return DigilabStorage.removeItem(ONBOARDING_KEY);
       }).then(function() {
         return DigilabStorage.removeItem(PLAYER_ID_KEY);

@@ -550,13 +550,18 @@ observeEvent(input$scene_selector, {
 # Onboarding Modal Functions
 # -----------------------------------------------------------------------------
 
-#' Show 3-step onboarding carousel modal
-show_onboarding_modal <- function() {
-  rv$onboarding_step <- 1
+#' Reset onboarding player state
+reset_onboarding_player <- function() {
   rv$onboarding_player <- NULL
   rv$onboarding_player_rating <- NULL
   rv$onboarding_player_rank <- NULL
   rv$onboarding_player_record <- NULL
+}
+
+#' Show 3-step onboarding carousel modal
+show_onboarding_modal <- function() {
+  rv$onboarding_step <- 1
+  reset_onboarding_player()
   showModal(modalDialog(
     onboarding_ui(),
     title = NULL,
@@ -565,10 +570,7 @@ show_onboarding_modal <- function() {
     easyClose = FALSE,
     class = "onboarding-modal"
   ))
-  # Fire map resize after modal opens (Step 1 has the map now)
-  shinyjs::delay(300, {
-    shinyjs::runjs("setTimeout(function(){ window.dispatchEvent(new Event('resize')); }, 150);")
-  })
+  # Map resize handled by the step observer when step == 1
 }
 
 # Re-open onboarding from footer "Welcome Guide" link
@@ -727,10 +729,11 @@ locale_to_continent <- function(lang) {
   parts <- strsplit(lang, "[-_]")[[1]]
   country <- if (length(parts) >= 2) toupper(parts[2]) else toupper(parts[1])
 
-  # Map country codes to continent slugs
+  # Map country/language codes to continent slugs
+  # Note: bare language codes (e.g. "ja" → "JA") are included for locales without country suffix
   mapping <- list(
     north_america = c("US", "CA", "MX", "EN"),
-    south_america = c("BR", "AR", "CL", "CO", "PE", "VE", "EC", "UY", "PY", "BO", "PT"),
+    south_america = c("BR", "AR", "CL", "CO", "PE", "VE", "EC", "UY", "PY", "BO"),
     europe = c("GB", "DE", "FR", "IT", "ES", "NL", "BE", "AT", "CH", "SE", "NO",
                "DK", "FI", "PL", "CZ", "HU", "RO", "BG", "HR", "SK", "SI",
                "IE", "PT", "GR", "LT", "LV", "EE"),
@@ -764,7 +767,7 @@ observeEvent(input$onboarding_player_search_btn, {
   if (grepl("^\\d+$", clean_query)) {
     mn <- normalize_member_number(clean_query)
     player <- safe_query(db_pool,
-      "SELECT player_id, display_name, member_number, home_scene_id
+      "SELECT player_id, display_name, member_number, home_scene_id, competitive_rating
        FROM players
        WHERE member_number = $1 AND is_active IS NOT FALSE
        LIMIT 1",
@@ -774,9 +777,8 @@ observeEvent(input$onboarding_player_search_btn, {
 
   # Fall back to name search
   if (is.null(player)) {
-    # Exact name match first
     player <- safe_query(db_pool,
-      "SELECT player_id, display_name, member_number, home_scene_id
+      "SELECT player_id, display_name, member_number, home_scene_id, competitive_rating
        FROM players
        WHERE LOWER(display_name) = LOWER($1) AND is_active IS NOT FALSE
        LIMIT 1",
@@ -787,7 +789,7 @@ observeEvent(input$onboarding_player_search_btn, {
   # Fuzzy search if no exact match
   if (is.null(player) && nchar(clean_query) >= 3) {
     fuzzy <- safe_query(db_pool,
-      "SELECT player_id, display_name, member_number, home_scene_id,
+      "SELECT player_id, display_name, member_number, home_scene_id, competitive_rating,
               similarity(LOWER(display_name), LOWER($1)) AS sim
        FROM players
        WHERE similarity(LOWER(display_name), LOWER($1)) > 0.4
@@ -801,12 +803,7 @@ observeEvent(input$onboarding_player_search_btn, {
   if (!is.null(player) && nrow(player) > 0) {
     rv$onboarding_player <- player[1, ]
     pid <- player$player_id[1]
-
-    # Query rating
-    rating <- safe_query(db_pool,
-      "SELECT competitive_rating FROM players WHERE player_id = $1",
-      params = list(pid))
-    rv$onboarding_player_rating <- if (nrow(rating) > 0) rating$competitive_rating[1] else NULL
+    rv$onboarding_player_rating <- player$competitive_rating[1]
 
     # Query W-L record
     record <- safe_query(db_pool,
@@ -816,31 +813,28 @@ observeEvent(input$onboarding_player_search_btn, {
       params = list(pid))
     rv$onboarding_player_record <- if (nrow(record) > 0) record[1, ] else NULL
 
-    # Query rank within current scene
+    # Query rank within current scene (only if player has results there)
     scene <- rv$current_scene %||% "all"
     if (scene != "all" && scene != "online") {
       rank_data <- safe_query(db_pool,
-        "SELECT COUNT(*) + 1 AS rank,
-                (SELECT COUNT(DISTINCT r2.player_id)
-                 FROM results r2
-                 JOIN tournaments t2 ON r2.tournament_id = t2.tournament_id
-                 JOIN stores s2 ON t2.store_id = s2.store_id
-                 JOIN scenes sc2 ON s2.scene_id = sc2.scene_id
-                 WHERE sc2.slug = $2) AS total
-         FROM players p2
-         WHERE p2.competitive_rating > (
-           SELECT competitive_rating FROM players WHERE player_id = $1
-         ) AND p2.is_active IS NOT FALSE
-           AND p2.player_id IN (
-             SELECT DISTINCT r3.player_id
-             FROM results r3
-             JOIN tournaments t3 ON r3.tournament_id = t3.tournament_id
-             JOIN stores s3 ON t3.store_id = s3.store_id
-             JOIN scenes sc3 ON s3.scene_id = sc3.scene_id
-             WHERE sc3.slug = $2
-           )",
+        "WITH scene_players AS (
+           SELECT DISTINCT r.player_id
+           FROM results r
+           JOIN tournaments t ON r.tournament_id = t.tournament_id
+           JOIN stores s ON t.store_id = s.store_id
+           JOIN scenes sc ON s.scene_id = sc.scene_id
+           WHERE sc.slug = $2
+         )
+         SELECT
+           (SELECT COUNT(*)
+            FROM scene_players sp
+            JOIN players p ON sp.player_id = p.player_id
+            WHERE p.competitive_rating > (SELECT competitive_rating FROM players WHERE player_id = $1)
+              AND p.is_active IS NOT FALSE) + 1 AS rank,
+           (SELECT COUNT(*) FROM scene_players) AS total,
+           EXISTS (SELECT 1 FROM scene_players WHERE player_id = $1) AS in_scene",
         params = list(pid, scene))
-      rv$onboarding_player_rank <- if (nrow(rank_data) > 0) list(
+      rv$onboarding_player_rank <- if (nrow(rank_data) > 0 && isTRUE(rank_data$in_scene[1])) list(
         rank = rank_data$rank[1],
         total = rank_data$total[1]
       ) else NULL
@@ -848,10 +842,7 @@ observeEvent(input$onboarding_player_search_btn, {
       rv$onboarding_player_rank <- NULL
     }
   } else {
-    rv$onboarding_player <- NULL
-    rv$onboarding_player_rating <- NULL
-    rv$onboarding_player_rank <- NULL
-    rv$onboarding_player_record <- NULL
+    reset_onboarding_player()
   }
 })
 
@@ -959,16 +950,20 @@ get_nearby_stores_for_onboarding <- function(pool, scene_slug) {
 # Onboarding Step 3: Scene Stats
 # -----------------------------------------------------------------------------
 
-# Dynamic scene title
-output$onboarding_scene_title <- renderText({
+# Cached scene display name (avoids repeated DB lookups)
+onboarding_scene_display_name <- reactive({
   scene <- rv$current_scene %||% "all"
   if (scene == "all") return("All Scenes")
   if (scene == "online") return("Online")
-  # Look up display name
   info <- safe_query(db_pool,
     "SELECT display_name FROM scenes WHERE slug = $1 LIMIT 1",
     params = list(scene))
   if (nrow(info) > 0) info$display_name[1] else scene
+})
+
+# Dynamic scene title
+output$onboarding_scene_title <- renderText({
+  onboarding_scene_display_name()
 })
 
 # Stats grid renderer
@@ -989,57 +984,38 @@ output$onboarding_stats_grid <- renderUI({
     scene_params <- list(scene)
   }
 
-  # Query stats for last 30 days
-  stats_query <- sprintf(
-    "SELECT
-       COUNT(DISTINCT t.tournament_id) AS tournaments,
-       COUNT(DISTINCT r.player_id) AS active_players
-     FROM tournaments t
-     JOIN stores s ON t.store_id = s.store_id
-     LEFT JOIN scenes sc ON s.scene_id = sc.scene_id
-     LEFT JOIN results r ON t.tournament_id = r.tournament_id
-     WHERE t.event_date >= CURRENT_DATE - INTERVAL '30 days'
-     %s", scene_filter)
-
-  stats <- safe_query(db_pool, stats_query, params = scene_params,
-                      default = data.frame(tournaments = 0, active_players = 0))
-
-  tournament_count <- if (nrow(stats) > 0) stats$tournaments[1] else 0
-  player_count <- if (nrow(stats) > 0) stats$active_players[1] else 0
-
-  # Trending deck
-  deck_query <- sprintf(
-    "SELECT da.name
-     FROM results r
-     JOIN tournaments t ON r.tournament_id = t.tournament_id
-     JOIN stores s ON t.store_id = s.store_id
-     LEFT JOIN scenes sc ON s.scene_id = sc.scene_id
-     JOIN deck_archetypes da ON r.deck_archetype_id = da.archetype_id
-     WHERE t.event_date >= CURRENT_DATE - INTERVAL '30 days'
-       AND LOWER(da.name) != 'unknown'
+  # Single query for all stats (CTE avoids repeating the join chain)
+  combined_query <- sprintf(
+    "WITH recent AS (
+       SELECT t.tournament_id, r.player_id, r.placement, r.deck_archetype_id
+       FROM tournaments t
+       JOIN stores s ON t.store_id = s.store_id
+       LEFT JOIN scenes sc ON s.scene_id = sc.scene_id
+       LEFT JOIN results r ON t.tournament_id = r.tournament_id
+       WHERE t.event_date >= CURRENT_DATE - INTERVAL '30 days'
        %s
-     GROUP BY da.name
-     ORDER BY COUNT(*) DESC
-     LIMIT 1", scene_filter)
-  trending <- safe_query(db_pool, deck_query, params = scene_params, default = data.frame())
-  trending_deck <- if (nrow(trending) > 0) trending$name[1] else "\u2014"
+     )
+     SELECT
+       (SELECT COUNT(DISTINCT tournament_id) FROM recent) AS tournaments,
+       (SELECT COUNT(DISTINCT player_id) FROM recent) AS active_players,
+       (SELECT da.name FROM recent rc
+        JOIN deck_archetypes da ON rc.deck_archetype_id = da.archetype_id
+        WHERE LOWER(da.name) != 'unknown'
+        GROUP BY da.name ORDER BY COUNT(*) DESC LIMIT 1) AS trending_deck,
+       (SELECT p.display_name FROM recent rc
+        JOIN players p ON rc.player_id = p.player_id
+        WHERE rc.placement = 1
+        GROUP BY p.display_name ORDER BY COUNT(*) DESC LIMIT 1) AS rising_star",
+    scene_filter)
 
-  # Rising star (most 1st-place finishes in 30 days)
-  star_query <- sprintf(
-    "SELECT p.display_name
-     FROM results r
-     JOIN tournaments t ON r.tournament_id = t.tournament_id
-     JOIN stores s ON t.store_id = s.store_id
-     LEFT JOIN scenes sc ON s.scene_id = sc.scene_id
-     JOIN players p ON r.player_id = p.player_id
-     WHERE t.event_date >= CURRENT_DATE - INTERVAL '30 days'
-       AND r.placement = 1
-       %s
-     GROUP BY p.display_name
-     ORDER BY COUNT(*) DESC
-     LIMIT 1", scene_filter)
-  star <- safe_query(db_pool, star_query, params = scene_params, default = data.frame())
-  rising_star <- if (nrow(star) > 0) star$display_name[1] else "\u2014"
+  stats <- safe_query(db_pool, combined_query, params = scene_params,
+                      default = data.frame(tournaments = 0, active_players = 0,
+                                           trending_deck = NA, rising_star = NA))
+
+  tournament_count <- if (nrow(stats) > 0) stats$tournaments[1] %||% 0 else 0
+  player_count <- if (nrow(stats) > 0) stats$active_players[1] %||% 0 else 0
+  trending_deck <- if (nrow(stats) > 0 && !is.na(stats$trending_deck[1])) stats$trending_deck[1] else "\u2014"
+  rising_star <- if (nrow(stats) > 0 && !is.na(stats$rising_star[1])) stats$rising_star[1] else "\u2014"
 
   # Empty scene check
   if (tournament_count == 0 && player_count == 0) {
@@ -1086,14 +1062,9 @@ output$onboarding_rank_banner <- renderUI({
 
   if (is.null(rating) || is.na(rating)) return(NULL)
 
-  # Build rank text
+  # Build rank text (reuse cached scene display name)
   rank_text <- if (!is.null(rank_info)) {
-    scene <- rv$current_scene %||% "all"
-    scene_label <- if (scene == "all") "globally" else {
-      info <- safe_query(db_pool, "SELECT display_name FROM scenes WHERE slug = $1 LIMIT 1",
-                         params = list(scene))
-      if (nrow(info) > 0) info$display_name[1] else scene
-    }
+    scene_label <- onboarding_scene_display_name()
     sprintf("Rank #%d of %d in %s", rank_info$rank, rank_info$total, scene_label)
   } else NULL
 
