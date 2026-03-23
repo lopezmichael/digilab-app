@@ -25,83 +25,68 @@ submit_results_ui <- tagList(
   div(
     id = "sr_method_picker",
 
-    layout_columns(
-      col_widths = breakpoints(sm = 12, md = 6),
+    div(
       class = "sr-card-picker",
 
-      # Card 1: Bandai TCG+ Upload (everyone)
+      # Row 1 (both): Bandai TCG+ Upload
       actionButton("sr_card_upload", NULL, class = "sr-method-card",
         div(
           class = "sr-method-card-inner",
           bsicons::bs_icon("cloud-upload", size = "2rem", class = "sr-card-icon text-primary"),
           div(class = "sr-card-title", "Bandai TCG+ Upload"),
-          div(class = "sr-card-desc", "Upload standings screenshots (OCR) or CSV export from the Bandai TCG+ app"),
+          div(class = "sr-card-desc", "Upload standings screenshots or CSV exports from Bandai TCG+"),
           tags$small(class = "sr-card-help text-muted", "TOs can export standings CSV from the Bandai TCG+ platform after the event")
         )
       ),
 
-      # Card 2: Paste from Spreadsheet (admin only)
+      # Row 1 admin / Row 1 public: Manual Entry (admin) or Match-by-Match (public)
+      # Admin only: Manual Entry (grid + paste)
       conditionalPanel(
         condition = "output.is_admin",
-        actionButton("sr_card_paste", NULL, class = "sr-method-card",
+        actionButton("sr_card_grid_entry", NULL, class = "sr-method-card",
           div(
             class = "sr-method-card-inner",
-            bsicons::bs_icon("clipboard", size = "2rem", class = "sr-card-icon text-primary"),
-            div(class = "sr-card-title", "Paste from Spreadsheet"),
-            div(class = "sr-card-desc", "Paste tab-separated data in flexible formats (name, points, W/L/T, deck)"),
+            bsicons::bs_icon("pencil-square", size = "2rem", class = "sr-card-icon text-primary"),
+            div(class = "sr-card-title", "Manual Entry"),
+            div(class = "sr-card-desc", "Type results into an editable grid or paste tab-separated data from a spreadsheet"),
             tags$small(class = "sr-card-help text-muted", "Supports names-only, names+points, names+W/L/T, and more")
           )
         )
       ),
 
-      # Card 3: Manual Entry (admin only)
-      conditionalPanel(
-        condition = "output.is_admin",
-        actionButton("sr_card_manual", NULL, class = "sr-method-card",
-          div(
-            class = "sr-method-card-inner",
-            bsicons::bs_icon("pencil-square", size = "2rem", class = "sr-card-icon text-primary"),
-            div(class = "sr-card-title", "Manual Entry"),
-            div(class = "sr-card-desc", "Type player results directly into an editable grid"),
-            tags$small(class = "sr-card-help text-muted", "For when you have the data on hand")
-          )
-        )
-      ),
-
-      # Card 4: Match-by-Match (everyone)
+      # Row 1 public / Row 2 admin: Match-by-Match (everyone)
       actionButton("sr_card_match", NULL, class = "sr-method-card",
         div(
           class = "sr-method-card-inner",
           bsicons::bs_icon("list-ol", size = "2rem", class = "sr-card-icon text-primary"),
           div(class = "sr-card-title", "Match-by-Match"),
-          div(class = "sr-card-desc", "Upload your personal match history screenshot from Bandai TCG+"),
-          tags$small(class = "sr-card-help text-muted", "Submits individual round results for one player")
+          div(class = "sr-card-desc", "Look up your tournaments and add round-by-round match results"),
+          tags$small(class = "sr-card-help text-muted", "Upload a match history screenshot or fill in results manually")
         )
       ),
 
-      # Card 5: Add Decklists (everyone)
+      # Row 2 admin: Coming Soon — Match-by-Match Batch Upload
+      conditionalPanel(
+        condition = "output.is_admin",
+        div(class = "sr-method-card sr-method-card--coming-soon",
+          div(
+            class = "sr-method-card-inner",
+            bsicons::bs_icon("filetype-csv", size = "2rem", class = "sr-card-icon"),
+            div(class = "sr-card-title", "Full Match Import"),
+            div(class = "sr-card-desc", "Upload round-by-round results for all players from a single CSV file"),
+            tags$strong(class = "sr-card-coming-soon-label", "COMING SOON")
+          )
+        )
+      ),
+
+      # Row 2 public / Row 3 admin: Add Decklists (everyone, centered when solo)
       actionButton("sr_card_decklist", NULL, class = "sr-method-card",
         div(
           class = "sr-method-card-inner",
           bsicons::bs_icon("link-45deg", size = "2rem", class = "sr-card-icon text-primary"),
           div(class = "sr-card-title", "Add Decklists"),
-          div(class = "sr-card-desc", "Submit decklist URLs for an existing tournament"),
+          div(class = "sr-card-desc", "Link your decklists to tournaments you've played in"),
           tags$small(class = "sr-card-help text-muted", "Look up your tournaments by Bandai Member ID")
-        )
-      ),
-
-      # Card 6: Match Results CSV (admin, Coming Soon)
-      conditionalPanel(
-        condition = "output.is_admin",
-        div(class = "sr-method-card sr-method-card--disabled",
-          div(
-            class = "sr-method-card-inner",
-            span(class = "badge bg-secondary position-absolute top-0 end-0 m-2", "Coming Soon"),
-            bsicons::bs_icon("filetype-csv", size = "2rem", class = "sr-card-icon text-muted"),
-            div(class = "sr-card-title text-muted", "Match Results CSV"),
-            div(class = "sr-card-desc text-muted", "Upload CSV of full match-by-match results"),
-            tags$small(class = "sr-card-help text-muted", "TOs can export match data from the Bandai TCG+ platform after the event")
-          )
         )
       )
     )
@@ -301,6 +286,7 @@ submit_results_ui <- tagList(
 
   # =========================================================================
   # Match-by-Match Section (separate flow, hidden initially)
+  # Bandai ID lookup → tournament history → upload screenshot → review → submit
   # =========================================================================
   shinyjs::hidden(
     div(
@@ -313,89 +299,41 @@ submit_results_ui <- tagList(
                      class = "btn-sm btn-outline-secondary")
       ),
 
-      # Combined card for all match history input
       card(
         card_header(
           class = "d-flex align-items-center gap-2",
-          bsicons::bs_icon("list-check"),
-          "Submit Match History"
+          bsicons::bs_icon("list-ol"),
+          "Match-by-Match Results"
         ),
         card_body(
           class = "admin-form-body",
 
-          # --- Tournament Selection section ---
+          # --- Bandai ID lookup ---
           div(class = "admin-form-section",
             div(class = "admin-form-section-label",
-              bsicons::bs_icon("trophy"),
-              "Select Tournament"
-            ),
-            layout_columns(
-              col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
-              selectInput("sr_match_store", "Store",
-                          choices = c("All stores" = ""),
-                          selectize = FALSE),
-              selectInput("sr_match_tournament", "Tournament",
-                          choices = c("Select a tournament..." = ""),
-                          selectize = FALSE)
-            ),
-            uiOutput("sr_match_tournament_info")
-          ),
-
-          # --- Player Info section ---
-          div(class = "admin-form-section",
-            div(class = "admin-form-section-label",
-              bsicons::bs_icon("person-fill"),
-              "Your Player Info"
-            ),
-            layout_columns(
-              col_widths = breakpoints(sm = c(12, 12), md = c(6, 6)),
-              div(
-                textInput("sr_match_player_username", "Username",
-                          placeholder = "e.g., HappyCat"),
-                div(id = "sr_match_username_hint", class = "form-text text-danger d-none", "Required")
-              ),
-              div(
-                textInput("sr_match_player_member", "Member Number",
-                          placeholder = "e.g., 0000123456"),
-                div(id = "sr_match_member_hint", class = "form-text text-danger d-none", "Required")
-              )
-            )
-          ),
-
-          # --- Screenshot section ---
-          div(class = "admin-form-section",
-            div(class = "admin-form-section-label",
-              bsicons::bs_icon("camera"),
-              "Match History Screenshot"
+              bsicons::bs_icon("person-badge"),
+              "Player Lookup"
             ),
             div(
-              class = "d-flex align-items-start gap-3",
-              div(
-                class = "upload-dropzone flex-shrink-0",
-                fileInput("sr_match_screenshots", NULL,
-                          multiple = FALSE,
-                          accept = c("image/png", "image/jpeg", "image/jpg", "image/webp",
-                                     ".png", ".jpg", ".jpeg", ".webp"),
-                          placeholder = "No file selected",
-                          buttonLabel = tags$span(bsicons::bs_icon("cloud-upload"), " Browse"))
-              ),
-              div(
-                class = "upload-tips small text-muted",
-                div(bsicons::bs_icon("info-circle", class = "me-1"), "Screenshot from Bandai TCG+ match history screen")
-              )
+              class = "sr-lookup-row",
+              textInput("sr_match_member_id", NULL,
+                        placeholder = "e.g., 0000123456"),
+              actionButton("sr_match_lookup", "Look Up",
+                           class = "btn-primary",
+                           icon = icon("search"))
             ),
-
-            # Image thumbnail preview
-            uiOutput("sr_match_screenshot_preview")
+            tags$small(class = "sr-form-hint",
+                       "Enter your Bandai TCG+ Member Number to find your tournaments")
           ),
 
-          # Process button
-          div(
-            class = "admin-form-actions justify-content-end",
-            actionButton("sr_match_process_ocr", "Process Screenshot",
-                         class = "btn-primary",
-                         icon = icon("magic"))
-          )
+          # --- Player info (rendered after lookup) ---
+          uiOutput("sr_match_player_info"),
+
+          # --- Tournament history (rendered after lookup) ---
+          uiOutput("sr_match_tournament_history"),
+
+          # --- Screenshot upload (rendered after tournament selection) ---
+          uiOutput("sr_match_upload_form")
         )
       ),
 
@@ -434,17 +372,17 @@ submit_results_ui <- tagList(
           div(class = "admin-form-section",
             div(class = "admin-form-section-label",
               bsicons::bs_icon("person-badge"),
-              "Bandai Member ID"
+              "Player Lookup"
             ),
-            layout_columns(
-              col_widths = breakpoints(sm = c(12, 4), md = c(6, 3)),
+            div(
+              class = "sr-lookup-row",
               textInput("sr_decklist_member_id", NULL,
                         placeholder = "e.g., 0000123456"),
               actionButton("sr_decklist_lookup", "Look Up",
-                           class = "btn-primary mt-auto",
+                           class = "btn-primary",
                            icon = icon("search"))
             ),
-            tags$small(class = "form-text text-muted",
+            tags$small(class = "sr-form-hint",
                        "Enter your Bandai TCG+ Member Number to find your tournaments")
           ),
 

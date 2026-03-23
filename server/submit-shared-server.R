@@ -8,7 +8,7 @@
 source("R/ocr.R")
 
 # Initialize reactive values for the unified submit flow
-rv$sr_active_method <- NULL        # "upload", "paste", "manual", "match", "decklist"
+rv$sr_active_method <- NULL        # "upload", "grid_entry", "match", "decklist"
 rv$sr_active_tournament_id <- NULL
 rv$sr_grid_data <- NULL
 rv$sr_record_format <- "points"
@@ -31,6 +31,46 @@ rv$sr_ocr_pending_total_rounds <- NULL
 rv$sr_ocr_pending_parsed_count <- NULL
 
 # =============================================================================
+# Shared UI Helpers
+# =============================================================================
+
+# Render a "Player Found" info banner (used by match-by-match and decklist flows)
+sr_player_found_ui <- function(player) {
+  # Optionally look up home scene name
+  scene_label <- NULL
+  if (!is.null(player$player_id)) {
+    scene_info <- tryCatch(
+      safe_query(db_pool, "
+        SELECT s.name FROM scenes s
+        JOIN players p ON p.home_scene_id = s.scene_id
+        WHERE p.player_id = $1
+      ", params = list(player$player_id), default = data.frame()),
+      error = function(e) data.frame()
+    )
+    if (nrow(scene_info) > 0 && !is.na(scene_info$name[1])) {
+      scene_label <- scene_info$name[1]
+    }
+  }
+
+  div(
+    class = "admin-form-section",
+    div(class = "admin-form-section-label",
+      bsicons::bs_icon("person-check-fill"),
+      "Player Found"
+    ),
+    div(
+      class = "sr-player-found",
+      bsicons::bs_icon("check-circle-fill", class = "sr-player-found-icon"),
+      div(
+        tags$strong(player$display_name),
+        tags$span(class = "sr-player-found-id", paste0("#", player$member_number)),
+        if (!is.null(scene_label)) tags$span(class = "sr-player-found-scene", scene_label)
+      )
+    )
+  )
+}
+
+# =============================================================================
 # Card Picker Click Handlers
 # =============================================================================
 
@@ -41,17 +81,9 @@ observeEvent(input$sr_card_upload, {
   shinyjs::show("sr_upload_section")
 })
 
-observeEvent(input$sr_card_paste, {
+observeEvent(input$sr_card_grid_entry, {
   req(rv$is_admin)
-  rv$sr_active_method <- "paste"
-  shinyjs::hide("sr_method_picker")
-  shinyjs::show("sr_wizard")
-  shinyjs::hide("sr_upload_section")
-})
-
-observeEvent(input$sr_card_manual, {
-  req(rv$is_admin)
-  rv$sr_active_method <- "manual"
+  rv$sr_active_method <- "grid_entry"
   shinyjs::hide("sr_method_picker")
   shinyjs::show("sr_wizard")
   shinyjs::hide("sr_upload_section")
@@ -102,6 +134,9 @@ sr_back_to_picker <- function() {
   rv$sr_decklist_tournament_id <- NULL
 
   # Clear match-by-match state
+  rv$sr_match_player <- NULL
+  rv$sr_match_tournaments <- NULL
+  rv$sr_match_selected_tournament <- NULL
   rv$sr_match_ocr_results <- NULL
   rv$sr_match_uploaded_file <- NULL
   rv$sr_match_parsed_count <- 0
@@ -272,7 +307,7 @@ observeEvent(input$sr_step1_next, {
     return()
   }
 
-  # For paste and manual: create tournament and show grid
+  # For grid entry: create tournament and show grid
   # Check for exact duplicate (same store + date + event_type)
   existing <- safe_query(db_pool, "
     SELECT t.tournament_id, t.player_count, t.event_type,
@@ -391,10 +426,6 @@ sr_create_tournament_and_show_grid <- function() {
     shinyjs::show("sr_step2")
     shinyjs::runjs("$('#sr_step1_indicator').removeClass('active').addClass('completed'); $('#sr_step2_indicator').addClass('active');")
 
-    # For paste method, auto-show paste modal
-    if (rv$sr_active_method == "paste") {
-      sr_show_paste_modal()
-    }
   }, error = function(e) {
     notify(paste("Error:", e$message), type = "error")
   })
@@ -571,13 +602,18 @@ observeEvent(input$sr_wlt_override_toggle, {
 })
 
 # =============================================================================
-# Player Matching (blur-based, shared across all grid methods)
+# Grid Event Handlers (delegated, bound once)
 # =============================================================================
 
-observe({
-  req(rv$sr_grid_data)
+# Bind delegated JS handlers once — these use $(document).on() so they
+# automatically apply to dynamically rendered grid inputs.
+# Placement uses 'blur' (not 'change') so users can finish typing before sort.
+observeEvent(TRUE, once = TRUE, {
   shinyjs::runjs("
-    $(document).off('blur.srGrid').on('blur.srGrid', 'input[id^=\"sr_player_\"]', function() {
+    $(document).on('blur', 'input[id^=\"sr_placement_\"]', function() {
+      Shiny.setInputValue('sr_placement_blur', {ts: Date.now()}, {priority: 'event'});
+    });
+    $(document).on('blur', 'input[id^=\"sr_player_\"]', function() {
       var id = $(this).attr('id');
       var rowNum = parseInt(id.replace('sr_player_', ''));
       if (!isNaN(rowNum)) {
@@ -586,6 +622,48 @@ observe({
     });
   ")
 })
+
+# =============================================================================
+# Placement Auto-Reorder (blur-based)
+# =============================================================================
+
+observeEvent(input$sr_placement_blur, {
+  req(rv$sr_grid_data)
+
+  # Sync all input values into the data frame (placement, name, points, deck, etc.)
+  grid <- sync_grid_inputs(input, rv$sr_grid_data, rv$sr_record_format %||% "points", "sr_",
+                           placement_editable = TRUE, wlt_override = isTRUE(rv$sr_wlt_override))
+  grid$placement <- validate_placements(grid$placement)
+
+  # Track original row indices before sort so we can remap player_matches keys
+  old_order <- seq_len(nrow(grid))
+  new_order <- order(grid$placement)
+
+  # Only re-sort if order actually changed
+
+  if (!identical(old_order, new_order)) {
+    grid <- grid[new_order, ]
+    rownames(grid) <- NULL
+
+    # Remap sr_player_matches keys to new row positions
+    old_matches <- rv$sr_player_matches
+    new_matches <- list()
+    for (new_idx in seq_along(new_order)) {
+      old_idx <- new_order[new_idx]
+      key <- as.character(old_idx)
+      if (!is.null(old_matches[[key]])) {
+        new_matches[[as.character(new_idx)]] <- old_matches[[key]]
+      }
+    }
+    rv$sr_player_matches <- new_matches
+  }
+
+  rv$sr_grid_data <- grid
+})
+
+# =============================================================================
+# Player Matching (blur-based, shared across all grid methods)
+# =============================================================================
 
 observeEvent(input$sr_player_blur, {
   req(db_pool, rv$sr_grid_data)

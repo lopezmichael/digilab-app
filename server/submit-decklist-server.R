@@ -76,22 +76,7 @@ observeEvent(input$sr_decklist_lookup, {
 # Render player info
 output$sr_decklist_player_info <- renderUI({
   req(rv$sr_decklist_standalone_player)
-  player <- rv$sr_decklist_standalone_player
-
-  div(
-    class = "admin-form-section",
-    div(class = "admin-form-section-label",
-      bsicons::bs_icon("person-check-fill"),
-      "Player Found"
-    ),
-    div(
-      class = "d-flex align-items-center gap-2 p-2 rounded",
-      style = "background: rgba(0, 200, 100, 0.08);",
-      bsicons::bs_icon("check-circle-fill", class = "text-success"),
-      tags$strong(player$display_name),
-      tags$span(class = "text-muted", paste0("#", player$member_number))
-    )
-  )
+  sr_player_found_ui(rv$sr_decklist_standalone_player)
 })
 
 # Render tournament history
@@ -112,9 +97,9 @@ output$sr_decklist_tournament_history <- renderUI({
       bsicons::bs_icon("trophy"),
       "Tournament History"
     ),
-    tags$small(class = "text-muted d-block mb-2", "Select a tournament to add your decklist URL"),
+    tags$small(class = "sr-form-hint mb-2", "Select a tournament to add your decklist URL"),
     div(
-      class = "list-group",
+      class = "sr-tournament-list",
       lapply(seq_len(nrow(tournaments)), function(i) {
         t <- tournaments[i, ]
         has_url <- !is.na(t$decklist_url) && nchar(trimws(t$decklist_url)) > 0
@@ -126,22 +111,22 @@ output$sr_decklist_tournament_history <- renderUI({
             div(
               div(
                 tags$strong(t$store_name),
-                tags$span(class = "text-muted ms-2",
+                tags$span(class = "sr-tournament-date ms-2",
                           format(as.Date(t$event_date), "%b %d, %Y"))
               ),
               div(
-                class = "small text-muted",
+                class = "sr-tournament-meta",
                 paste0(t$event_type,
-                       if (!is.na(t$format_name)) paste0(" • ", t$format_name) else "",
-                       " • ", grid_ordinal(t$placement), " place",
-                       if (!is.na(t$deck_name) && t$deck_name != "UNKNOWN") paste0(" • ", t$deck_name) else "")
+                       if (!is.na(t$format_name)) paste0(" \u2022 ", t$format_name) else "",
+                       " \u2022 ", grid_ordinal(t$placement), " place",
+                       if (!is.na(t$deck_name) && t$deck_name != "UNKNOWN") paste0(" \u2022 ", t$deck_name) else "")
               )
             ),
             if (has_url) span(class = "badge bg-success", "Has decklist")
             else span(class = "badge bg-secondary", "No decklist")
           ),
-          class = paste0("list-group-item list-group-item-action",
-                         if (has_url) " list-group-item-success" else "")
+          class = paste0("sr-tournament-item",
+                         if (has_url) " sr-tournament-item--done" else "")
         )
       })
     )
@@ -173,25 +158,25 @@ output$sr_decklist_entry_form <- renderUI({
       "Enter Decklist URL"
     ),
     div(
-      class = "p-3 rounded mb-3",
-      style = "background: rgba(15, 76, 129, 0.05);",
-      tags$small(class = "text-muted",
-                 strong(selected$store_name), " — ",
-                 format(as.Date(selected$event_date), "%b %d, %Y"), " — ",
-                 selected$event_type)
+      class = "sr-selected-tournament",
+      bsicons::bs_icon("trophy-fill", class = "sr-selected-tournament-icon"),
+      tags$span(
+        strong(selected$store_name), " \u2014 ",
+        format(as.Date(selected$event_date), "%b %d, %Y"), " \u2014 ",
+        selected$event_type)
     ),
-    layout_columns(
-      col_widths = breakpoints(sm = c(12, 4), md = c(9, 3)),
+    div(
+      class = "sr-lookup-row sr-lookup-row--wide",
       textInput("sr_decklist_standalone_url",
                 "Decklist URL",
                 value = if (!is.na(selected$decklist_url)) selected$decklist_url else "",
                 placeholder = "https://digimoncard.dev/deck/..."),
       actionButton("sr_decklist_standalone_save", "Save",
-                   class = "btn-primary mt-auto",
+                   class = "btn-primary",
                    icon = icon("floppy-disk"))
     ),
-    tags$small(class = "form-text text-muted",
-               "Accepted sites: digimoncard.dev, digimonmeta.com, digimoncard.io, and other approved deckbuilders")
+    tags$small(class = "sr-form-hint",
+               "Accepted: digimoncard.dev, digimonmeta.com, digimoncard.io, and other approved deckbuilders")
   )
 })
 

@@ -6977,6 +6977,361 @@ select,
   overflow: visible !important;
 }
 
+/* Submit Results: Card Picker flex layout — always 2 per row on desktop */
+.sr-card-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.sr-card-picker > .btn,
+.sr-card-picker > .shiny-panel-conditional > .btn,
+.sr-card-picker > .shiny-panel-conditional > div {
+  flex: 0 1 calc(50% - 0.5rem);
+  min-width: 270px;
+  height: 150px;
+}
+
+/* Active method cards — digital scanner style (matches card_preview_container) */
+.sr-method-card {
+  position: relative;
+  background: linear-gradient(135deg, var(--dl-navy) 0%, var(--dl-blue) 100%) !important;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.04) 0px, transparent 1px, transparent 15px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0px, transparent 1px, transparent 15px),
+    linear-gradient(135deg, var(--dl-navy) 0%, var(--dl-blue) 100%) !important;
+  border: 1px solid rgba(0, 200, 255, 0.3) !important;
+  border-radius: 8px;
+  color: #fff !important;
+  transition: all 0.25s ease;
+}
+
+.sr-method-card:hover {
+  border-color: rgba(0, 200, 255, 0.6) !important;
+  box-shadow: 0 0 12px rgba(0, 200, 255, 0.25);
+  transform: translateY(-2px);
+}
+
+.sr-method-card:active {
+  transform: translateY(0);
+}
+
+/* Circuit node accent dot */
+.sr-method-card::after {
+  content: '';
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 4px;
+  height: 4px;
+  background: rgba(0, 200, 255, 0.5);
+  border-radius: 50%;
+  box-shadow: 0 0 5px rgba(0, 200, 255, 0.5);
+}
+
+.sr-method-card-inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+}
+
+.sr-method-card .sr-card-icon {
+  color: var(--dl-cyan) !important;
+}
+
+.sr-method-card .sr-card-title {
+  color: #fff;
+  font-weight: 600;
+}
+
+.sr-method-card .sr-card-desc {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.8rem;
+}
+
+.sr-method-card .sr-card-help {
+  color: rgba(255, 255, 255, 0.45) !important;
+}
+
+/* Coming Soon card — search results scanner style (muted) */
+.sr-method-card--coming-soon {
+  position: relative;
+  cursor: default;
+  background: none !important;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(15, 76, 129, 0.03) 0px, transparent 1px, transparent 12px),
+    repeating-linear-gradient(90deg, rgba(15, 76, 129, 0.03) 0px, transparent 1px, transparent 12px),
+    linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%) !important;
+  border: 1px solid rgba(0, 200, 255, 0.25) !important;
+  border-radius: 8px;
+  color: inherit;
+}
+
+/* Corner accent dots (like card-search-results-container) */
+.sr-method-card--coming-soon::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 4px;
+  height: 4px;
+  background: rgba(0, 200, 255, 0.5);
+  border-radius: 50%;
+  box-shadow: 0 0 5px rgba(0, 200, 255, 0.5);
+}
+
+.sr-method-card--coming-soon::after {
+  content: '';
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 4px;
+  height: 4px;
+  background: rgba(0, 200, 255, 0.5);
+  border-radius: 50%;
+  box-shadow: 0 0 5px rgba(0, 200, 255, 0.5);
+}
+
+.sr-method-card--coming-soon .sr-card-icon {
+  color: var(--bs-secondary);
+  font-size: 1.5rem;
+}
+
+.sr-method-card--coming-soon .sr-card-title {
+  color: var(--bs-body-color);
+  font-weight: 600;
+}
+
+.sr-method-card--coming-soon .sr-card-desc {
+  color: var(--bs-secondary);
+  font-size: 0.8rem;
+}
+
+.sr-card-coming-soon-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--dl-cyan);
+  margin-top: auto;
+  text-transform: uppercase;
+}
+
+/* Dark mode: Coming Soon card */
+[data-bs-theme="dark"] .sr-method-card--coming-soon {
+  background-image:
+    repeating-linear-gradient(0deg, rgba(0, 200, 255, 0.03) 0px, transparent 1px, transparent 12px),
+    repeating-linear-gradient(90deg, rgba(0, 200, 255, 0.03) 0px, transparent 1px, transparent 12px),
+    linear-gradient(135deg, var(--dl-dark) 0%, var(--dl-slate) 100%) !important;
+  border-color: rgba(0, 200, 255, 0.35) !important;
+}
+
+/* =============================================================================
+   Submit Results: Shared Internal Page Styles
+   Lookup rows, player found, tournament lists, selected banners, form hints
+   ============================================================================= */
+
+/* Lookup row — input + button side by side */
+.sr-lookup-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+  max-width: 480px;
+}
+
+.sr-lookup-row > .shiny-input-container {
+  flex: 1;
+  margin-bottom: 0;
+}
+
+.sr-lookup-row > .btn {
+  white-space: nowrap;
+  margin-bottom: 0;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+/* Wide variant for decklist URL + save */
+.sr-lookup-row--wide {
+  max-width: 640px;
+}
+
+/* Consistent form hint text — matches admin hint box scanner pattern */
+.sr-form-hint {
+  position: relative;
+  display: inline-block;
+  font-size: 0.75rem;
+  font-style: normal;
+  color: #4a5568;
+  background:
+    repeating-linear-gradient(0deg, rgba(15, 76, 129, 0.03) 0px, transparent 1px, transparent 12px),
+    repeating-linear-gradient(90deg, rgba(15, 76, 129, 0.03) 0px, transparent 1px, transparent 12px),
+    linear-gradient(135deg, rgba(15, 76, 129, 0.08) 0%, rgba(0, 200, 255, 0.05) 100%);
+  border: 1px solid rgba(0, 200, 255, 0.35);
+  border-radius: 6px;
+  padding: 0.5rem 0.875rem;
+  margin-top: 4px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+[data-bs-theme="dark"] .sr-form-hint {
+  color: #a0aec0;
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 200, 255, 0.04) 0px, transparent 1px, transparent 12px),
+    repeating-linear-gradient(90deg, rgba(0, 200, 255, 0.04) 0px, transparent 1px, transparent 12px),
+    linear-gradient(135deg, rgba(0, 200, 255, 0.12) 0%, rgba(15, 76, 129, 0.08) 100%);
+  border-color: rgba(0, 200, 255, 0.4);
+}
+
+/* Player Found banner */
+.sr-player-found {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: rgba(15, 76, 129, 0.06);
+  border-left: 3px solid var(--dl-cyan);
+}
+
+.sr-player-found-icon {
+  color: var(--dl-cyan);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.sr-player-found-id {
+  color: var(--bs-secondary);
+  font-size: 0.85rem;
+  margin-left: 0.5rem;
+}
+
+.sr-player-found-scene {
+  font-size: 0.78rem;
+  color: var(--bs-secondary);
+  opacity: 0.75;
+  margin-left: 0.5rem;
+}
+
+.sr-player-found-scene::before {
+  content: '\2022';
+  margin-right: 0.5rem;
+}
+
+[data-bs-theme="dark"] .sr-player-found {
+  background: rgba(0, 200, 255, 0.06);
+}
+
+/* Tournament list (shared by match + decklist flows) */
+.sr-tournament-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.sr-tournament-item {
+  display: block;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: none;
+  background: transparent;
+  color: inherit;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.sr-tournament-item:first-child {
+  border-radius: 6px 6px 0 0;
+}
+
+.sr-tournament-item:last-child {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 0 0 6px 6px;
+}
+
+.sr-tournament-item:first-child:last-child {
+  border-radius: 6px;
+}
+
+.sr-tournament-item,
+.sr-tournament-item:link,
+.sr-tournament-item:visited {
+  color: var(--bs-body-color);
+}
+
+.sr-tournament-item:hover {
+  background: rgba(15, 76, 129, 0.04);
+  text-decoration: none;
+  color: var(--bs-body-color);
+}
+
+.sr-tournament-item--done {
+  border-left: 3px solid rgba(0, 200, 255, 0.4);
+}
+
+[data-bs-theme="dark"] .sr-tournament-item {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-bs-theme="dark"] .sr-tournament-item:hover {
+  background: rgba(0, 200, 255, 0.04);
+}
+
+[data-bs-theme="dark"] .sr-tournament-item:last-child {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Tournament list — date and meta text */
+.sr-tournament-date {
+  font-size: 0.82rem;
+  color: var(--bs-secondary);
+}
+
+.sr-tournament-meta {
+  font-size: 0.78rem;
+  color: var(--bs-secondary);
+  opacity: 0.75;
+}
+
+/* Selected tournament banner */
+.sr-selected-tournament {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  background: rgba(15, 76, 129, 0.05);
+  border-left: 3px solid var(--dl-blue);
+  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: var(--bs-body-color);
+}
+
+.sr-selected-tournament-icon {
+  color: var(--dl-blue);
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+[data-bs-theme="dark"] .sr-selected-tournament {
+  background: rgba(0, 200, 255, 0.04);
+  border-left-color: var(--dl-cyan);
+}
+
+[data-bs-theme="dark"] .sr-selected-tournament-icon {
+  color: var(--dl-cyan);
+}
+
 /* Simpler file upload styling */
 .upload-file-input {
   max-width: 350px;

@@ -1,97 +1,230 @@
 # =============================================================================
 # Submit Results: Match-by-Match Server
-# Personal match history screenshot upload and submission
-# Extracted from public-submit-server.R, adapted for sr_match_ prefix
+# Bandai ID lookup → tournament history → screenshot upload → review → submit
 # =============================================================================
 
 # Initialize match history reactive values
+rv$sr_match_player <- NULL                # player record from lookup
+rv$sr_match_tournaments <- NULL           # tournament history for player
+rv$sr_match_selected_tournament <- NULL   # selected tournament record
 rv$sr_match_ocr_results <- NULL
 rv$sr_match_uploaded_file <- NULL
 rv$sr_match_parsed_count <- 0
 rv$sr_match_total_rounds <- 0
 
-# Populate store dropdown for match history
-observe({
-  req("submit_results" %in% visited_tabs())
-
-  stores <- safe_query(db_pool, "
-    SELECT store_id, name FROM stores
-    WHERE is_active = TRUE
-    ORDER BY name
-  ")
-  if (nrow(stores) == 0) { invalidateLater(500); return() }
-  choices <- setNames(stores$store_id, stores$name)
-  updateSelectInput(session, "sr_match_store",
-                    choices = c("All stores" = "", choices))
-})
-
-# Populate tournament dropdown based on store selection
-observe({
-  req("submit_results" %in% visited_tabs())
-
-  has_store_filter <- !is.null(input$sr_match_store) && input$sr_match_store != ""
-
-  if (has_store_filter) {
-    tournaments <- safe_query(db_pool, "
-      SELECT t.tournament_id, t.event_date, t.event_type, s.name as store_name
-      FROM tournaments t
-      JOIN stores s ON t.store_id = s.store_id
-      WHERE t.store_id = $1
-      ORDER BY t.event_date DESC
-      LIMIT 50
-    ", params = list(as.integer(input$sr_match_store)))
-  } else {
-    tournaments <- safe_query(db_pool, "
-      SELECT t.tournament_id, t.event_date, t.event_type, s.name as store_name
-      FROM tournaments t
-      JOIN stores s ON t.store_id = s.store_id
-      ORDER BY t.event_date DESC
-      LIMIT 50
-    ")
-  }
-
-  if (nrow(tournaments) > 0 && !is.null(tournaments$tournament_id)) {
-    labels <- paste0(tournaments$store_name, " - ",
-                     format(as.Date(tournaments$event_date), "%b %d, %Y"),
-                     " (", tournaments$event_type, ")")
-    choices <- setNames(tournaments$tournament_id, labels)
-    updateSelectInput(session, "sr_match_tournament",
-                      choices = c("Select a tournament..." = "", choices))
-  } else {
-    updateSelectInput(session, "sr_match_tournament",
-                      choices = c("No tournaments found" = ""))
-  }
-})
-
-# Show tournament info when selected
-output$sr_match_tournament_info <- renderUI({
-  req(input$sr_match_tournament)
-  req(input$sr_match_tournament != "")
-
-  tournament <- safe_query(db_pool, "
-    SELECT t.*, s.name as store_name
-    FROM tournaments t
+# Helper: query tournament history with match counts for a player
+sr_match_get_tournaments <- function(pool, player_id) {
+  safe_query(pool, "
+    SELECT r.result_id, r.tournament_id, r.placement, r.player_id,
+           t.event_date, t.event_type, t.format, t.rounds,
+           s.name as store_name,
+           f.display_name as format_name,
+           (SELECT COUNT(*) FROM matches m
+            WHERE m.tournament_id = r.tournament_id AND m.player_id = r.player_id) as match_count
+    FROM results r
+    JOIN tournaments t ON r.tournament_id = t.tournament_id
     JOIN stores s ON t.store_id = s.store_id
-    WHERE t.tournament_id = $1
-  ", params = list(as.integer(input$sr_match_tournament)))
+    LEFT JOIN formats f ON t.format = f.format_id
+    WHERE r.player_id = $1
+    ORDER BY t.event_date DESC
+    LIMIT 50
+  ", params = list(player_id), default = data.frame())
+}
 
-  if (nrow(tournament) == 0) return(NULL)
+# =============================================================================
+# Bandai ID Lookup
+# =============================================================================
 
-  t <- tournament[1, ]
+observeEvent(input$sr_match_lookup, {
+  member_id <- trimws(input$sr_match_member_id)
+
+  if (is.null(member_id) || nchar(member_id) == 0) {
+    notify("Please enter your Bandai Member Number", type = "error")
+    return()
+  }
+
+  # Normalize to 10-digit zero-padded format
+  member_id <- normalize_member_number(member_id)
+  if (is.na(member_id) || nchar(member_id) == 0) {
+    notify("Invalid member number format", type = "error")
+    return()
+  }
+
+  # Look up player by member number
+  player <- safe_query(db_pool, "
+    SELECT player_id, display_name, member_number
+    FROM players
+    WHERE member_number = $1
+  ", params = list(member_id), default = data.frame())
+
+  if (nrow(player) == 0) {
+    notify("No player found with that Member Number. You may need to submit tournament results first.", type = "warning")
+    rv$sr_match_player <- NULL
+    rv$sr_match_tournaments <- NULL
+    rv$sr_match_selected_tournament <- NULL
+    rv$sr_match_ocr_results <- NULL
+    return()
+  }
+
+  rv$sr_match_player <- player[1, ]
+
+  tournaments <- sr_match_get_tournaments(db_pool, player$player_id[1])
+
+  rv$sr_match_tournaments <- tournaments
+  rv$sr_match_selected_tournament <- NULL
+  rv$sr_match_ocr_results <- NULL
+
+  notify(sprintf("Found %s — %d tournament%s",
+                 player$display_name[1],
+                 nrow(tournaments),
+                 if (nrow(tournaments) == 1) "" else "s"),
+         type = "message")
+})
+
+# =============================================================================
+# Player Info Display
+# =============================================================================
+
+output$sr_match_player_info <- renderUI({
+  req(rv$sr_match_player)
+  sr_player_found_ui(rv$sr_match_player)
+})
+
+# =============================================================================
+# Tournament History
+# =============================================================================
+
+output$sr_match_tournament_history <- renderUI({
+  req(rv$sr_match_tournaments)
+  tournaments <- rv$sr_match_tournaments
+
+  if (nrow(tournaments) == 0) {
+    return(div(
+      class = "alert alert-info mt-3",
+      "No tournaments found for this player."
+    ))
+  }
+
   div(
-    class = "mt-2 p-2 rounded",
-    style = "background: rgba(15, 76, 129, 0.1);",
-    tags$small(
-      strong(t$store_name), " | ",
-      format(as.Date(t$event_date), "%B %d, %Y"), " | ",
-      t$event_type, " | ",
-      t$player_count, " players | ",
-      t$rounds, " rounds"
+    class = "admin-form-section",
+    div(class = "admin-form-section-label",
+      bsicons::bs_icon("trophy"),
+      "Tournament History"
+    ),
+    tags$small(class = "sr-form-hint mb-2", "Select a tournament to add your match history"),
+    div(
+      class = "sr-tournament-list",
+      lapply(seq_len(nrow(tournaments)), function(i) {
+        t <- tournaments[i, ]
+        has_matches <- !is.na(t$match_count) && t$match_count > 0
+
+        actionLink(
+          paste0("sr_match_select_", i),
+          div(
+            class = "d-flex justify-content-between align-items-center w-100",
+            div(
+              div(
+                tags$strong(t$store_name),
+                tags$span(class = "sr-tournament-date ms-2",
+                          format(as.Date(t$event_date), "%b %d, %Y"))
+              ),
+              div(
+                class = "sr-tournament-meta",
+                paste0(t$event_type,
+                       if (!is.na(t$format_name)) paste0(" \u2022 ", t$format_name) else "",
+                       " \u2022 ", grid_ordinal(t$placement), " place",
+                       if (!is.na(t$rounds)) paste0(" \u2022 ", t$rounds, " rounds") else "")
+              )
+            ),
+            if (has_matches) span(class = "badge bg-success", paste(t$match_count, "matches"))
+            else span(class = "badge bg-secondary", "No match data")
+          ),
+          class = paste0("sr-tournament-item",
+                         if (has_matches) " sr-tournament-item--done" else "")
+        )
+      })
     )
   )
 })
 
-# Preview uploaded match history screenshot
+# Handle tournament selection from history list
+lapply(1:50, function(i) {
+  observeEvent(input[[paste0("sr_match_select_", i)]], {
+    req(rv$sr_match_tournaments)
+    tournaments <- rv$sr_match_tournaments
+    if (i > nrow(tournaments)) return()
+
+    rv$sr_match_selected_tournament <- tournaments[i, ]
+    rv$sr_match_ocr_results <- NULL
+    rv$sr_match_uploaded_file <- NULL
+    rv$sr_match_parsed_count <- 0
+    rv$sr_match_total_rounds <- 0
+  }, ignoreInit = TRUE)
+})
+
+# =============================================================================
+# Upload Form (shown after tournament selection)
+# =============================================================================
+
+output$sr_match_upload_form <- renderUI({
+  req(rv$sr_match_selected_tournament)
+  selected <- rv$sr_match_selected_tournament
+
+  div(
+    class = "admin-form-section",
+
+    # Tournament context banner
+    div(
+      class = "sr-selected-tournament",
+      bsicons::bs_icon("trophy-fill", class = "sr-selected-tournament-icon"),
+      tags$span(
+        strong(selected$store_name), " \u2014 ",
+        format(as.Date(selected$event_date), "%b %d, %Y"), " \u2014 ",
+        selected$event_type,
+        if (!is.na(selected$rounds)) paste0(" \u2014 ", selected$rounds, " rounds") else "")
+    ),
+
+    # Screenshot upload
+    div(class = "admin-form-section-label",
+      bsicons::bs_icon("camera"),
+      "Match History Screenshot"
+    ),
+    div(
+      class = "d-flex align-items-start gap-3",
+      div(
+        class = "upload-dropzone flex-shrink-0",
+        fileInput("sr_match_screenshots", NULL,
+                  multiple = FALSE,
+                  accept = c("image/png", "image/jpeg", "image/jpg", "image/webp",
+                             ".png", ".jpg", ".jpeg", ".webp"),
+                  placeholder = "No file selected",
+                  buttonLabel = tags$span(bsicons::bs_icon("cloud-upload"), " Browse"))
+      ),
+      div(
+        class = "upload-tips",
+        tags$small(class = "sr-form-hint",
+          bsicons::bs_icon("info-circle", class = "me-1"),
+          "Screenshot from Bandai TCG+ match history screen")
+      )
+    ),
+
+    # Image thumbnail preview
+    uiOutput("sr_match_screenshot_preview"),
+
+    # Process button
+    div(
+      class = "admin-form-actions justify-content-end mt-3",
+      actionButton("sr_match_process_ocr", "Process Screenshot",
+                   class = "btn-primary",
+                   icon = icon("magic"))
+    )
+  )
+})
+
+# =============================================================================
+# Screenshot Preview
+# =============================================================================
+
 output$sr_match_screenshot_preview <- renderUI({
   req(input$sr_match_screenshots)
 
@@ -125,41 +258,21 @@ output$sr_match_screenshot_preview <- renderUI({
   )
 })
 
-# Process match history OCR
+# =============================================================================
+# Process Match History OCR
+# =============================================================================
+
 observeEvent(input$sr_match_process_ocr, {
   req(rv$sr_match_uploaded_file)
+  req(rv$sr_match_selected_tournament)
 
-  # Validate required fields
-  if (is.null(input$sr_match_tournament) || input$sr_match_tournament == "") {
-    notify("Please select a tournament", type = "error")
-    return()
-  }
+  selected <- rv$sr_match_selected_tournament
 
-  if (is.null(input$sr_match_player_username) || trimws(input$sr_match_player_username) == "") {
-    notify("Please enter your username", type = "error")
-    shinyjs::removeClass("sr_match_username_hint", "d-none")
-    return()
+  # Get round count from the selected tournament
+  total_rounds <- if (!is.na(selected$rounds)) {
+    as.integer(selected$rounds)
   } else {
-    shinyjs::addClass("sr_match_username_hint", "d-none")
-  }
-
-  if (is.null(input$sr_match_player_member) || trimws(input$sr_match_player_member) == "") {
-    notify("Please enter your member number", type = "error")
-    shinyjs::removeClass("sr_match_member_hint", "d-none")
-    return()
-  } else {
-    shinyjs::addClass("sr_match_member_hint", "d-none")
-  }
-
-  # Get the round count from the selected tournament
-  tournament <- safe_query(db_pool, "
-    SELECT rounds FROM tournaments WHERE tournament_id = $1
-  ", params = list(as.integer(input$sr_match_tournament)))
-
-  total_rounds <- if (nrow(tournament) > 0 && !is.na(tournament$rounds[1])) {
-    tournament$rounds[1]
-  } else {
-    4
+    4L
   }
 
   file <- rv$sr_match_uploaded_file
@@ -254,7 +367,10 @@ observeEvent(input$sr_match_process_ocr, {
   }
 })
 
-# Render match history preview table with editable fields
+# =============================================================================
+# Match History Preview (editable table)
+# =============================================================================
+
 output$sr_match_results_preview <- renderUI({
   req(rv$sr_match_ocr_results)
 
@@ -319,7 +435,10 @@ output$sr_match_results_preview <- renderUI({
   )
 })
 
-# Match history submit button
+# =============================================================================
+# Submit Button
+# =============================================================================
+
 output$sr_match_final_button <- renderUI({
   req(rv$sr_match_ocr_results)
 
@@ -331,26 +450,20 @@ output$sr_match_final_button <- renderUI({
   )
 })
 
-# Handle match history submission
+# =============================================================================
+# Handle Match History Submission
+# =============================================================================
+
 observeEvent(input$sr_match_submit, {
   req(rv$sr_match_ocr_results)
-  req(input$sr_match_tournament)
-
-  if (is.null(input$sr_match_player_username) || trimws(input$sr_match_player_username) == "") {
-    notify("Please enter your username", type = "error")
-    return()
-  }
-
-  if (is.null(input$sr_match_player_member) || trimws(input$sr_match_player_member) == "") {
-    notify("Please enter your member number", type = "error")
-    return()
-  }
+  req(rv$sr_match_player)
+  req(rv$sr_match_selected_tournament)
 
   results <- rv$sr_match_ocr_results
-  tournament_id <- as.integer(input$sr_match_tournament)
-  submitter_username <- trimws(input$sr_match_player_username)
-  submitter_member <- normalize_member_number(input$sr_match_player_member)
-  if (is.na(submitter_member)) submitter_member <- ""
+  player <- rv$sr_match_player
+  selected <- rv$sr_match_selected_tournament
+  tournament_id <- as.integer(selected$tournament_id)
+  player_id <- as.integer(player$player_id)
 
   tryCatch({
     conn <- pool::localCheckout(db_pool)
@@ -362,31 +475,6 @@ observeEvent(input$sr_match_submit, {
       WHERE t.tournament_id = $1
     ", params = list(tournament_id))
     match_scene_id <- if (nrow(match_scene) > 0) match_scene$scene_id[1] else NULL
-
-    # Find or create submitting player
-    submitter_has_real_id <- nchar(submitter_member) > 0 &&
-                             !grepl("^GUEST", submitter_member, ignore.case = TRUE)
-    clean_submitter_member <- if (submitter_has_real_id) submitter_member else NA_character_
-
-    match_info <- match_player(submitter_username, conn, member_number = clean_submitter_member, scene_id = match_scene_id)
-    if (match_info$status == "matched" || match_info$status == "ambiguous") {
-      player_id <- if (match_info$status == "matched") match_info$player_id else match_info$candidates$player_id[1]
-      if (submitter_has_real_id) {
-        DBI::dbExecute(conn, "
-          UPDATE players SET member_number = $1, identity_status = 'verified'
-          WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
-        ", params = list(clean_submitter_member, player_id))
-      }
-    } else {
-      identity_status <- if (submitter_has_real_id) "verified" else "unverified"
-      player_slug <- generate_unique_slug(db_pool, submitter_username)
-      new_player <- DBI::dbGetQuery(conn, "
-        INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING player_id
-      ", params = list(submitter_username, player_slug, clean_submitter_member, identity_status, match_scene_id))
-      player_id <- new_player$player_id[1]
-    }
 
     # Insert each match - read from editable inputs
     matches_inserted <- 0
@@ -464,15 +552,17 @@ observeEvent(input$sr_match_submit, {
 
     DBI::dbExecute(conn, "COMMIT")
 
-    # Clear form and return to picker
+    # Clear form state
     rv$sr_match_ocr_results <- NULL
     rv$sr_match_uploaded_file <- NULL
     rv$sr_match_parsed_count <- 0
     rv$sr_match_total_rounds <- 0
-    updateSelectInput(session, "sr_match_tournament", selected = "")
-    updateTextInput(session, "sr_match_player_username", value = "")
-    updateTextInput(session, "sr_match_player_member", value = "")
-    shinyjs::reset("sr_match_screenshots")
+    rv$sr_match_selected_tournament <- NULL
+
+    # Refresh tournament list to show updated match counts
+    if (!is.null(rv$sr_match_player)) {
+      rv$sr_match_tournaments <- sr_match_get_tournaments(db_pool, rv$sr_match_player$player_id)
+    }
 
     notify(
       paste("Match history submitted!", matches_inserted, "matches recorded."),
@@ -491,5 +581,5 @@ observeEvent(input$sr_match_cancel, {
   rv$sr_match_uploaded_file <- NULL
   rv$sr_match_parsed_count <- 0
   rv$sr_match_total_rounds <- 0
-  shinyjs::reset("sr_match_screenshots")
+  rv$sr_match_selected_tournament <- NULL
 })
