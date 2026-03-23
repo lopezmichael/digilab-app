@@ -8,6 +8,24 @@
 # normalize_member_number: Standardize Bandai TCG+ IDs to 10-digit zero-padded
 # Strips #, trims whitespace, left-pads with zeros. Passes through GUEST IDs.
 # -----------------------------------------------------------------------------
+# Check if a member number is a GUEST ID (e.g., GUEST12345)
+is_guest_member <- function(mn) {
+  !is.null(mn) && !is.na(mn) && nchar(mn) > 0 && grepl("^GUEST", mn, ignore.case = TRUE)
+}
+
+# Get the scene_id for a tournament's store
+get_tournament_scene_id <- function(pool_or_conn, tournament_id) {
+  result <- tryCatch(
+    DBI::dbGetQuery(pool_or_conn, "
+      SELECT s.scene_id FROM tournaments t
+      JOIN stores s ON t.store_id = s.store_id
+      WHERE t.tournament_id = $1
+    ", params = list(tournament_id)),
+    error = function(e) data.frame()
+  )
+  if (nrow(result) > 0) result$scene_id[1] else NULL
+}
+
 normalize_member_number <- function(mn) {
   if (is.null(mn) || is.na(mn)) return(NA_character_)
   mn <- trimws(mn)

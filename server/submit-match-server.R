@@ -40,7 +40,7 @@ sr_autofill_from_participants <- function(parsed_matches, tournament_id, pool) {
     if (nchar(opp_name) == 0 && (is.na(opp_member) || nchar(opp_member) == 0)) next
 
     # Priority 1: Exact member number match
-    if (!is.na(opp_member) && nchar(opp_member) > 0 && !grepl("^GUEST", opp_member, ignore.case = TRUE)) {
+    if (!is.na(opp_member) && nchar(opp_member) > 0 && !is_guest_member(opp_member)) {
       norm_member <- normalize_member_number(opp_member)
       if (!is.na(norm_member) && nchar(norm_member) > 0) {
         idx <- which(!is.na(participants$member_number) & participants$member_number == norm_member)
@@ -134,14 +134,9 @@ sr_autofill_from_prior_matches <- function(parsed_matches, tournament_id, player
 }
 
 # Layer 3: Run match_player() for unresolved opponents (full DB scope)
-sr_enrich_with_match_player <- function(parsed_matches, tournament_id, pool, candidates_out) {
-  # Get scene_id for scoped matching
-  scene_info <- safe_query(pool, "
-    SELECT s.scene_id FROM tournaments t
-    JOIN stores s ON t.store_id = s.store_id
-    WHERE t.tournament_id = $1
-  ", params = list(tournament_id), default = data.frame())
-  scene_id <- if (nrow(scene_info) > 0) scene_info$scene_id[1] else NULL
+sr_enrich_with_match_player <- function(parsed_matches, tournament_id, pool) {
+  scene_id <- get_tournament_scene_id(pool, tournament_id)
+  candidates_out <- list()
 
   for (i in seq_len(nrow(parsed_matches))) {
     # Skip already matched rows
@@ -521,8 +516,7 @@ observeEvent(input$sr_match_process_ocr, {
   parsed <- sr_autofill_from_prior_matches(parsed, tournament_id, player_id, db_pool)
 
   # Layer 3: Run match_player() for unresolved opponents
-  candidates <- list()
-  result <- sr_enrich_with_match_player(parsed, tournament_id, db_pool, candidates)
+  result <- sr_enrich_with_match_player(parsed, tournament_id, db_pool)
   parsed <- result$parsed
   candidates <- result$candidates
 
@@ -703,11 +697,7 @@ observeEvent(input$sr_match_submit, {
     DBI::dbExecute(conn, "BEGIN")
 
     # Get scene_id for the tournament's store
-    match_scene <- DBI::dbGetQuery(conn, "
-      SELECT s.scene_id FROM tournaments t JOIN stores s ON t.store_id = s.store_id
-      WHERE t.tournament_id = $1
-    ", params = list(tournament_id))
-    match_scene_id <- if (nrow(match_scene) > 0) match_scene$scene_id[1] else NULL
+    match_scene_id <- get_tournament_scene_id(conn, tournament_id)
 
     # Insert each match - read from editable inputs
     matches_inserted <- 0
@@ -740,7 +730,7 @@ observeEvent(input$sr_match_submit, {
       }
 
       opp_has_real_id <- !is.na(opponent_member) && nchar(opponent_member) > 0 &&
-                         !grepl("^GUEST", opponent_member, ignore.case = TRUE)
+                         !is_guest_member(opponent_member)
       clean_opp_member <- if (opp_has_real_id) opponent_member else NA_character_
 
       # Use pre-matched player ID from auto-fill if available
