@@ -1,6 +1,6 @@
 # =============================================================================
 # Onboarding Modal UI
-# 3-step carousel: Welcome, Scene Selection, Community
+# 3-step carousel: Pick Your Scene, Find Yourself, Your Scene at a Glance
 # =============================================================================
 
 #' Onboarding carousel with 3 steps
@@ -20,63 +20,77 @@ onboarding_ui <- function() {
       span(id = "onboarding_dot_3", class = "onboarding-dot upcoming")
     ),
 
-    # ===================== Step 1: Welcome =====================
+    # ===================== Step 1: Pick Your Scene =====================
     div(
       id = "onboarding_step_1",
       class = "onboarding-step",
 
-      # Hero unit: mascot + app name side by side
+      # Step label
+      div(class = "onboarding-step-label", "STEP 1 OF 3"),
+
+      # Hero unit: Agumon mascot + title side by side
       div(
         class = "onboarding-hero",
-        div(class = "onboarding-hero-mascot", agumon_svg(size = "72px", color = "#F7941D")),
+        div(class = "onboarding-hero-mascot", agumon_svg(size = "48px", color = "#F7941D")),
         div(class = "onboarding-hero-text",
-          h2(class = "onboarding-title", "DigiLab"),
-          p(class = "onboarding-tagline", "Your Local Digimon TCG Hub")
+          h2(class = "onboarding-title", "Where do you play?")
         )
       ),
 
-      # Tagline sentence
+      # Subtitle
       p(class = "onboarding-subtitle",
-        "Track tournaments, player ratings, and deck meta for your community."
+        "Select your local scene to see tournaments, players, and meta data from your area."
       ),
 
-      # Vertical feature list
+      # Full-width map
       div(
-        class = "onboarding-feature-list",
-        div(class = "onboarding-feature-row",
-          div(class = "onboarding-feature-icon", bsicons::bs_icon("grid-3x3-gap")),
-          div(class = "onboarding-feature-content",
-              tags$strong("Dashboard"),
-              span(HTML("&mdash;"), " trending decks, top performers, and scene health at a glance"))
-        ),
-        div(class = "onboarding-feature-row",
-          div(class = "onboarding-feature-icon", bsicons::bs_icon("people")),
-          div(class = "onboarding-feature-content",
-              tags$strong("Players"),
-              span(HTML("&mdash;"), " Elo-style ratings, win rates, and tournament history"))
-        ),
-        div(class = "onboarding-feature-row",
-          div(class = "onboarding-feature-icon", bsicons::bs_icon("stack")),
-          div(class = "onboarding-feature-content",
-              tags$strong("Deck Meta"),
-              span(HTML("&mdash;"), " which archetypes are winning and how the meta is shifting"))
-        ),
-        div(class = "onboarding-feature-row",
-          div(class = "onboarding-feature-icon", bsicons::bs_icon("trophy")),
-          div(class = "onboarding-feature-content",
-              tags$strong("Tournaments"),
-              span(HTML("&mdash;"), " full standings, decklists, and match records for every event"))
-        ),
-        div(class = "onboarding-feature-row",
-          div(class = "onboarding-feature-icon", bsicons::bs_icon("geo-alt-fill")),
-          div(class = "onboarding-feature-content",
-              tags$strong("Stores"),
-              span(HTML("&mdash;"), " find nearby stores with schedules and event history"))
+        class = "onboarding-map-wrapper",
+        div(
+          class = "onboarding-map-container",
+          mapgl::mapboxglOutput("onboarding_map", height = "300px")
         )
+      ),
+
+      # Find My Scene button (full width)
+      div(
+        class = "onboarding-find-scene",
+        actionButton("find_my_scene",
+                     tagList(bsicons::bs_icon("crosshair"), " Find My Scene"),
+                     class = "btn-primary btn-sm w-100")
+      ),
+
+      # Divider
+      div(class = "onboarding-divider",
+          span("or choose")),
+
+      # Two equal buttons
+      div(
+        class = "onboarding-scene-buttons",
+        actionButton("select_scene_online",
+                     tagList(bsicons::bs_icon("camera-video-fill"), " Online / Webcam"),
+                     class = "btn-outline-secondary btn-sm"),
+        actionButton("select_scene_all",
+                     tagList(bsicons::bs_icon("globe2"), " All Scenes"),
+                     class = "btn-outline-secondary btn-sm")
+      ),
+
+      # Confirmation (hidden by default, shown after selection)
+      shinyjs::hidden(
+        div(
+          id = "onboarding_scene_confirmed",
+          class = "onboarding-scene-confirmation",
+          bsicons::bs_icon("check-circle-fill"),
+          span(id = "onboarding_scene_label", "")
+        )
+      ),
+
+      # Reassurance note
+      p(class = "onboarding-muted-note",
+        "You can change your scene anytime from the dropdown in the header."
       )
     ),
 
-    # ===================== Step 2: Scene Selection =====================
+    # ===================== Step 2: Find Yourself =====================
     shinyjs::hidden(
       div(
         id = "onboarding_step_2",
@@ -86,61 +100,35 @@ onboarding_ui <- function() {
         div(class = "onboarding-step-label", "STEP 2 OF 3"),
 
         # Title + description
-        h2(class = "onboarding-title", "Pick Your Scene"),
+        h2(class = "onboarding-title", "Are you already on DigiLab?"),
         p(class = "onboarding-subtitle",
-          "Choose your local community to filter leaderboards, meta, and tournaments to your area."
+          "Search by player name or Bandai Member ID to link your profile."
         ),
 
-        # Full-width map
+        # Search row
         div(
-          class = "onboarding-map-wrapper",
-          div(
-            class = "onboarding-map-container",
-            mapgl::mapboxglOutput("onboarding_map", height = "300px")
-          )
+          class = "onboarding-search-row",
+          textInput("onboarding_player_search", NULL,
+                    placeholder = "Player name or Bandai ID",
+                    width = "100%"),
+          actionButton("onboarding_player_search_btn",
+                       tagList(bsicons::bs_icon("search"), " Search"),
+                       class = "btn-primary btn-sm")
         ),
 
-        # Find My Scene button (full width)
+        # Hint box
         div(
-          class = "onboarding-find-scene",
-          actionButton("find_my_scene",
-                       tagList(bsicons::bs_icon("crosshair"), " Find My Scene"),
-                       class = "btn-primary btn-sm w-100")
+          class = "onboarding-hint-box",
+          bsicons::bs_icon("phone"),
+          span("Your Bandai ID is on your TCG+ app profile")
         ),
 
-        # Divider
-        div(class = "onboarding-divider",
-            span("or choose")),
-
-        # Two equal buttons
-        div(
-          class = "onboarding-scene-buttons",
-          actionButton("select_scene_online",
-                       tagList(bsicons::bs_icon("camera-video-fill"), " Online / Webcam"),
-                       class = "btn-outline-secondary btn-sm"),
-          actionButton("select_scene_all",
-                       tagList(bsicons::bs_icon("globe2"), " All Scenes"),
-                       class = "btn-outline-secondary btn-sm")
-        ),
-
-        # Confirmation (hidden by default, shown after selection)
-        shinyjs::hidden(
-          div(
-            id = "onboarding_scene_confirmed",
-            class = "onboarding-scene-confirmation",
-            bsicons::bs_icon("check-circle-fill"),
-            span(id = "onboarding_scene_label", "")
-          )
-        ),
-
-        # Reassurance note
-        p(class = "onboarding-muted-note",
-          "You can change your scene anytime from the dropdown in the header."
-        )
+        # Search results (dynamic)
+        uiOutput("onboarding_player_result")
       )
     ),
 
-    # ===================== Step 3: Community =====================
+    # ===================== Step 3: Your Scene at a Glance =====================
     shinyjs::hidden(
       div(
         id = "onboarding_step_3",
@@ -149,54 +137,22 @@ onboarding_ui <- function() {
         # Step label
         div(class = "onboarding-step-label", "STEP 3 OF 3"),
 
-        # Title + description
-        h2(class = "onboarding-title", "Join the Community"),
+        # Dynamic scene title
+        h2(class = "onboarding-title", textOutput("onboarding_scene_title", inline = TRUE)),
         p(class = "onboarding-subtitle",
-          "DigiLab is community-built. Your feedback shapes what gets built next."
+          HTML("Here&rsquo;s what&rsquo;s happening in your scene")
         ),
 
-        # Tappable link rows
-        div(
-          class = "onboarding-link-list",
-          tags$a(
-            class = "onboarding-link-row",
-            href = LINKS$discord,
-            target = "_blank",
-            div(class = "onboarding-link-icon", bsicons::bs_icon("discord")),
-            div(class = "onboarding-link-content",
-                tags$strong("Discord"),
-                span("Chat with players, report bugs, and suggest features")),
-            div(class = "onboarding-link-arrow", bsicons::bs_icon("chevron-right"))
-          ),
-          tags$a(
-            class = "onboarding-link-row",
-            href = LINKS$kofi,
-            target = "_blank",
-            div(class = "onboarding-link-icon", bsicons::bs_icon("cup-hot")),
-            div(class = "onboarding-link-content",
-                tags$strong("Ko-fi"),
-                span("Support server costs and ongoing development")),
-            div(class = "onboarding-link-arrow", bsicons::bs_icon("chevron-right"))
-          ),
-          div(
-            class = "onboarding-link-row",
-            style = "cursor: pointer;",
-            onclick = "Shiny.setInputValue('onboarding_to_organizers', true, {priority: 'event'});",
-            div(class = "onboarding-link-icon", bsicons::bs_icon("megaphone")),
-            div(class = "onboarding-link-content",
-                tags$strong("For Organizers"),
-                span("Want your community on DigiLab? Here's how")),
-            div(class = "onboarding-link-arrow", bsicons::bs_icon("chevron-right"))
-          )
-        ),
+        # Stats grid (dynamic)
+        uiOutput("onboarding_stats_grid"),
 
-        # Subtle divider + footer links
-        tags$hr(class = "onboarding-subtle-divider"),
-        p(class = "onboarding-muted-note",
-          "Find About, FAQ, and For Organizers anytime from the ",
-          bsicons::bs_icon("three-dots-vertical"),
-          " menu in the header."
-        )
+        # Rank banner (conditional, only if player found)
+        uiOutput("onboarding_rank_banner"),
+
+        # Full-width CTA
+        actionButton("onboarding_enter",
+                     tagList("Enter DigiLab ", bsicons::bs_icon("arrow-right")),
+                     class = "onboarding-cta-btn")
       )
     ),
 
@@ -205,10 +161,10 @@ onboarding_ui <- function() {
       class = "onboarding-nav-buttons",
       div(
         class = "onboarding-nav-left",
-        # Step 1 only
+        # Step 1: Skip for now
         actionButton("onboarding_skip", "Skip for now",
                      class = "onboarding-skip-btn"),
-        # Steps 2-3
+        # Steps 2-3: Back
         shinyjs::hidden(
           actionButton("onboarding_back",
                        tagList(bsicons::bs_icon("arrow-left"), " Back"),
@@ -216,21 +172,23 @@ onboarding_ui <- function() {
         )
       ),
       div(
+        class = "onboarding-nav-center",
+        # Step 2 only: Skip (ghost)
+        shinyjs::hidden(
+          actionButton("onboarding_skip_2", "Skip",
+                       class = "onboarding-skip-btn")
+        )
+      ),
+      div(
         class = "onboarding-nav-right",
-        # Step 1
+        # Step 1: Next
         actionButton("onboarding_next",
-                     tagList("Get Started ", bsicons::bs_icon("arrow-right")),
+                     tagList("Next ", bsicons::bs_icon("arrow-right")),
                      class = "btn-primary btn-sm"),
-        # Step 2
+        # Step 2: Almost Done
         shinyjs::hidden(
           actionButton("onboarding_next_2",
                        tagList("Almost Done ", bsicons::bs_icon("arrow-right")),
-                       class = "btn-primary btn-sm")
-        ),
-        # Step 3
-        shinyjs::hidden(
-          actionButton("onboarding_finish",
-                       tagList(bsicons::bs_icon("check-lg"), " Enter DigiLab"),
                        class = "btn-primary btn-sm")
         )
       )

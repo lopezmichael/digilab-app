@@ -553,6 +553,10 @@ observeEvent(input$scene_selector, {
 #' Show 3-step onboarding carousel modal
 show_onboarding_modal <- function() {
   rv$onboarding_step <- 1
+  rv$onboarding_player <- NULL
+  rv$onboarding_player_rating <- NULL
+  rv$onboarding_player_rank <- NULL
+  rv$onboarding_player_record <- NULL
   showModal(modalDialog(
     onboarding_ui(),
     title = NULL,
@@ -561,6 +565,10 @@ show_onboarding_modal <- function() {
     easyClose = FALSE,
     class = "onboarding-modal"
   ))
+  # Fire map resize after modal opens (Step 1 has the map now)
+  shinyjs::delay(300, {
+    shinyjs::runjs("setTimeout(function(){ window.dispatchEvent(new Event('resize')); }, 150);")
+  })
 }
 
 # Re-open onboarding from footer "Welcome Guide" link
@@ -571,7 +579,6 @@ observeEvent(input$open_welcome_guide, {
 # Handle close onboarding (from links to About/FAQ)
 observeEvent(input$close_onboarding, {
   removeModal()
-  # Mark onboarding as complete with default scene
   session$sendCustomMessage("saveScenePreference", list(scene = "all", continent = "all"))
   rv$current_scene <- "all"
   updateSelectInput(session, "scene_selector", selected = "all")
@@ -625,13 +632,18 @@ observe({
     shinyjs::show("onboarding_back")
   }
 
-  # Right: next (step 1), next_2 (step 2), finish (step 3)
+  # Center: skip_2 only on step 2
+  if (step == 2) {
+    shinyjs::show("onboarding_skip_2")
+  } else {
+    shinyjs::hide("onboarding_skip_2")
+  }
+
+  # Right: next (step 1), next_2 (step 2), nothing (step 3 — CTA replaces)
   shinyjs::hide("onboarding_next")
   shinyjs::hide("onboarding_next_2")
-  shinyjs::hide("onboarding_finish")
   if (step == 1) shinyjs::show("onboarding_next")
   if (step == 2) shinyjs::show("onboarding_next_2")
-  if (step == 3) shinyjs::show("onboarding_finish")
 
   # Scroll modal to top when switching steps
   shinyjs::runjs("
@@ -639,21 +651,20 @@ observe({
     if (modalBody) modalBody.scrollTop = 0;
   ")
 
-  # Trigger map resize when scene step becomes visible
-  if (step == 2) {
+  # Trigger map resize when step 1 becomes visible (e.g. going back)
+  if (step == 1) {
     shinyjs::runjs("setTimeout(function(){ window.dispatchEvent(new Event('resize')); }, 150);")
   }
 })
 
-# Next buttons (step 1 and step 2 both increment)
+# Step 1 → Step 2
 observeEvent(input$onboarding_next, {
   if (rv$onboarding_step < 3) {
-    # Hide scene confirmation when arriving at Step 2 fresh
-    shinyjs::hide("onboarding_scene_confirmed")
     rv$onboarding_step <- rv$onboarding_step + 1
   }
 })
 
+# Step 2 → Step 3
 observeEvent(input$onboarding_next_2, {
   if (rv$onboarding_step < 3) {
     rv$onboarding_step <- rv$onboarding_step + 1
@@ -667,21 +678,429 @@ observeEvent(input$onboarding_back, {
   }
 })
 
-# Skip button - default to "all" and close
+# Skip Step 1: locale detection → continent fallback
 observeEvent(input$onboarding_skip, {
+  # Request browser locale for smart continent fallback
+  session$sendCustomMessage("requestLocaleFallback", list())
+})
+
+# Locale fallback response
+observeEvent(input$locale_fallback, {
+  lang <- input$locale_fallback$language %||% "en-US"
+  continent <- locale_to_continent(lang)
+  if (!is.null(continent) && continent != "all") {
+    rv$current_continent <- continent
+    updateSelectInput(session, "continent_selector", selected = continent)
+    session$sendCustomMessage("updateContinentIcon", get_continent_icon(continent))
+  }
   select_scene_and_close("all")
 })
 
-# Finish button (Get Started) - close with current scene or "all" default
-observeEvent(input$onboarding_finish, {
+# Skip Step 2: advance to Step 3 without player
+observeEvent(input$onboarding_skip_2, {
+  rv$onboarding_step <- 3
+})
+
+# Enter DigiLab CTA (Step 3)
+observeEvent(input$onboarding_enter, {
+  # Save player identity to localStorage if found
+  if (!is.null(rv$onboarding_player)) {
+    session$sendCustomMessage("savePlayerIdentity", list(
+      player_id = rv$onboarding_player$player_id,
+      display_name = rv$onboarding_player$display_name
+    ))
+  }
   select_scene_and_close(rv$current_scene %||% "all")
 })
 
-# For Organizers link - close modal and navigate
-observeEvent(input$onboarding_to_organizers, {
-  select_scene_and_close(rv$current_scene %||% "all")
-  nav_select("main_content", "for_tos")
-  rv$current_nav <- "for_tos"
+# -----------------------------------------------------------------------------
+# Locale-to-Continent Mapping (for skip behavior)
+# -----------------------------------------------------------------------------
+
+#' Map browser language code to continent slug
+#' @param lang Browser language string (e.g. "en-US", "ja", "pt-BR")
+#' @return Continent slug or "all" if no mapping found
+locale_to_continent <- function(lang) {
+  if (is.null(lang) || nchar(lang) == 0) return("all")
+
+  # Extract country code from locale (e.g. "en-US" → "US", "ja" → "JP")
+  parts <- strsplit(lang, "[-_]")[[1]]
+  country <- if (length(parts) >= 2) toupper(parts[2]) else toupper(parts[1])
+
+  # Map country codes to continent slugs
+  mapping <- list(
+    north_america = c("US", "CA", "MX", "EN"),
+    south_america = c("BR", "AR", "CL", "CO", "PE", "VE", "EC", "UY", "PY", "BO", "PT"),
+    europe = c("GB", "DE", "FR", "IT", "ES", "NL", "BE", "AT", "CH", "SE", "NO",
+               "DK", "FI", "PL", "CZ", "HU", "RO", "BG", "HR", "SK", "SI",
+               "IE", "PT", "GR", "LT", "LV", "EE"),
+    asia = c("JP", "KR", "CN", "TW", "HK", "SG", "MY", "TH", "PH", "ID", "VN",
+             "IN", "JA", "KO", "ZH"),
+    oceania = c("AU", "NZ")
+  )
+
+  for (continent in names(mapping)) {
+    if (country %in% mapping[[continent]]) return(continent)
+  }
+  "all"
+}
+
+# -----------------------------------------------------------------------------
+# Onboarding Step 2: Player Search
+# -----------------------------------------------------------------------------
+
+observeEvent(input$onboarding_player_search_btn, {
+  query <- trimws(input$onboarding_player_search %||% "")
+  if (nchar(query) == 0) {
+    notify("Enter a player name or Bandai ID to search", type = "warning")
+    return()
+  }
+
+  # Normalize: strip leading # from Bandai IDs
+  clean_query <- gsub("^#", "", query)
+
+  # Try Bandai ID first (if looks numeric)
+  player <- NULL
+  if (grepl("^\\d+$", clean_query)) {
+    mn <- normalize_member_number(clean_query)
+    player <- safe_query(db_pool,
+      "SELECT player_id, display_name, member_number, home_scene_id
+       FROM players
+       WHERE member_number = $1 AND is_active IS NOT FALSE
+       LIMIT 1",
+      params = list(mn))
+    if (nrow(player) == 0) player <- NULL
+  }
+
+  # Fall back to name search
+  if (is.null(player)) {
+    # Exact name match first
+    player <- safe_query(db_pool,
+      "SELECT player_id, display_name, member_number, home_scene_id
+       FROM players
+       WHERE LOWER(display_name) = LOWER($1) AND is_active IS NOT FALSE
+       LIMIT 1",
+      params = list(clean_query))
+    if (nrow(player) == 0) player <- NULL
+  }
+
+  # Fuzzy search if no exact match
+  if (is.null(player) && nchar(clean_query) >= 3) {
+    fuzzy <- safe_query(db_pool,
+      "SELECT player_id, display_name, member_number, home_scene_id,
+              similarity(LOWER(display_name), LOWER($1)) AS sim
+       FROM players
+       WHERE similarity(LOWER(display_name), LOWER($1)) > 0.4
+         AND is_active IS NOT FALSE
+       ORDER BY sim DESC
+       LIMIT 1",
+      params = list(clean_query))
+    if (nrow(fuzzy) > 0) player <- fuzzy
+  }
+
+  if (!is.null(player) && nrow(player) > 0) {
+    rv$onboarding_player <- player[1, ]
+    pid <- player$player_id[1]
+
+    # Query rating
+    rating <- safe_query(db_pool,
+      "SELECT competitive_rating FROM players WHERE player_id = $1",
+      params = list(pid))
+    rv$onboarding_player_rating <- if (nrow(rating) > 0) rating$competitive_rating[1] else NULL
+
+    # Query W-L record
+    record <- safe_query(db_pool,
+      "SELECT COUNT(*) AS events,
+              SUM(CASE WHEN placement = 1 THEN 1 ELSE 0 END) AS wins
+       FROM results WHERE player_id = $1",
+      params = list(pid))
+    rv$onboarding_player_record <- if (nrow(record) > 0) record[1, ] else NULL
+
+    # Query rank within current scene
+    scene <- rv$current_scene %||% "all"
+    if (scene != "all" && scene != "online") {
+      rank_data <- safe_query(db_pool,
+        "SELECT COUNT(*) + 1 AS rank,
+                (SELECT COUNT(DISTINCT r2.player_id)
+                 FROM results r2
+                 JOIN tournaments t2 ON r2.tournament_id = t2.tournament_id
+                 JOIN stores s2 ON t2.store_id = s2.store_id
+                 JOIN scenes sc2 ON s2.scene_id = sc2.scene_id
+                 WHERE sc2.slug = $2) AS total
+         FROM players p2
+         WHERE p2.competitive_rating > (
+           SELECT competitive_rating FROM players WHERE player_id = $1
+         ) AND p2.is_active IS NOT FALSE
+           AND p2.player_id IN (
+             SELECT DISTINCT r3.player_id
+             FROM results r3
+             JOIN tournaments t3 ON r3.tournament_id = t3.tournament_id
+             JOIN stores s3 ON t3.store_id = s3.store_id
+             JOIN scenes sc3 ON s3.scene_id = sc3.scene_id
+             WHERE sc3.slug = $2
+           )",
+        params = list(pid, scene))
+      rv$onboarding_player_rank <- if (nrow(rank_data) > 0) list(
+        rank = rank_data$rank[1],
+        total = rank_data$total[1]
+      ) else NULL
+    } else {
+      rv$onboarding_player_rank <- NULL
+    }
+  } else {
+    rv$onboarding_player <- NULL
+    rv$onboarding_player_rating <- NULL
+    rv$onboarding_player_rank <- NULL
+    rv$onboarding_player_record <- NULL
+  }
+})
+
+# Step 2: Player result renderer
+output$onboarding_player_result <- renderUI({
+  # Only render after search button press (not on step load)
+  req(input$onboarding_player_search_btn)
+
+  player <- rv$onboarding_player
+
+  if (!is.null(player)) {
+    # Found state: player card
+    initials <- paste0(
+      substr(player$display_name, 1, 1),
+      if (grepl(" ", player$display_name)) substr(sub(".* ", "", player$display_name), 1, 1) else ""
+    )
+
+    record_text <- ""
+    if (!is.null(rv$onboarding_player_record) && rv$onboarding_player_record$events > 0) {
+      record_text <- sprintf("%d events \u00B7 %d first-place finishes",
+        rv$onboarding_player_record$events,
+        rv$onboarding_player_record$wins)
+    }
+
+    rating_el <- NULL
+    if (!is.null(rv$onboarding_player_rating) && !is.na(rv$onboarding_player_rating)) {
+      rating_el <- span(class = "onboarding-rating-badge",
+                        round(rv$onboarding_player_rating))
+    }
+
+    div(class = "onboarding-player-card",
+      div(class = "onboarding-player-avatar", toupper(initials)),
+      div(class = "onboarding-player-info",
+        div(class = "onboarding-player-name", player$display_name),
+        div(class = "onboarding-player-welcome", "Welcome back!"),
+        if (nchar(record_text) > 0) div(class = "onboarding-player-meta", record_text)
+      ),
+      rating_el
+    )
+  } else {
+    # Not found state
+    stores <- get_nearby_stores_for_onboarding(db_pool, rv$current_scene %||% "all")
+
+    store_cards <- NULL
+    if (!is.null(stores) && nrow(stores) > 0) {
+      store_cards <- div(class = "onboarding-store-list",
+        lapply(seq_len(min(nrow(stores), 3)), function(i) {
+          div(class = "onboarding-store-card",
+            div(class = "onboarding-store-icon", bsicons::bs_icon("shop")),
+            div(
+              div(class = "onboarding-store-name", stores$name[i]),
+              if (!is.na(stores$next_event[i]))
+                div(class = "onboarding-store-detail",
+                    paste("Next event:", format(stores$next_event[i], "%b %d")))
+            )
+          )
+        })
+      )
+    }
+
+    div(class = "onboarding-not-found",
+      p(class = "onboarding-not-found-text",
+        "No worries! Play in a tournament and you'll appear automatically."),
+      store_cards
+    )
+  }
+})
+
+# -----------------------------------------------------------------------------
+# Onboarding: Nearby Stores Helper
+# -----------------------------------------------------------------------------
+
+#' Get stores in the selected scene with upcoming events
+#' @param pool Database pool
+#' @param scene_slug Current scene slug
+#' @return data.frame with name and next_event columns, or NULL
+get_nearby_stores_for_onboarding <- function(pool, scene_slug) {
+  if (is.null(scene_slug) || scene_slug == "all" || scene_slug == "online") {
+    # No scene context — show a few popular stores
+    return(safe_query(pool,
+      "SELECT s.name,
+              (SELECT MIN(t.event_date) FROM tournaments t
+               WHERE t.store_id = s.store_id AND t.event_date >= CURRENT_DATE) AS next_event
+       FROM stores s
+       WHERE s.is_active = TRUE AND s.is_online = FALSE
+       ORDER BY (SELECT COUNT(*) FROM tournaments t2 WHERE t2.store_id = s.store_id) DESC
+       LIMIT 3",
+      default = data.frame()))
+  }
+
+  safe_query(pool,
+    "SELECT s.name,
+            (SELECT MIN(t.event_date) FROM tournaments t
+             WHERE t.store_id = s.store_id AND t.event_date >= CURRENT_DATE) AS next_event
+     FROM stores s
+     JOIN scenes sc ON s.scene_id = sc.scene_id
+     WHERE sc.slug = $1 AND s.is_active = TRUE
+     ORDER BY next_event ASC NULLS LAST
+     LIMIT 3",
+    params = list(scene_slug),
+    default = data.frame())
+}
+
+# -----------------------------------------------------------------------------
+# Onboarding Step 3: Scene Stats
+# -----------------------------------------------------------------------------
+
+# Dynamic scene title
+output$onboarding_scene_title <- renderText({
+  scene <- rv$current_scene %||% "all"
+  if (scene == "all") return("All Scenes")
+  if (scene == "online") return("Online")
+  # Look up display name
+  info <- safe_query(db_pool,
+    "SELECT display_name FROM scenes WHERE slug = $1 LIMIT 1",
+    params = list(scene))
+  if (nrow(info) > 0) info$display_name[1] else scene
+})
+
+# Stats grid renderer
+output$onboarding_stats_grid <- renderUI({
+  req(rv$onboarding_step == 3)
+
+  scene <- rv$current_scene %||% "all"
+
+  # Build WHERE clause for scene filtering
+  if (scene == "all") {
+    scene_filter <- ""
+    scene_params <- list()
+  } else if (scene == "online") {
+    scene_filter <- "AND s.is_online = TRUE"
+    scene_params <- list()
+  } else {
+    scene_filter <- "AND sc.slug = $1"
+    scene_params <- list(scene)
+  }
+
+  # Query stats for last 30 days
+  stats_query <- sprintf(
+    "SELECT
+       COUNT(DISTINCT t.tournament_id) AS tournaments,
+       COUNT(DISTINCT r.player_id) AS active_players
+     FROM tournaments t
+     JOIN stores s ON t.store_id = s.store_id
+     LEFT JOIN scenes sc ON s.scene_id = sc.scene_id
+     LEFT JOIN results r ON t.tournament_id = r.tournament_id
+     WHERE t.event_date >= CURRENT_DATE - INTERVAL '30 days'
+     %s", scene_filter)
+
+  stats <- safe_query(db_pool, stats_query, params = scene_params,
+                      default = data.frame(tournaments = 0, active_players = 0))
+
+  tournament_count <- if (nrow(stats) > 0) stats$tournaments[1] else 0
+  player_count <- if (nrow(stats) > 0) stats$active_players[1] else 0
+
+  # Trending deck
+  deck_query <- sprintf(
+    "SELECT da.name
+     FROM results r
+     JOIN tournaments t ON r.tournament_id = t.tournament_id
+     JOIN stores s ON t.store_id = s.store_id
+     LEFT JOIN scenes sc ON s.scene_id = sc.scene_id
+     JOIN deck_archetypes da ON r.deck_archetype_id = da.archetype_id
+     WHERE t.event_date >= CURRENT_DATE - INTERVAL '30 days'
+       AND LOWER(da.name) != 'unknown'
+       %s
+     GROUP BY da.name
+     ORDER BY COUNT(*) DESC
+     LIMIT 1", scene_filter)
+  trending <- safe_query(db_pool, deck_query, params = scene_params, default = data.frame())
+  trending_deck <- if (nrow(trending) > 0) trending$name[1] else "\u2014"
+
+  # Rising star (most 1st-place finishes in 30 days)
+  star_query <- sprintf(
+    "SELECT p.display_name
+     FROM results r
+     JOIN tournaments t ON r.tournament_id = t.tournament_id
+     JOIN stores s ON t.store_id = s.store_id
+     LEFT JOIN scenes sc ON s.scene_id = sc.scene_id
+     JOIN players p ON r.player_id = p.player_id
+     WHERE t.event_date >= CURRENT_DATE - INTERVAL '30 days'
+       AND r.placement = 1
+       %s
+     GROUP BY p.display_name
+     ORDER BY COUNT(*) DESC
+     LIMIT 1", scene_filter)
+  star <- safe_query(db_pool, star_query, params = scene_params, default = data.frame())
+  rising_star <- if (nrow(star) > 0) star$display_name[1] else "\u2014"
+
+  # Empty scene check
+  if (tournament_count == 0 && player_count == 0) {
+    return(div(class = "onboarding-empty-scene",
+      div(bsicons::bs_icon("emoji-smile")),
+      p("Be the first! No tournaments in the last 30 days."),
+      p("Check back soon or submit results to get things started!")
+    ))
+  }
+
+  # Build 2x2 grid
+  div(class = "onboarding-stats-grid",
+    div(class = "onboarding-stat-card",
+      div(class = "onboarding-stat-icon stat-icon-cal", bsicons::bs_icon("calendar-event")),
+      div(class = "onboarding-stat-value", tournament_count),
+      div(class = "onboarding-stat-label", "Tournaments")
+    ),
+    div(class = "onboarding-stat-card",
+      div(class = "onboarding-stat-icon stat-icon-ppl", bsicons::bs_icon("people")),
+      div(class = "onboarding-stat-value", player_count),
+      div(class = "onboarding-stat-label", "Active Players")
+    ),
+    div(class = "onboarding-stat-card",
+      div(class = "onboarding-stat-icon stat-icon-fire", bsicons::bs_icon("fire")),
+      div(class = "onboarding-stat-value", trending_deck),
+      div(class = "onboarding-stat-label", "Trending Deck")
+    ),
+    div(class = "onboarding-stat-card",
+      div(class = "onboarding-stat-icon stat-icon-star", bsicons::bs_icon("star")),
+      div(class = "onboarding-stat-value", rising_star),
+      div(class = "onboarding-stat-label", "Rising Star")
+    )
+  )
+})
+
+# Rank banner renderer (only if player found)
+output$onboarding_rank_banner <- renderUI({
+  req(rv$onboarding_step == 3)
+  player <- rv$onboarding_player
+  if (is.null(player)) return(NULL)
+
+  rating <- rv$onboarding_player_rating
+  rank_info <- rv$onboarding_player_rank
+
+  if (is.null(rating) || is.na(rating)) return(NULL)
+
+  # Build rank text
+  rank_text <- if (!is.null(rank_info)) {
+    scene <- rv$current_scene %||% "all"
+    scene_label <- if (scene == "all") "globally" else {
+      info <- safe_query(db_pool, "SELECT display_name FROM scenes WHERE slug = $1 LIMIT 1",
+                         params = list(scene))
+      if (nrow(info) > 0) info$display_name[1] else scene
+    }
+    sprintf("Rank #%d of %d in %s", rank_info$rank, rank_info$total, scene_label)
+  } else NULL
+
+  div(class = "onboarding-rank-banner",
+    span(paste("Your rating:"), span(class = "rank-value", round(rating))),
+    if (!is.null(rank_text)) span(paste(" \u00B7", rank_text))
+  )
 })
 
 

@@ -11,6 +11,8 @@
   var ONBOARDING_KEY = 'digilab_onboarding_complete';
   var LAST_SEEN_ANNOUNCEMENT_KEY = 'digilab_last_seen_announcement_id';
   var LAST_SEEN_VERSION_KEY = 'digilab_last_seen_version';
+  var PLAYER_ID_KEY = 'digilab_player_id';
+  var PLAYER_NAME_KEY = 'digilab_player_name';
 
   // ==========================================================================
   // PostMessage Storage Bridge
@@ -242,19 +244,23 @@
 
   $(document).on('shiny:connected', function() {
 
-    // Send initial scene + continent preference to Shiny (async storage read)
+    // Send initial scene + continent + player preference to Shiny (async storage read)
     Promise.all([
       getSavedScene(),
       isOnboardingComplete(),
       DigilabStorage.getItem(LAST_SEEN_ANNOUNCEMENT_KEY),
       DigilabStorage.getItem(LAST_SEEN_VERSION_KEY),
-      DigilabStorage.getItem(CONTINENT_KEY)
+      DigilabStorage.getItem(CONTINENT_KEY),
+      DigilabStorage.getItem(PLAYER_ID_KEY),
+      DigilabStorage.getItem(PLAYER_NAME_KEY)
     ]).then(function(results) {
       var savedScene = results[0];
       var onboardingDone = results[1];
       var lastSeenAnnouncementId = results[2] ? parseInt(results[2], 10) : null;
       var lastSeenVersion = results[3];
       var savedContinent = results[4];
+      var savedPlayerId = results[5] ? parseInt(results[5], 10) : null;
+      var savedPlayerName = results[6];
 
       Shiny.setInputValue('scene_from_storage', {
         scene: savedScene,
@@ -262,6 +268,8 @@
         needsOnboarding: !onboardingDone,
         lastSeenAnnouncementId: lastSeenAnnouncementId,
         lastSeenVersion: lastSeenVersion,
+        playerId: savedPlayerId,
+        playerName: savedPlayerName,
         timestamp: Date.now()
       }, {priority: 'event'});
     });
@@ -337,7 +345,11 @@
     // Handler for clearing onboarding (for testing)
     Shiny.addCustomMessageHandler('clearOnboarding', function(message) {
       DigilabStorage.removeItem(STORAGE_KEY).then(function() {
-        DigilabStorage.removeItem(ONBOARDING_KEY);
+        return DigilabStorage.removeItem(ONBOARDING_KEY);
+      }).then(function() {
+        return DigilabStorage.removeItem(PLAYER_ID_KEY);
+      }).then(function() {
+        DigilabStorage.removeItem(PLAYER_NAME_KEY);
       });
     });
 
@@ -349,6 +361,21 @@
     // Handler for saving seen version to storage
     Shiny.addCustomMessageHandler('saveSeenVersion', function(message) {
       DigilabStorage.setItem(LAST_SEEN_VERSION_KEY, message.version);
+    });
+
+    // Handler for locale fallback (onboarding skip → continent detection)
+    Shiny.addCustomMessageHandler('requestLocaleFallback', function(message) {
+      var lang = navigator.language || navigator.userLanguage || 'en-US';
+      Shiny.setInputValue('locale_fallback', {
+        language: lang,
+        timestamp: Date.now()
+      }, {priority: 'event'});
+    });
+
+    // Handler for saving player identity to storage (onboarding Step 2)
+    Shiny.addCustomMessageHandler('savePlayerIdentity', function(message) {
+      DigilabStorage.setItem(PLAYER_ID_KEY, String(message.player_id));
+      DigilabStorage.setItem(PLAYER_NAME_KEY, message.display_name);
     });
 
   });

@@ -1093,6 +1093,10 @@ server <- function(input, output, session) {
 
     # === ONBOARDING STATE ===
     onboarding_step = 1,
+    onboarding_player = NULL,
+    onboarding_player_rating = NULL,
+    onboarding_player_rank = NULL,
+    onboarding_player_record = NULL,
 
     # === FORM/WIZARD STATE ===
     wizard_step = 1,
