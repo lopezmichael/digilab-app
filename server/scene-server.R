@@ -1007,10 +1007,10 @@ output$onboarding_stats_grid <- renderUI({
      SELECT
        (SELECT COUNT(DISTINCT tournament_id) FROM recent) AS tournaments,
        (SELECT COUNT(DISTINCT player_id) FROM recent) AS active_players,
-       (SELECT da.name FROM recent rc
+       (SELECT da.archetype_name FROM recent rc
         JOIN deck_archetypes da ON rc.archetype_id = da.archetype_id
-        WHERE LOWER(da.name) != 'unknown'
-        GROUP BY da.name ORDER BY COUNT(*) DESC LIMIT 1) AS trending_deck,
+        WHERE LOWER(da.archetype_name) != 'unknown'
+        GROUP BY da.archetype_name ORDER BY COUNT(*) DESC LIMIT 1) AS trending_deck,
        (SELECT p.display_name FROM recent rc
         JOIN players p ON rc.player_id = p.player_id
         WHERE rc.placement = 1
