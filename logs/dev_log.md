@@ -4,6 +4,25 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-23: Post-v1.9.0 UX Feedback — Submit Tab Design Pass
+
+### Card Picker Rework
+Consolidated Paste + Manual Entry into single "Manual Entry" card. Original `layout_columns` approach left gaps when `conditionalPanel` hid admin cards (wrapper divs still in DOM). Switched to CSS flex — hidden panels have `display: none` so flex skips them. Cards now always 2-per-row at `max-width: 720px`, odd last card centered.
+
+### Match-by-Match Flow Rewrite
+Old flow: select store → select tournament → enter username + member number → upload screenshot. New flow mirrors the decklist standalone pattern: enter Bandai ID → see tournament history → select tournament → upload screenshot. Key simplification: `player_id` comes from lookup, no manual identity entry. Added `sr_match_player`, `sr_match_tournaments`, `sr_match_selected_tournament` reactive values.
+
+### Grid Placement Auto-Reorder
+Added `blur` event handler on `sr_placement_*` inputs that syncs grid data, validates placements, and sorts. Critical subtlety: `rv$sr_player_matches` (keyed by row number strings) must be remapped after row reorder or match badges follow wrong players. Used `change` event initially but it fired on every spinner click — switched to `blur` so it waits for user to finish editing.
+
+### Design Pass — Internal Pages
+Created shared CSS classes for both Match-by-Match and Add Decklists flows: `.sr-tournament-item` (tournament list with body-color text), `.sr-player-found` (brand-consistent blue/cyan banner), `.sr-selected-tournament` (blue left-border), `.sr-lookup-row` (flexbox input+button alignment), `.sr-form-hint` (scanner-pattern hint boxes matching admin panels). Key fix: `actionLink` renders `<a>` tags that inherited the theme's orange link color — overrode with `color: var(--bs-body-color)`.
+
+### Next: Match Auto-Fill Enhancement
+Planning 3-layer auto-fill for match-by-match flow: (1) match OCR opponents against tournament participants from `results` table, (2) pre-fill scores from other players' prior submissions in `matches` table, (3) `match_player()` fuzzy matching with colored status indicators.
+
+---
+
 ## 2026-03-23: v1.7.8 — Admin Scene Scoping & Merge Fix
 
 ### Scene Scoping for Store Management

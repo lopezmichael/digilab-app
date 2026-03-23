@@ -5,6 +5,19 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Card picker redesign**: Consolidated Paste + Manual Entry into single "Manual Entry" card. Reordered cards for better flow. Digital scanner styling (navy/blue gradient, grid overlay, cyan border). Coming Soon card styled as muted scanner variant.
+- **Match-by-Match redesign**: Replaced store/tournament dropdown pattern with Bandai ID lookup → tournament history → screenshot upload (mirrors decklist flow). Removed manual username/member number inputs — player identity comes from lookup.
+- **Label parity**: Card titles match page headers across all flows ("Match-by-Match" → "Match-by-Match Results", etc.).
+- **Design pass on internal pages**: Custom tournament list styling (de-oranged text), scanner-pattern hint boxes, Player Found banner with home scene, selected tournament banners with blue left-border, aligned lookup/save buttons.
+
+### Fixed
+- **Grid auto-reorder on placement change**: Editing a placement number and tabbing out now auto-sorts the grid. Player match badges and all row data follow the reorder correctly.
+- **Card picker layout gaps**: Hidden admin cards no longer leave blank spaces for public users (switched from `layout_columns` to CSS flex).
+- **JS event handler re-binding**: Consolidated grid event handlers into single one-time binding with delegated events.
+
 ## [1.9.0] - 2026-03-23 - Unified Submit Results Tab
 
 ### Added

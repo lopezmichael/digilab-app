@@ -268,6 +268,9 @@ All Submit Results methods share the `sr_*` prefix. Declared across `submit-shar
 
 | Name | Type | Description |
 |------|------|-------------|
+| `sr_match_player` | data.frame | Player record from Bandai ID lookup |
+| `sr_match_tournaments` | data.frame | Tournament history with match counts for looked-up player |
+| `sr_match_selected_tournament` | data.frame | Currently selected tournament for match submission |
 | `sr_match_ocr_results` | data.frame | Raw OCR results from match history screenshots |
 | `sr_match_uploaded_file` | list | Uploaded match history file info |
 | `sr_match_parsed_count` | integer | Parsed match count from OCR |

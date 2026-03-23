@@ -172,11 +172,17 @@ planned:
     tags: [ux]
     targetVersion: "Infrastructure"
 
-  - id: round-by-round
-    title: "Round-by-Round Enhancements"
-    description: "Improved UX for match history uploads, better database handling, and player-facing visibility for round-by-round data on Astro tournament pages."
-    tags: [feature, data]
-    targetVersion: "Infrastructure"
+  - id: match-autofill
+    title: "Match-by-Match Auto-Fill & Player Matching"
+    description: "3-layer auto-fill for match-by-match flow: (1) match OCR opponents against tournament participants from results table, (2) pre-fill scores from other players' prior match submissions, (3) match_player() fuzzy matching with colored status indicators (green=matched, yellow=ambiguous, red=new) and interactive resolution UI."
+    tags: [feature, data, ux]
+    targetVersion: "v1.9.0"
+
+  - id: round-by-round-visibility
+    title: "Round-by-Round Data Visibility"
+    description: "Player-facing visibility for round-by-round match data on Astro tournament pages. Show pairings, results per round, and head-to-head records."
+    tags: [feature, data, astro]
+    targetVersion: "v2.0.0"
 
   - id: cross-scene-badges
     title: "Cross-Scene Player Badges"
