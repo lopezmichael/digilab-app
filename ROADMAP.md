@@ -29,7 +29,7 @@ planned:
     title: "Onboarding Flow Redesign"
     description: "Rework the 3-step welcome modal: Step 1 becomes scene picker (promoted from Step 2), Step 2 becomes 'Find Yourself' (player search by name or Bandai ID — personal connection), Step 3 becomes scene-at-a-glance data preview. Remove 'Join Community' from onboarding (move Discord/Ko-fi to footer). Improve skip behavior with locale detection and continent fallback. Never land on empty 'All Scenes' view."
     tags: [ux, activation, feature]
-    targetVersion: "v1.10.0"
+    targetVersion: "v1.9.0"
 
   - id: dashboard-reorder
     title: "Dashboard Reorder & Empty States"

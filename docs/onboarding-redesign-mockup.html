@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DigiLab Onboarding — Redesign Mockup</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+  :root {
+    --dl-cyan: #00C8FF;
+    --dl-cyan-rgb: 0, 200, 255;
+    --dl-orange: #F7941D;
+    --dl-orange-rgb: 247, 148, 29;
+    --dl-bg-deep: #0A1929;
+    --dl-bg-card: #0D2137;
+    --dl-bg-input: #0F2A42;
+    --dl-border: rgba(0, 200, 255, 0.15);
+    --dl-text: #E8EDF3;
+    --dl-text-muted: #7B8FA3;
+    --dl-green: #34D399;
+    --dl-green-rgb: 52, 211, 153;
+    --radius-modal: 16px;
+    --radius-card: 12px;
+    --radius-btn: 10px;
+    --radius-input: 8px;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --transition: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  body {
+    font-family: var(--font);
+    background: linear-gradient(145deg, #060E1A 0%, var(--dl-bg-deep) 40%, #0D2137 100%);
+    color: var(--dl-text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Overlay ── */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(4, 10, 20, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 1;
+  }
+
+  /* ── Modal Shell ── */
+  .modal-shell {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 540px;
+    background: linear-gradient(170deg, #0E2340 0%, #0A1C33 100%);
+    border-radius: var(--radius-modal);
+    border: 1px solid var(--dl-border);
+    box-shadow:
+      0 0 60px rgba(var(--dl-cyan-rgb), 0.08),
+      0 25px 80px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+
+  /* ── Progress Bar ── */
+  .progress-bar-track {
+    height: 3px;
+    background: rgba(255,255,255,0.06);
+  }
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--dl-orange), var(--dl-cyan));
+    width: 33.3%;
+    transition: width var(--transition);
+    border-radius: 0 2px 2px 0;
+  }
+
+  /* ── Dot Indicators ── */
+  .dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 0 4px;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    transition: all var(--transition);
+  }
+  .dot.completed {
+    background: var(--dl-cyan);
+    width: 8px; height: 8px;
+    border-radius: 3px;
+  }
+  .dot.active {
+    background: var(--dl-orange);
+    width: 24px; height: 8px;
+    border-radius: 4px;
+  }
+
+  /* ── Step Content ── */
+  .modal-body {
+    padding: 8px 28px 24px;
+    position: relative;
+    min-height: 420px;
+  }
+  @media (max-width: 440px) {
+    .modal-body { padding: 8px 18px 20px; }
+  }
+
+  .step {
+    display: none;
+    animation: fadeSlideIn 0.4s ease forwards;
+  }
+  .step.active { display: block; }
+
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .step-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--dl-cyan);
+    margin-bottom: 6px;
+  }
+
+  .step-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+
+  .step-subtitle {
+    font-size: 0.88rem;
+    color: var(--dl-text-muted);
+    margin-bottom: 20px;
+    line-height: 1.55;
+  }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-family: var(--font);
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: var(--radius-btn);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .btn:active { transform: scale(0.97); }
+
+  .btn-primary {
+    background: linear-gradient(135deg, #0088CC 0%, var(--dl-cyan) 100%);
+    color: #fff;
+    box-shadow: 0 2px 12px rgba(var(--dl-cyan-rgb), 0.3);
+  }
+  .btn-primary:hover {
+    box-shadow: 0 4px 20px rgba(var(--dl-cyan-rgb), 0.45);
+    filter: brightness(1.08);
+  }
+
+  .btn-cta {
+    background: linear-gradient(135deg, #0088CC 0%, #00A5E0 50%, var(--dl-cyan) 100%);
+    color: #fff;
+    font-size: 1rem;
+    padding: 14px 24px;
+    width: 100%;
+    box-shadow: 0 4px 24px rgba(var(--dl-cyan-rgb), 0.35);
+    border-radius: var(--radius-btn);
+  }
+  .btn-cta:hover {
+    box-shadow: 0 6px 32px rgba(var(--dl-cyan-rgb), 0.5);
+    filter: brightness(1.1);
+  }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--dl-text);
+    border: 1px solid rgba(255,255,255,0.18);
+  }
+  .btn-outline:hover {
+    border-color: rgba(var(--dl-cyan-rgb), 0.5);
+    background: rgba(var(--dl-cyan-rgb), 0.06);
+  }
+
+  .btn-ghost {
+    background: none;
+    border: none;
+    color: var(--dl-text-muted);
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 8px 4px;
+    cursor: pointer;
+  }
+  .btn-ghost:hover { color: var(--dl-text); }
+
+  .btn-find {
+    width: 100%;
+    background: linear-gradient(135deg, #0077B6 0%, #0096D6 100%);
+    color: #fff;
+    padding: 12px;
+    font-size: 0.92rem;
+    margin-bottom: 16px;
+  }
+  .btn-find:hover { filter: brightness(1.12); box-shadow: 0 3px 16px rgba(var(--dl-cyan-rgb), 0.3); }
+
+  /* ── Map Placeholder ── */
+  .map-area {
+    position: relative;
+    height: 170px;
+    background:
+      radial-gradient(circle at 50% 50%, rgba(var(--dl-cyan-rgb), 0.04) 0%, transparent 70%),
+      repeating-linear-gradient(0deg, transparent, transparent 19px, rgba(var(--dl-cyan-rgb), 0.04) 19px, rgba(var(--dl-cyan-rgb), 0.04) 20px),
+      repeating-linear-gradient(90deg, transparent, transparent 19px, rgba(var(--dl-cyan-rgb), 0.04) 19px, rgba(var(--dl-cyan-rgb), 0.04) 20px),
+      var(--dl-bg-input);
+    border-radius: var(--radius-card);
+    border: 1px solid rgba(var(--dl-cyan-rgb), 0.1);
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+
+  /* Simple SVG world outline */
+  .map-silhouette {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.12;
+  }
+  .map-silhouette svg { width: 90%; height: auto; }
+
+  .map-label {
+    position: absolute;
+    bottom: 8px; right: 10px;
+    font-size: 0.65rem;
+    color: rgba(var(--dl-cyan-rgb), 0.35);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* Scene Markers */
+  .scene-marker {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .scene-marker:hover { transform: scale(1.12); }
+  .scene-marker .pin {
+    width: 12px; height: 12px;
+    background: var(--dl-orange);
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.7);
+    box-shadow: 0 0 10px rgba(var(--dl-orange-rgb), 0.6);
+    animation: pulse-pin 2.5s infinite;
+  }
+  .scene-marker .pin-label {
+    margin-top: 3px;
+    font-size: 0.62rem;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    white-space: nowrap;
+  }
+
+  @keyframes pulse-pin {
+    0%, 100% { box-shadow: 0 0 6px rgba(var(--dl-orange-rgb), 0.5); }
+    50%      { box-shadow: 0 0 16px rgba(var(--dl-orange-rgb), 0.8); }
+  }
+
+  /* ── Divider ── */
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 14px 0;
+  }
+  .divider::before, .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.08);
+  }
+  .divider span {
+    font-size: 0.75rem;
+    color: var(--dl-text-muted);
+    text-transform: lowercase;
+  }
+
+  .btn-pair {
+    display: flex;
+    gap: 10px;
+  }
+  .btn-pair .btn { flex: 1; }
+
+  /* ── Confirmation Bar ── */
+  .confirm-bar {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: rgba(var(--dl-green-rgb), 0.12);
+    border: 1px solid rgba(var(--dl-green-rgb), 0.3);
+    border-radius: var(--radius-input);
+    margin: 12px 0 4px;
+    font-size: 0.85rem;
+    color: var(--dl-green);
+    font-weight: 600;
+    animation: fadeSlideIn 0.35s ease forwards;
+  }
+  .confirm-bar.show { display: flex; }
+
+  .muted-note {
+    font-size: 0.73rem;
+    color: var(--dl-text-muted);
+    text-align: center;
+    margin-top: 10px;
+    opacity: 0.7;
+  }
+
+  /* ── Footer Nav ── */
+  .step-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 28px 20px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+  }
+  @media (max-width: 440px) {
+    .step-nav { padding: 14px 18px 18px; }
+  }
+  .step-nav-left, .step-nav-right { flex: 1; }
+  .step-nav-center { text-align: center; }
+  .step-nav-right { text-align: right; }
+
+  /* ── Step 2 — Search ── */
+  .search-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .search-row input {
+    flex: 1;
+    padding: 10px 14px;
+    background: var(--dl-bg-input);
+    border: 1px solid rgba(var(--dl-cyan-rgb), 0.2);
+    border-radius: var(--radius-input);
+    color: var(--dl-text);
+    font-size: 0.88rem;
+    font-family: var(--font);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-row input::placeholder { color: var(--dl-text-muted); }
+  .search-row input:focus { border-color: var(--dl-cyan); }
+
+  .hint-box {
+    position: relative;
+    display: inline-block;
+    font-size: 0.73rem;
+    color: var(--dl-text-muted);
+    padding: 8px 12px;
+    border-left: 2px solid rgba(var(--dl-cyan-rgb), 0.4);
+    margin-bottom: 16px;
+    background:
+      repeating-linear-gradient(0deg, rgba(var(--dl-cyan-rgb), 0.03) 0px, transparent 1px, transparent 12px),
+      repeating-linear-gradient(90deg, rgba(var(--dl-cyan-rgb), 0.02) 0px, transparent 1px, transparent 12px);
+    border-radius: 0 var(--radius-input) var(--radius-input) 0;
+    line-height: 1.4;
+  }
+
+  /* Player Found Card */
+  .player-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: rgba(var(--dl-cyan-rgb), 0.06);
+    border-left: 3px solid var(--dl-green);
+    border-radius: 0 var(--radius-input) var(--radius-input) 0;
+    margin-bottom: 12px;
+  }
+  .player-avatar {
+    width: 46px; height: 46px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--dl-cyan), #0077B6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .player-info { flex: 1; min-width: 0; }
+  .player-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #fff;
+  }
+  .player-name .check { color: var(--dl-green); margin-left: 4px; font-size: 0.85rem; }
+  .player-meta {
+    font-size: 0.78rem;
+    color: var(--dl-text-muted);
+    margin-top: 2px;
+  }
+  .player-meta span + span::before {
+    content: '\2022';
+    margin: 0 6px;
+    opacity: 0.5;
+  }
+  .rating-badge {
+    background: linear-gradient(135deg, var(--dl-orange), #e07c10);
+    color: #fff;
+    font-size: 0.78rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+
+  /* Not found state */
+  .not-found-state { display: none; }
+  .not-found-state.show { display: block; }
+  .found-state.hidden { display: none; }
+
+  .not-found-msg {
+    font-size: 0.85rem;
+    color: var(--dl-text-muted);
+    margin-bottom: 14px;
+    line-height: 1.55;
+  }
+
+  .store-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: var(--radius-input);
+    margin-bottom: 8px;
+  }
+  .store-icon {
+    font-size: 1.1rem;
+    width: 32px; height: 32px;
+    background: rgba(var(--dl-orange-rgb), 0.12);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .store-info { flex: 1; }
+  .store-name { font-size: 0.82rem; font-weight: 600; color: var(--dl-text); }
+  .store-event { font-size: 0.72rem; color: var(--dl-text-muted); margin-top: 1px; }
+
+  .toggle-state {
+    font-size: 0.72rem;
+    color: rgba(var(--dl-cyan-rgb), 0.6);
+    cursor: pointer;
+    text-align: center;
+    margin-top: 6px;
+  }
+  .toggle-state:hover { color: var(--dl-cyan); }
+
+  /* ── Step 3 — Stats ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: var(--radius-card);
+    transition: border-color 0.2s;
+  }
+  .stat-card:hover { border-color: rgba(var(--dl-cyan-rgb), 0.25); }
+  .stat-icon {
+    font-size: 1.3rem;
+    width: 38px; height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+  .stat-icon.cal   { background: rgba(var(--dl-orange-rgb), 0.12); }
+  .stat-icon.ppl   { background: rgba(var(--dl-cyan-rgb), 0.1); }
+  .stat-icon.fire  { background: rgba(239, 68, 68, 0.12); }
+  .stat-icon.star  { background: rgba(250, 204, 21, 0.12); }
+  .stat-value {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.2;
+  }
+  .stat-label {
+    font-size: 0.72rem;
+    color: var(--dl-text-muted);
+    margin-top: 1px;
+  }
+
+  .deck-badge {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(59, 130, 246, 0.2);
+    color: #60A5FA;
+    vertical-align: middle;
+    margin-left: 2px;
+  }
+
+  .rank-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px;
+    background: linear-gradient(135deg, rgba(var(--dl-orange-rgb), 0.1), rgba(var(--dl-cyan-rgb), 0.08));
+    border: 1px solid rgba(var(--dl-orange-rgb), 0.2);
+    border-radius: var(--radius-input);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--dl-text);
+    margin-bottom: 18px;
+  }
+  .rank-banner .rating-val { color: var(--dl-orange); }
+  .rank-banner .rank-val { color: var(--dl-cyan); }
+
+  /* ── Responsive ── */
+  @media (max-width: 400px) {
+    .step-title { font-size: 1.2rem; }
+    .map-area { height: 140px; }
+    .stats-grid { gap: 8px; }
+    .stat-card { padding: 10px; gap: 8px; }
+    .stat-value { font-size: 1rem; }
+    .stat-icon { width: 32px; height: 32px; font-size: 1.1rem; }
+    .player-avatar { width: 38px; height: 38px; font-size: 1rem; }
+  }
+
+  /* ── Utility ── */
+  .sr-only { position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0); }
+</style>
+</head>
+<body>
+
+<div class="overlay"></div>
+
+<div class="modal-shell" role="dialog" aria-label="DigiLab Onboarding">
+  <!-- Progress Bar -->
+  <div class="progress-bar-track">
+    <div class="progress-bar-fill" id="progressFill"></div>
+  </div>
+
+  <!-- Dot Indicators -->
+  <div class="dots" id="dotIndicators">
+    <div class="dot active" data-step="1"></div>
+    <div class="dot" data-step="2"></div>
+    <div class="dot" data-step="3"></div>
+  </div>
+
+  <!-- ═══════ STEP 1 ═══════ -->
+  <div class="step active" id="step1">
+    <div class="modal-body">
+      <div class="step-label">Step 1 of 3</div>
+      <h2 class="step-title">Where do you play?</h2>
+      <p class="step-subtitle">Select your local scene to see tournaments, players, and meta data from your area.</p>
+
+      <!-- Map -->
+      <div class="map-area" id="mapArea">
+        <div class="map-silhouette">
+          <svg viewBox="0 0 800 400" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M160 120 C170 100, 200 90, 220 95 C240 100, 250 85, 260 80 C280 70, 310 75, 330 85 C350 95, 370 80, 390 90 C400 95, 380 110, 370 120 C360 130, 380 140, 370 155 C360 170, 340 175, 330 165 C320 155, 300 160, 290 170 C280 180, 260 185, 240 175 C220 165, 200 170, 185 160 C170 150, 155 140, 160 120Z" fill="currentColor"/>
+            <path d="M420 100 C440 85, 470 80, 500 85 C530 90, 560 80, 580 90 C600 100, 620 95, 640 105 C660 115, 670 130, 660 145 C650 160, 660 175, 650 185 C640 195, 620 190, 600 195 C580 200, 560 195, 540 200 C520 205, 500 195, 480 190 C460 185, 440 175, 430 160 C420 145, 410 130, 420 100Z" fill="currentColor"/>
+            <path d="M450 210 C470 200, 500 205, 520 215 C540 225, 560 220, 570 230 C580 240, 570 255, 555 260 C540 265, 520 260, 500 265 C480 270, 460 260, 450 250 C440 240, 440 220, 450 210Z" fill="currentColor"/>
+            <path d="M680 200 C700 190, 720 195, 730 210 C740 225, 730 240, 715 245 C700 250, 685 240, 680 225 C675 210, 675 205, 680 200Z" fill="currentColor"/>
+            <path d="M200 260 C220 250, 250 255, 270 265 C290 275, 310 270, 320 280 C330 290, 320 310, 300 320 C280 330, 260 325, 240 315 C220 305, 200 295, 195 280 C190 270, 195 265, 200 260Z" fill="currentColor"/>
+          </svg>
+        </div>
+
+        <!-- Scene Markers -->
+        <div class="scene-marker" style="left:26%;top:38%" data-scene="Dallas-Fort Worth" onclick="selectScene(this)">
+          <div class="pin"></div>
+          <span class="pin-label">Dallas-Fort Worth</span>
+        </div>
+        <div class="scene-marker" style="left:33%;top:56%" data-scene="Houston" onclick="selectScene(this)">
+          <div class="pin"></div>
+          <span class="pin-label">Houston</span>
+        </div>
+        <div class="scene-marker" style="left:68%;top:30%" data-scene="Tokyo" onclick="selectScene(this)">
+          <div class="pin"></div>
+          <span class="pin-label">Tokyo</span>
+        </div>
+        <div class="scene-marker" style="left:50%;top:44%" data-scene="Online" onclick="selectScene(this)">
+          <div class="pin" style="background:var(--dl-cyan);box-shadow:0 0 10px rgba(var(--dl-cyan-rgb),0.6)"></div>
+          <span class="pin-label">Online</span>
+        </div>
+
+        <div class="map-label">Interactive Map</div>
+      </div>
+
+      <button class="btn btn-find" onclick="findMyScene()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="3" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="21"/><line x1="3" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="21" y2="12"/><circle cx="12" cy="12" r="2"/></svg>
+        Find My Scene
+      </button>
+
+      <div class="divider"><span>or choose</span></div>
+
+      <div class="btn-pair">
+        <button class="btn btn-outline" onclick="selectOnline()">&#x1F310; Online / Webcam</button>
+        <button class="btn btn-outline" onclick="selectAllScenes()">&#x1F30D; All Scenes</button>
+      </div>
+
+      <div class="confirm-bar" id="sceneConfirm">
+        <span>&#x2714;</span>
+        <span id="sceneConfirmText">Dallas-Fort Worth selected</span>
+      </div>
+
+      <p class="muted-note">You can change your scene anytime from the header dropdown.</p>
+    </div>
+
+    <div class="step-nav">
+      <div class="step-nav-left">
+        <button class="btn-ghost" onclick="skipOnboarding()">Skip for now</button>
+      </div>
+      <div class="step-nav-right">
+        <button class="btn btn-primary" onclick="goToStep(2)">Next &#x2192;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ STEP 2 ═══════ -->
+  <div class="step" id="step2">
+    <div class="modal-body">
+      <div class="step-label">Step 2 of 3</div>
+      <h2 class="step-title">Are you already on DigiLab?</h2>
+      <p class="step-subtitle">Search by player name or Bandai Member ID to link your profile.</p>
+
+      <div class="search-row">
+        <input type="text" placeholder="Player name or Bandai ID..." id="playerSearch" value="TKaiser">
+        <button class="btn btn-primary" onclick="searchPlayer()">Search</button>
+      </div>
+
+      <div class="hint-box">
+        Your Bandai ID is on your TCG+ app profile under Settings &gt; Account.
+      </div>
+
+      <!-- Found State (default visible) -->
+      <div class="found-state" id="foundState">
+        <div class="player-card">
+          <div class="player-avatar">TK</div>
+          <div class="player-info">
+            <div class="player-name">Welcome back, TKaiser! <span class="check">&#x2714;</span></div>
+            <div class="player-meta">
+              <span>18W - 13L</span>
+              <span id="playerScene">Dallas-Fort Worth</span>
+            </div>
+          </div>
+          <div class="rating-badge">1523</div>
+        </div>
+      </div>
+
+      <!-- Not Found State (hidden by default) -->
+      <div class="not-found-state" id="notFoundState">
+        <p class="not-found-msg">No worries — play in a tournament at a DigiLab store and you'll appear automatically.</p>
+        <div class="store-card">
+          <div class="store-icon">&#x1F3EA;</div>
+          <div class="store-info">
+            <div class="store-name">Collected DFW</div>
+            <div class="store-event">&#x1F4C5; Next event: Wed, Mar 25</div>
+          </div>
+        </div>
+        <div class="store-card">
+          <div class="store-icon">&#x1F3EA;</div>
+          <div class="store-info">
+            <div class="store-name">Doc's Comics & Games</div>
+            <div class="store-event">&#x1F4C5; Next event: Thu, Mar 26</div>
+          </div>
+        </div>
+        <div class="store-card">
+          <div class="store-icon">&#x1F3EA;</div>
+          <div class="store-info">
+            <div class="store-name">Epikos Comics & Games</div>
+            <div class="store-event">&#x1F4C5; Next event: Sat, Mar 28</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="toggle-state" onclick="toggleFoundState()">
+        <span id="toggleLabel">&#x1F504; Toggle: show "not found" state</span>
+      </div>
+    </div>
+
+    <div class="step-nav">
+      <div class="step-nav-left">
+        <button class="btn-ghost" onclick="goToStep(1)">&#x2190; Back</button>
+      </div>
+      <div class="step-nav-center">
+        <button class="btn-ghost" onclick="goToStep(3)">Skip</button>
+      </div>
+      <div class="step-nav-right">
+        <button class="btn btn-primary" onclick="goToStep(3)">Almost Done &#x2192;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ STEP 3 ═══════ -->
+  <div class="step" id="step3">
+    <div class="modal-body">
+      <div class="step-label">Step 3 of 3</div>
+      <h2 class="step-title" id="step3Title">Dallas-Fort Worth</h2>
+      <p class="step-subtitle">Here's what's happening in your scene</p>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-icon cal">&#x1F4C5;</div>
+          <div>
+            <div class="stat-value">12</div>
+            <div class="stat-label">Tournaments this month</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon ppl">&#x1F465;</div>
+          <div>
+            <div class="stat-value">47</div>
+            <div class="stat-label">Active Players</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon fire">&#x1F525;</div>
+          <div>
+            <div class="stat-value">Trending</div>
+            <div class="stat-label">Blue Flare <span class="deck-badge">Blue</span></div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon star">&#x2B50;</div>
+          <div>
+            <div class="stat-value">NumeGamer</div>
+            <div class="stat-label">Rising Star &middot; 1487</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rank-banner" id="rankBanner">
+        Your rating: <span class="rating-val">1523</span> &middot; Rank <span class="rank-val">#4</span> in DFW
+      </div>
+
+      <button class="btn btn-cta" onclick="enterApp()">
+        Enter DigiLab &#x2192;
+      </button>
+    </div>
+
+    <div class="step-nav">
+      <div class="step-nav-left">
+        <button class="btn-ghost" onclick="goToStep(2)">&#x2190; Back</button>
+      </div>
+      <div class="step-nav-right"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  let currentStep = 1;
+  let selectedScene = null;
+  let playerFound = true;
+
+  function goToStep(n) {
+    // Hide current
+    document.getElementById('step' + currentStep).classList.remove('active');
+    currentStep = n;
+    // Show new
+    const newStep = document.getElementById('step' + n);
+    newStep.classList.remove('active');
+    // Force reflow for animation
+    void newStep.offsetWidth;
+    newStep.classList.add('active');
+
+    // Update progress bar
+    document.getElementById('progressFill').style.width = (n * 33.33) + '%';
+
+    // Update dots
+    document.querySelectorAll('.dot').forEach((dot, i) => {
+      dot.className = 'dot';
+      const stepNum = i + 1;
+      if (stepNum === n) dot.classList.add('active');
+      else if (stepNum < n) dot.classList.add('completed');
+    });
+
+    // Step 3: update scene title
+    if (n === 3) {
+      const title = selectedScene || 'All Scenes';
+      document.getElementById('step3Title').textContent = title;
+      document.getElementById('rankBanner').style.display = playerFound ? 'flex' : 'none';
+    }
+  }
+
+  function selectScene(el) {
+    selectedScene = el.dataset.scene;
+    showConfirmation(selectedScene);
+  }
+
+  function findMyScene() {
+    selectedScene = 'Dallas-Fort Worth';
+    showConfirmation(selectedScene);
+  }
+
+  function selectOnline() {
+    selectedScene = 'Online';
+    showConfirmation(selectedScene);
+  }
+
+  function selectAllScenes() {
+    selectedScene = 'All Scenes';
+    showConfirmation(selectedScene);
+  }
+
+  function showConfirmation(name) {
+    const bar = document.getElementById('sceneConfirm');
+    document.getElementById('sceneConfirmText').textContent = name + ' selected';
+    bar.classList.remove('show');
+    void bar.offsetWidth;
+    bar.classList.add('show');
+  }
+
+  function skipOnboarding() {
+    selectedScene = 'All Scenes';
+    goToStep(3);
+  }
+
+  function searchPlayer() {
+    // Mockup: just keep current state
+  }
+
+  function toggleFoundState() {
+    const found = document.getElementById('foundState');
+    const notFound = document.getElementById('notFoundState');
+    const label = document.getElementById('toggleLabel');
+
+    if (found.classList.contains('hidden')) {
+      found.classList.remove('hidden');
+      notFound.classList.remove('show');
+      label.innerHTML = '&#x1F504; Toggle: show "not found" state';
+      playerFound = true;
+    } else {
+      found.classList.add('hidden');
+      notFound.classList.add('show');
+      label.innerHTML = '&#x1F504; Toggle: show "found" state';
+      playerFound = false;
+    }
+  }
+
+  function enterApp() {
+    const modal = document.querySelector('.modal-shell');
+    const overlay = document.querySelector('.overlay');
+    modal.style.transition = 'transform 0.5s ease, opacity 0.5s ease';
+    modal.style.transform = 'scale(0.95)';
+    modal.style.opacity = '0';
+    overlay.style.transition = 'opacity 0.5s ease';
+    overlay.style.opacity = '0';
+    setTimeout(() => {
+      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-size:1.2rem;color:var(--dl-text-muted);font-family:var(--font);">Welcome to DigiLab! &#x1F680;</div>';
+    }, 500);
+  }
+</script>
+
+</body>
+</html>
