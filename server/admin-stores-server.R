@@ -128,6 +128,8 @@ reverse_geocode_with_mapbox <- function(lat, lng) {
 
 # --- Load scene choices for store dropdown ---
 # Only fires when on admin_stores tab (prevents race condition with lazy-loaded UI)
+# Scoped to admin's accessible scenes (scene admins see only their scenes, regional admins
+# see scenes in their regions, super admins see all)
 observe({
   rv$current_nav
   req(rv$current_nav == "admin_stores")
@@ -142,7 +144,10 @@ observe({
     return()
   }
 
-  choices <- get_grouped_scene_choices(db_pool, key_by = "id", include_online = TRUE)
+  # Scope choices to admin's accessible scenes
+  accessible <- get_admin_accessible_scene_ids(db_pool, rv$admin_user)
+  choices <- get_grouped_scene_choices(db_pool, key_by = "id", include_online = TRUE,
+                                       scene_ids = accessible)
 
   # If choices came back empty (likely prepared stmt collision), retry
   if (length(choices) == 0) {
@@ -163,6 +168,13 @@ observe({
       current_selection <- as.character(stored_scene$scene_id)
     }
   }
+
+  # Auto-select if admin only has one scene
+  all_vals <- unlist(choices)
+  if ((is.null(current_selection) || current_selection == "") && length(all_vals) == 1) {
+    current_selection <- as.character(all_vals[[1]])
+  }
+
   updateSelectInput(session, "store_scene",
                     choices = c("Select scene..." = "", choices),
                     selected = current_selection)
@@ -309,6 +321,13 @@ observeEvent(input$add_store, {
   if (!is_online && nchar(trimws(input$store_zip)) == 0) {
     show_field_error(session, "store_zip")
     notify("Please enter a ZIP code", type = "error")
+    return()
+  }
+
+  # Scene is required
+  if (is.null(input$store_scene) || input$store_scene == "") {
+    show_field_error(session, "store_scene")
+    notify("Please select a scene", type = "error")
     return()
   }
 
@@ -628,7 +647,9 @@ observeEvent(input$admin_store_list__reactable__selected, {
   updateTextInput(session, "store_website", value = if (is.na(store$website)) "" else store$website)
   # Set scene choices + selection together to avoid race condition where
   # choices haven't loaded yet and selected value gets silently dropped
-  scene_choices <- get_grouped_scene_choices(db_pool, key_by = "id", include_online = TRUE)
+  accessible <- get_admin_accessible_scene_ids(db_pool, rv$admin_user)
+  scene_choices <- get_grouped_scene_choices(db_pool, key_by = "id", include_online = TRUE,
+                                             scene_ids = accessible)
   updateSelectInput(session, "store_scene",
                     choices = c("Select scene..." = "", scene_choices),
                     selected = if (is.na(store$scene_id)) "" else as.character(store$scene_id))
@@ -694,7 +715,7 @@ observeEvent(input$update_store, {
   # Scene required for all stores
   if (is.null(input$store_scene) || input$store_scene == "") {
     show_field_error(session, "store_scene")
-    notify("Please select a scene", type = "warning")
+    notify("Please select a scene", type = "error")
     return()
   }
 

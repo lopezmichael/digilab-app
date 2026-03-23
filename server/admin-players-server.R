@@ -236,9 +236,24 @@ output$player_list <- renderReactable({
   show_all <- isTRUE(input$admin_players_show_all_scenes) && isTRUE(rv$is_superadmin)
 
   # Build scene filter for players (players who have competed in scene)
+  # For non-superadmins, always enforce accessible scene scoping
   scene_filter <- ""
   query_params <- list()
-  if (!show_all && !is.null(scene) && scene != "" && scene != "all") {
+  accessible <- get_admin_accessible_scene_ids(db_pool, rv$admin_user)
+
+  if (!show_all && !is.null(accessible)) {
+    # Non-superadmin: restrict to admin's accessible scenes
+    scene_filter <- "
+      AND EXISTS (
+        SELECT 1 FROM results r2
+        JOIN tournaments t2 ON r2.tournament_id = t2.tournament_id
+        JOIN stores s2 ON t2.store_id = s2.store_id
+        WHERE r2.player_id = p.player_id AND s2.scene_id = ANY($1::int[])
+      )
+    "
+    query_params <- c(query_params, list(as.integer(accessible)))
+  } else if (!show_all && !is.null(scene) && scene != "" && scene != "all") {
+    # Superadmin with a specific scene selected
     if (scene == "online") {
       scene_filter <- "
         AND EXISTS (
@@ -575,6 +590,11 @@ observeEvent(input$show_merge_modal, {
   # Fetch player choices scoped to admin's accessible scenes
   accessible <- get_admin_accessible_scene_ids(db_pool, rv$admin_user)
   player_choices <- get_player_choices(db_pool, scene_ids = accessible)
+
+  if (length(player_choices) == 0) {
+    notify("No players found for your scene(s). Please try again or contact an admin.", type = "error")
+    return()
+  }
 
   showModal(modalDialog(
     title = tagList(bsicons::bs_icon("arrow-left-right"), " Merge Players"),

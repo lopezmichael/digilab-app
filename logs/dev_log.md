@@ -4,6 +4,22 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-23: v1.7.8 — Admin Scene Scoping & Merge Fix
+
+### Scene Scoping for Store Management
+Store scene dropdown was showing all scenes to all admin roles. Now uses `get_admin_accessible_scene_ids()` to filter — scene admins only see their assigned scenes, regional admins see their region + Online. Applied to both the dropdown observer and the edit-mode repopulation. Also added scene-required validation on the add store path (edit already had it).
+
+### Player List Scoping
+Edit Players table was filtering by `rv$current_scene` (global selector) instead of admin's accessible scenes. Scene admins with global set to "all" could see every player. Now enforces `get_admin_accessible_scene_ids` for non-superadmins, with superadmins retaining the "Show all scenes" toggle + global scene filtering.
+
+### Merge Modal Empty Dropdown
+Scene admin reported empty merge player dropdowns. The scoping code was correct (uses `get_player_choices` with accessible scene IDs), but a silent `safe_query` failure (likely prepared statement collision) returned an empty dataframe with no user feedback. Added early-return with error notification when player list is empty.
+
+### Regional Admin Online Scene
+`get_admin_accessible_scene_ids()` for regional admins joined on `country` which excluded the Online scene (NULL country). Added `UNION SELECT scene_id FROM scenes WHERE scene_type = 'online'` so regional admins can manage online stores/players. Scene admins intentionally excluded from Online.
+
+---
+
 ## 2026-03-16: v1.7.5 — Discord Webhook Embeds
 
 ### Embed Conversion

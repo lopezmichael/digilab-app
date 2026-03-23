@@ -95,7 +95,7 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.7.7 - Duplicate Player Name Fixes
+### Latest Release: v1.7.8 - Admin Scene Scoping & Merge Fix
 
 Fixed cascading bugs around duplicate player names in the same scene: ambiguous matches now block submission until resolved, edit grid distinguishes name corrections from player reassignment, and Edit Players allows duplicate names with a save-twice confirmation. Also fixed a `normalize_member_number` NA crash and broadened scene-scoped player matching. See `CHANGELOG.md` for full details.
 
@@ -105,6 +105,7 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v1.7.8 | Admin Scene Scoping & Merge Fix |
 | v1.7.7 | Duplicate Player Name Fixes |
 | v1.7.6 | Country-Grouped Scene Dropdowns & Store Filters |
 | v1.7.5 | Discord Webhook Embeds |
@@ -384,6 +385,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.7.7** - Duplicate Player Name Fixes
+**v1.7.8** - Admin Scene Scoping & Merge Fix
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

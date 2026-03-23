@@ -5,6 +5,23 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.8] - 2026-03-23 - Admin Scene Scoping & Merge Fix
+
+### Fixed
+- **Store scene dropdown unscoped**: All admins saw every scene when creating/editing stores. Now scoped to admin's accessible scenes — scene admins see only their assigned scenes, regional admins see their region's scenes, super admins see all.
+- **Scene not required when adding stores**: Creating a store without selecting a scene silently saved with NULL `scene_id`. Scene is now required on both add and save, with field error + notification.
+- **Edit store mode bypassed scene scoping**: Clicking a store to edit repopulated the scene dropdown with all scenes regardless of admin role. Now uses same scoped choices.
+- **Merge modal empty for scene admins**: Scene admins saw empty player dropdowns in the Merge Players modal with no error message. Added early-return notification when player list is empty so the failure is visible.
+- **Admin player list unscoped**: Edit Players table filtered by global scene selector instead of enforcing admin's accessible scenes. Scene/regional admins could see players from all scenes when global selector was set to "all". Now enforces `get_admin_accessible_scene_ids` scoping.
+- **Validation message inconsistency**: Edit store scene-required validation used `type = "warning"` while add used `type = "error"`. Unified to `type = "error"`.
+
+### Changed
+- **Regional admins see Online / Webcam scene**: `get_admin_accessible_scene_ids()` now includes the Online scene for regional admins via `UNION`, allowing them to manage online stores and see online players across all admin views.
+- **Auto-select single scene**: Store scene dropdown auto-selects when admin has only one accessible scene (common for scene admins).
+
+### Data
+- Assigned scenes to 2 orphaned stores: Game Kastle Santa Clara → Bay Area, Kingslayer Games → Orange County.
+
 ## [1.7.7] - 2026-03-20 - Duplicate Player Name Fixes
 
 ### Fixed

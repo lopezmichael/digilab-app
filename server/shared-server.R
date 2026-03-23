@@ -1323,6 +1323,8 @@ get_admin_accessible_scene_ids <- function(pool, admin_user) {
       JOIN admin_regions ar ON ar.country = s.country
         AND (ar.state_region IS NULL OR ar.state_region = s.state_region)
       WHERE ar.user_id = $1 AND s.is_active = TRUE
+      UNION
+      SELECT scene_id FROM scenes WHERE scene_type = 'online' AND is_active = TRUE
     ", params = list(admin_user$user_id), default = data.frame())
     return(if (nrow(scenes) > 0) scenes$scene_id else integer(0))
   }
