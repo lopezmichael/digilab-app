@@ -102,7 +102,7 @@ onboarding_ui <- function() {
         # Title + description
         h2(class = "onboarding-title", "Are you already on DigiLab?"),
         p(class = "onboarding-subtitle",
-          "Search by player name or Bandai Member ID to link your profile."
+          "Search by player name or Bandai Member ID to find your stats."
         ),
 
         # Search row
