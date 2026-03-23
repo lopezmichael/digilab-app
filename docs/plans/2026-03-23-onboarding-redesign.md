@@ -51,6 +51,10 @@ Step 3: Your Scene at a Glance (NEW — live data preview + personal rank)
 - `digilab_continent_preference` — continent code
 - `digilab_onboarding_complete` — "true" when finished
 
+### New JS Storage Keys (added by this redesign)
+- `digilab_player_id` — player_id from DB (persisted after Step 2 lookup)
+- `digilab_player_name` — display_name (for "Welcome back" without DB query)
+
 ### Current Custom Messages (JS)
 - `saveScenePreference` — saves scene + continent, marks onboarding complete
 - `requestGeolocation` — triggers browser geolocation
@@ -75,12 +79,12 @@ Step 3: Your Scene at a Glance (NEW — live data preview + personal rank)
 
 ### Step 1: Pick Your Scene (reused from current Step 2)
 
-- **Title:** "Where do you play?"
+- **Hero:** Agumon SVG mascot (48px) + "Where do you play?" title side-by-side (reuse `agumon_svg()` from `app.R`). Keeps the personality from the current welcome step.
 - **Subtitle:** "Select your local scene to see tournaments, players, and meta data from your area."
 - **Content:** Interactive Mapbox map + "Find My Scene" button + "or choose" divider + Online/All Scenes buttons + green confirmation bar + muted note
 - **Nav:** "Skip for now" (left ghost), "Next →" (right primary)
 - **Reused:** Map output, geolocation handler, scene selection helpers, confirmation bar — all identical to current Step 2
-- **Changes:** Step label "STEP 1 OF 3", new title/subtitle, map visible on modal open (needs resize trigger)
+- **Changes:** Step label "STEP 1 OF 3", Agumon hero row, new title/subtitle, map visible on modal open (needs resize trigger)
 
 ### Step 2: Find Yourself (NEW)
 
@@ -236,8 +240,9 @@ Map, scene buttons, divider, confirmation — all reused in new Step 1
 
 ## JS Changes (`www/scene-selector.js`)
 
-Minimal — add one custom message handler (~5 lines):
+Two additions:
 
+### 1. Locale fallback handler
 ```javascript
 Shiny.addCustomMessageHandler('requestLocaleFallback', function(message) {
   var lang = navigator.language || navigator.userLanguage || 'en-US';
@@ -248,7 +253,20 @@ Shiny.addCustomMessageHandler('requestLocaleFallback', function(message) {
 });
 ```
 
-No changes to storage keys, postMessage bridge, or DigilabStorage.
+### 2. Player identity persistence
+```javascript
+var PLAYER_ID_KEY = 'digilab_player_id';
+var PLAYER_NAME_KEY = 'digilab_player_name';
+
+Shiny.addCustomMessageHandler('savePlayerIdentity', function(message) {
+  DigilabStorage.setItem(PLAYER_ID_KEY, String(message.player_id));
+  DigilabStorage.setItem(PLAYER_NAME_KEY, message.display_name);
+});
+```
+
+Read on `shiny:connected` alongside existing storage keys and send as `player_from_storage` input. This enables future "Welcome back, X" in sidebar/dashboard without re-querying.
+
+No changes to postMessage bridge or DigilabStorage abstraction.
 
 ---
 
@@ -276,7 +294,7 @@ No changes to storage keys, postMessage bridge, or DigilabStorage.
 | `onboarding_finish` handler | `scene-server.R` line 676 | Replace with `onboarding_enter` |
 | CSS: hero, feature list, link list | `custom.css` lines 3636-3729, 3821-3919 | Delete |
 
-LINKS constant and `agumon_svg` stay — used elsewhere in the app.
+LINKS constant stays — used elsewhere. `agumon_svg` stays and is reused in new Step 1 hero row.
 
 ---
 
