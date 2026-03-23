@@ -7332,6 +7332,11 @@ select,
   color: var(--dl-cyan);
 }
 
+/* Match review row — subtle highlight for auto-matched opponents */
+.sr-row-matched {
+  border-left: 3px solid rgba(0, 200, 255, 0.4);
+}
+
 /* Simpler file upload styling */
 .upload-file-input {
   max-width: 350px;

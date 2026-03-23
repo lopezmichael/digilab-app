@@ -141,6 +141,7 @@ sr_back_to_picker <- function() {
   rv$sr_match_uploaded_file <- NULL
   rv$sr_match_parsed_count <- 0
   rv$sr_match_total_rounds <- 0
+  rv$sr_match_candidates <- list()
 }
 
 observeEvent(input$sr_back_to_picker, { sr_back_to_picker() })
