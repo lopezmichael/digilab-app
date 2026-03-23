@@ -829,17 +829,36 @@ observeEvent(input$sr_match_submit, {
           }
         } else {
           opp_identity <- if (opp_has_real_id) "verified" else "unverified"
-          opp_slug <- generate_unique_slug(conn, opponent_username)
-          new_opponent <- DBI::dbGetQuery(conn, "
-            INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING player_id
-          ", params = list(opponent_username, opp_slug, clean_opp_member, opp_identity, match_scene_id))
-          opponent_id <- new_opponent$player_id[1]
+          # Check for existing player by member_number first to avoid duplicate key
+          if (opp_has_real_id) {
+            existing_opp <- DBI::dbGetQuery(conn,
+              "SELECT player_id FROM players WHERE member_number = $1 LIMIT 1",
+              params = list(clean_opp_member))
+            if (nrow(existing_opp) > 0) {
+              opponent_id <- existing_opp$player_id[1]
+            } else {
+              opp_slug <- generate_unique_slug(conn, opponent_username)
+              new_opponent <- DBI::dbGetQuery(conn, "
+                INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id)
+                VALUES ($1, $2, $3, $4, $5)
+                RETURNING player_id
+              ", params = list(opponent_username, opp_slug, clean_opp_member, opp_identity, match_scene_id))
+              opponent_id <- new_opponent$player_id[1]
+            }
+          } else {
+            opp_slug <- generate_unique_slug(conn, opponent_username)
+            new_opponent <- DBI::dbGetQuery(conn, "
+              INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id)
+              VALUES ($1, $2, $3, $4, $5)
+              RETURNING player_id
+            ", params = list(opponent_username, opp_slug, clean_opp_member, opp_identity, match_scene_id))
+            opponent_id <- new_opponent$player_id[1]
+          }
         }
       }
 
       tryCatch({
+        DBI::dbExecute(conn, sprintf("SAVEPOINT match_%d", i))
         DBI::dbExecute(conn, "
           INSERT INTO matches (tournament_id, round_number, player_id, opponent_id, games_won, games_lost, games_tied, match_points)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -853,8 +872,10 @@ observeEvent(input$sr_match_submit, {
           games_tied,
           match_points
         ))
+        DBI::dbExecute(conn, sprintf("RELEASE SAVEPOINT match_%d", i))
         matches_inserted <- matches_inserted + 1
       }, error = function(e) {
+        tryCatch(DBI::dbExecute(conn, sprintf("ROLLBACK TO SAVEPOINT match_%d", i)), error = function(re) NULL)
         if (grepl("unique|duplicate", e$message, ignore.case = TRUE)) {
           message("[MATCH SUBMIT] Skipping duplicate match round ", row$round)
         } else {
