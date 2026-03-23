@@ -197,6 +197,15 @@ sr_complete_ocr_processing <- function(combined, total_players, total_rounds, pa
     rv$sr_csv_deck_urls <- combined$deck_url
   }
 
+  # Cache static values for Step 2 summary bar (avoid re-querying on every render)
+  store <- safe_query(db_pool, "SELECT name FROM stores WHERE store_id = $1",
+                      params = list(as.integer(input$sr_store)))
+  rv$sr_store_name <- if (nrow(store) > 0) store$name[1] else "Not selected"
+  fmt <- safe_query(db_pool, "SELECT display_name FROM formats WHERE format_id = $1",
+                    params = list(input$sr_format))
+  rv$sr_format_name <- if (nrow(fmt) > 0) fmt$display_name[1] else ""
+  rv$sr_deck_choices <- build_deck_choices(db_pool)
+
   # Convert OCR results to shared grid format
   ocr_rows <- which(nchar(trimws(combined$username)) > 0)
   rv$sr_grid_data <- ocr_to_grid_data(combined)

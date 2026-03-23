@@ -94,6 +94,18 @@ sr_back_to_picker <- function() {
   rv$sr_uploaded_files <- NULL
   rv$sr_ocr_row_indices <- NULL
   rv$sr_wlt_override <- FALSE
+  rv$sr_csv_deck_urls <- NULL
+  rv$sr_duplicate_tournament <- NULL
+
+  # Clear Step 3 / decklist state
+  rv$sr_decklist_results <- NULL
+  rv$sr_decklist_tournament_id <- NULL
+
+  # Clear match-by-match state
+  rv$sr_match_ocr_results <- NULL
+  rv$sr_match_uploaded_file <- NULL
+  rv$sr_match_parsed_count <- 0
+  rv$sr_match_total_rounds <- 0
 }
 
 observeEvent(input$sr_back_to_picker, { sr_back_to_picker() })
@@ -363,6 +375,15 @@ sr_create_tournament_and_show_grid <- function() {
     rv$sr_grid_data <- init_grid_data(player_count)
     rv$sr_player_matches <- list()
 
+    # Cache static values for Step 2 summary bar (avoid re-querying on every render)
+    store <- safe_query(db_pool, "SELECT name FROM stores WHERE store_id = $1",
+                        params = list(store_id))
+    rv$sr_store_name <- if (nrow(store) > 0) store$name[1] else "Not selected"
+    fmt <- safe_query(db_pool, "SELECT display_name FROM formats WHERE format_id = $1",
+                      params = list(format_val))
+    rv$sr_format_name <- if (nrow(fmt) > 0) fmt$display_name[1] else ""
+    rv$sr_deck_choices <- build_deck_choices(db_pool)
+
     notify("Tournament created!", type = "message")
 
     # Show Step 2
@@ -394,22 +415,10 @@ output$sr_step2_content <- renderUI({
   # Check if release event
   is_release <- !is.null(input$sr_event_type) && input$sr_event_type == "release_event"
 
-  deck_choices <- build_deck_choices(db_pool)
-
-  # Summary bar
-  store_name <- "Not selected"
-  if (!is.null(input$sr_store) && input$sr_store != "") {
-    store <- safe_query(db_pool, "SELECT name FROM stores WHERE store_id = $1",
-                        params = list(as.integer(input$sr_store)))
-    if (nrow(store) > 0) store_name <- store$name[1]
-  }
-
-  format_name <- ""
-  if (!is.null(input$sr_format) && input$sr_format != "") {
-    fmt <- safe_query(db_pool, "SELECT display_name FROM formats WHERE format_id = $1",
-                      params = list(input$sr_format))
-    if (nrow(fmt) > 0) format_name <- fmt$display_name[1]
-  }
+  # Use cached values (set when entering Step 2) — avoid re-querying on every render
+  deck_choices <- rv$sr_deck_choices %||% build_deck_choices(db_pool)
+  store_name <- rv$sr_store_name %||% "Not selected"
+  format_name <- rv$sr_format_name %||% ""
 
   summary_bar <- div(
     class = "tournament-summary-bar mb-3",
@@ -1072,6 +1081,7 @@ observeEvent(rv$sr_deck_choices_refresh, {
   req(rv$sr_grid_data, rv$sr_new_deck_request_id)
 
   updated_choices <- build_deck_choices(db_pool)
+  rv$sr_deck_choices <- updated_choices  # Update cache
 
   grid <- rv$sr_grid_data
   request_id <- rv$sr_new_deck_request_id
@@ -1426,25 +1436,10 @@ sr_save_decklists <- function() {
 }
 
 sr_reset_wizard <- function() {
-  rv$sr_active_tournament_id <- NULL
-  rv$sr_active_method <- NULL
-  rv$sr_grid_data <- NULL
-  rv$sr_player_matches <- list()
-  rv$sr_ocr_results <- NULL
-  rv$sr_uploaded_files <- NULL
-  rv$sr_ocr_row_indices <- NULL
-  rv$sr_decklist_results <- NULL
-  rv$sr_decklist_tournament_id <- NULL
-  rv$sr_wlt_override <- FALSE
+  # Delegate all state + visibility resets to sr_back_to_picker
+  sr_back_to_picker()
 
-  shinyjs::hide("sr_step3")
-  shinyjs::hide("sr_step2")
-  shinyjs::hide("sr_wizard")
-  shinyjs::show("sr_step1")
-  shinyjs::show("sr_method_picker")
-  shinyjs::hide("sr_upload_section")
-  shinyjs::runjs("$('#sr_step1_indicator').addClass('active').removeClass('completed'); $('#sr_step2_indicator').removeClass('active completed'); $('#sr_step3_indicator').removeClass('active completed');")
-
+  # Additionally clear form inputs (sr_back_to_picker doesn't do this)
   updateSelectInput(session, "sr_store", selected = "")
   updateDateInput(session, "sr_date", value = NA)
   updateSelectInput(session, "sr_event_type", selected = "")

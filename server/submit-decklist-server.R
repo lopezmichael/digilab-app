@@ -225,8 +225,8 @@ observeEvent(input$sr_decklist_standalone_save, {
     return()
   }
 
-  # Validate URL using shared validator
-  if (!validate_decklist_url(url)) {
+  # Validate URL using shared validator (returns validated URL or NULL)
+  if (is.null(validate_decklist_url(url))) {
     notify("URL not from an approved deckbuilder site. Accepted: digimoncard.dev, digimonmeta.com, digimoncard.io, etc.",
            type = "error", duration = 8)
     return()
