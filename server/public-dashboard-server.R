@@ -1269,9 +1269,11 @@ output$rising_stars_cards <- renderUI({
     return(div(class = "text-muted text-center py-3", "No recent top placements"))
   }
 
-  # Get competitive ratings and merge
+  # Get competitive ratings and merge (deduplicate columns defensively)
   comp_ratings <- player_competitive_ratings()
-  if (nrow(comp_ratings) > 0) {
+  if (nrow(comp_ratings) > 0 && "player_id" %in% names(comp_ratings)) {
+    result <- result[, !duplicated(names(result)), drop = FALSE]
+    comp_ratings <- comp_ratings[, !duplicated(names(comp_ratings)), drop = FALSE]
     result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
   }
   if (!"competitive_rating" %in% names(result)) result$competitive_rating <- NA
@@ -1365,9 +1367,11 @@ output$mobile_rising_stars <- renderUI({
     return(div(class = "text-muted text-center py-3", "No recent top placements"))
   }
 
-  # Get competitive ratings and merge
+  # Get competitive ratings and merge (deduplicate columns defensively)
   comp_ratings <- player_competitive_ratings()
-  if (nrow(comp_ratings) > 0) {
+  if (nrow(comp_ratings) > 0 && "player_id" %in% names(comp_ratings)) {
+    result <- result[, !duplicated(names(result)), drop = FALSE]
+    comp_ratings <- comp_ratings[, !duplicated(names(comp_ratings)), drop = FALSE]
     result <- merge(result, comp_ratings, by = "player_id", all.x = TRUE)
   }
   if (!"competitive_rating" %in% names(result)) result$competitive_rating <- NA

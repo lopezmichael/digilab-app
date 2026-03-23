@@ -1378,11 +1378,27 @@ observeEvent(input$sr_submit_results, {
             has_real_id <- nchar(member_num) > 0 && !grepl("^GUEST", member_num, ignore.case = TRUE)
             identity_status <- if (has_real_id) "verified" else "unverified"
             clean_member <- if (has_real_id) member_num else NA_character_
-            player_slug <- generate_unique_slug(db_pool, name)
-            new_player <- DBI::dbGetQuery(conn,
-              "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id) VALUES ($1, $2, $3, $4, $5) RETURNING player_id",
-              params = list(name, player_slug, clean_member, identity_status, scene_id))
-            player_id <- new_player$player_id[1]
+            # If member_number is real, try to find existing player first to avoid duplicate key
+            if (has_real_id) {
+              existing <- DBI::dbGetQuery(conn,
+                "SELECT player_id FROM players WHERE member_number = $1 LIMIT 1",
+                params = list(clean_member))
+              if (nrow(existing) > 0) {
+                player_id <- existing$player_id[1]
+              } else {
+                player_slug <- generate_unique_slug(db_pool, name)
+                new_player <- DBI::dbGetQuery(conn,
+                  "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id) VALUES ($1, $2, $3, $4, $5) RETURNING player_id",
+                  params = list(name, player_slug, clean_member, identity_status, scene_id))
+                player_id <- new_player$player_id[1]
+              }
+            } else {
+              player_slug <- generate_unique_slug(db_pool, name)
+              new_player <- DBI::dbGetQuery(conn,
+                "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id) VALUES ($1, $2, $3, $4, $5) RETURNING player_id",
+                params = list(name, player_slug, clean_member, identity_status, scene_id))
+              player_id <- new_player$player_id[1]
+            }
           }
         }
 

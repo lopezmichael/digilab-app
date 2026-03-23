@@ -178,6 +178,15 @@ output$tournament_history <- renderReactable({
   # Format event type nicely
   result$Type <- sapply(result$Type, format_event_type)
 
+  # Guard against empty results after filter (sapply with seq_len fails on 0-row df)
+  if (nrow(result) == 0) {
+    return(digital_empty_state(
+      title = "No tournaments recorded",
+      subtitle = "// tournament data pending",
+      icon = "trophy"
+    ))
+  }
+
   # Build scene indicator (flag emoji or globe for online)
   result$Scene <- sapply(seq_len(nrow(result)), function(i) {
     if (isTRUE(result$is_online[i])) return("\U0001F310")

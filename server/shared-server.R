@@ -1564,10 +1564,10 @@ build_filters_param <- function(table_alias = "t",
     idx <- idx + 1
   } else {
     # Scene filter (requires store_alias to be set)
-    if (!is.null(scene) && scene != "" && scene != "all" && !is.null(store_alias)) {
-      if (scene == "online") {
+    if (!is.null(scene) && !is.na(scene) && scene != "" && scene != "all" && !is.null(store_alias)) {
+      if (isTRUE(scene == "online")) {
         sql_parts <- c(sql_parts, sprintf("AND %s.is_online = TRUE", store_alias))
-      } else if (startsWith(scene, "country:")) {
+      } else if (isTRUE(startsWith(scene, "country:"))) {
         country_val <- sub("^country:", "", scene)
         sql_parts <- c(sql_parts, sprintf(
           "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE country = $%d)",
@@ -1575,7 +1575,7 @@ build_filters_param <- function(table_alias = "t",
         ))
         params <- c(params, list(country_val))
         idx <- idx + 1
-      } else if (startsWith(scene, "state:")) {
+      } else if (isTRUE(startsWith(scene, "state:"))) {
         state_val <- sub("^state:", "", scene)
         sql_parts <- c(sql_parts, sprintf(
           "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE country = 'United States' AND state_region = $%d)",
@@ -1591,9 +1591,9 @@ build_filters_param <- function(table_alias = "t",
         params <- c(params, list(scene))
         idx <- idx + 1
       }
-    } else if (!is.null(store_alias) && !is.null(continent) && continent != "" && continent != "all") {
+    } else if (!is.null(store_alias) && !is.null(continent) && !is.na(continent) && continent != "" && continent != "all") {
       # Continent filter: scene is "all" but continent is selected
-      if (continent == "online") {
+      if (isTRUE(continent == "online")) {
         sql_parts <- c(sql_parts, sprintf("AND %s.is_online = TRUE", store_alias))
       } else {
         sql_parts <- c(sql_parts, sprintf(
@@ -1662,10 +1662,10 @@ build_mv_filters <- function(format = NULL,
     sql_parts <- c(sql_parts, sprintf("AND %sslug = $%d", prefix, idx))
     params <- c(params, list(community_store))
     idx <- idx + 1
-  } else if (!is.null(scene) && scene != "" && scene != "all") {
-    if (scene == "online") {
+  } else if (!is.null(scene) && !is.na(scene) && scene != "" && scene != "all") {
+    if (isTRUE(scene == "online")) {
       sql_parts <- c(sql_parts, sprintf("AND %sis_online = TRUE", prefix))
-    } else if (startsWith(scene, "country:")) {
+    } else if (isTRUE(startsWith(scene, "country:"))) {
       # Country-level filter: all scenes in a country
       country_val <- sub("^country:", "", scene)
       sql_parts <- c(sql_parts, sprintf(
@@ -1673,7 +1673,7 @@ build_mv_filters <- function(format = NULL,
       ))
       params <- c(params, list(country_val))
       idx <- idx + 1
-    } else if (startsWith(scene, "state:")) {
+    } else if (isTRUE(startsWith(scene, "state:"))) {
       # US state-level filter: all scenes in a state
       state_val <- sub("^state:", "", scene)
       sql_parts <- c(sql_parts, sprintf(
@@ -1689,9 +1689,9 @@ build_mv_filters <- function(format = NULL,
       params <- c(params, list(scene))
       idx <- idx + 1
     }
-  } else if (!is.null(continent) && continent != "" && continent != "all") {
+  } else if (!is.null(continent) && !is.na(continent) && continent != "" && continent != "all") {
     # Continent filter: scene is "all" but continent is selected
-    if (continent == "online") {
+    if (isTRUE(continent == "online")) {
       sql_parts <- c(sql_parts, sprintf("AND %sis_online = TRUE", prefix))
     } else {
       sql_parts <- c(sql_parts, sprintf(
