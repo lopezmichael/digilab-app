@@ -63,7 +63,17 @@
   var observer = new MutationObserver(function() {
     scanAll();
   });
-  observer.observe(document.body, { childList: true, subtree: true });
+
+  function startObserver() {
+    if (document.body) {
+      observer.observe(document.body, { childList: true, subtree: true });
+    } else {
+      document.addEventListener('DOMContentLoaded', function() {
+        observer.observe(document.body, { childList: true, subtree: true });
+      });
+    }
+  }
+  startObserver();
 
   // Also re-check positions when Shiny outputs update (content may grow/shrink)
   $(document).on('shiny:value', function() {
