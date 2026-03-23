@@ -443,7 +443,7 @@ parse_standings_layout <- function(annotations, image_width, image_height,
     "privacy", "policy", "digimon", "card", "game", "home",
     "my", "events", "event", "search", "decks", "others",
     "store", "match", "history", "results",
-    "bandai", "akiyoshi", "animation", "reserved", "rights",
+    "bandai", "obandai", "akiyoshi", "animation", "reserved", "rights",
     "all", "©", "toei",
     # App title and page headers
     "ranking", "cardgame", "ranki", "ng",
