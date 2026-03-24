@@ -978,10 +978,10 @@ parse_tournament_standings <- function(ocr_text, total_rounds = 4, verbose = TRU
       next
     }
 
-    # Check if it looks like a username (starts with letter, allows alphanumeric, underscore, space, apostrophe)
-    if (grepl("^[A-Za-z][A-Za-z0-9_.' ]*$", line) && nchar(line) >= 3) {
-      # Additional check: must have at least 3 letters total to avoid noise
-      letter_count <- nchar(gsub("[^A-Za-z]", "", line))
+    # Check if it looks like a username (allows accented chars, apostrophes, pronouns like "She/Her")
+    if (grepl("^\\p{L}[\\p{L}0-9_.' ()/-]*$", line, perl = TRUE) && nchar(line) >= 3) {
+      # Additional check: must have at least 3 letters total (Unicode-aware)
+      letter_count <- nchar(gsub("[^\\p{L}]", "", line, perl = TRUE))
       if (letter_count >= 3) {
         username_indices <- c(username_indices, i)
         if (verbose) message("[PARSE] Potential username at line ", i, ": '", line, "'")
@@ -989,10 +989,11 @@ parse_tournament_standings <- function(ocr_text, total_rounds = 4, verbose = TRU
     } else {
       # Check for combined placement + username format: "10 Sinone", "13 Shaggy"
       # OCR sometimes puts the rank number on the same line as the username
-      combined_match <- regmatches(line, regexec("^(\\d{1,2})\\s+([A-Za-z][A-Za-z0-9_. ]*)$", line))[[1]]
+      combined_match <- regmatches(line, regexec("^(\\d{1,2})\\s+(.+)$", line, perl = TRUE))[[1]]
       if (length(combined_match) > 2) {
         potential_username <- combined_match[3]
-        letter_count <- nchar(gsub("[^A-Za-z]", "", potential_username))
+        if (!grepl("^\\p{L}", potential_username, perl = TRUE)) next
+        letter_count <- nchar(gsub("[^\\p{L}]", "", potential_username, perl = TRUE))
         if (letter_count >= 3) {
           username_indices <- c(username_indices, i)
           if (verbose) message("[PARSE] Potential combined placement+username at line ", i, ": '", line, "'")
@@ -1013,7 +1014,7 @@ parse_tournament_standings <- function(ocr_text, total_rounds = 4, verbose = TRU
     raw_line <- lines[idx]
 
     # Check if this is a combined "placement username" format (e.g., "10 Sinone")
-    combined_match <- regmatches(raw_line, regexec("^(\\d{1,2})\\s+([A-Za-z][A-Za-z0-9_. ]*)$", raw_line))[[1]]
+    combined_match <- regmatches(raw_line, regexec("^(\\d{1,2})\\s+(\\p{L}.*)$", raw_line, perl = TRUE))[[1]]
     if (length(combined_match) > 2) {
       placement_from_combined <- as.integer(combined_match[2])
       username <- combined_match[3]
@@ -1301,7 +1302,8 @@ parse_match_history <- function(ocr_text, verbose = TRUE) {
   headers <- c("round", "opponent", "results", "points", "ranking", "match history",
                "store events", "home", "my events", "event search", "decks", "others",
                "3: win, 1: draw, 0: lose", "digimon", "card game", "g", "user name",
-               "username", "win", "omw", "gw", "privacy policy", "results points")
+               "username", "win", "omw", "gw", "privacy policy", "results points",
+               "aigimon", "cardgame", "tcg", "tcg+")
 
   # Strategy: Find potential usernames, then scan FORWARD for round, results, points, member number
   # This matches the OCR output order we observed
@@ -1342,10 +1344,10 @@ parse_match_history <- function(ocr_text, verbose = TRUE) {
       next
     }
 
-    # Check if it looks like a username (allows apostrophes for names like "Dragoon's Ghost")
-    if (grepl("^[A-Za-z][A-Za-z0-9_.' ]*$", line)) {
-      # Must have at least 3 letters
-      letter_count <- nchar(gsub("[^A-Za-z]", "", line))
+    # Check if it looks like a username (allows accented chars, apostrophes, pronouns like "She/Her")
+    if (grepl("^\\p{L}[\\p{L}0-9_.' ()/-]*$", line, perl = TRUE)) {
+      # Must have at least 3 letters (Unicode-aware)
+      letter_count <- nchar(gsub("[^\\p{L}]", "", line, perl = TRUE))
       if (letter_count >= 3) {
         username_indices <- c(username_indices, i)
         if (verbose) message("[MATCH] Potential opponent at line ", i, ": '", line, "'")
