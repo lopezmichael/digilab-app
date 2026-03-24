@@ -487,7 +487,13 @@ output$admin_store_list <- renderReactable({
   # Build scene filter
   scene_filter <- ""
   scene_params <- list()
-  if (!show_all && !is.null(scene) && scene != "" && scene != "all") {
+  accessible <- get_admin_accessible_scene_ids(db_pool, rv$admin_user)
+
+  if (!show_all && !is.null(accessible)) {
+    # Non-superadmin: restrict to admin's accessible scenes
+    scene_filter <- "AND s.scene_id = ANY($1::int[])"
+    scene_params <- list(pg_array(accessible))
+  } else if (!show_all && !is.null(scene) && scene != "" && scene != "all") {
     if (scene == "online") {
       scene_filter <- "AND s.is_online = TRUE"
     } else {
