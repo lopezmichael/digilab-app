@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Match-by-match auto-fill**: 3-layer opponent matching — tournament participants (exact member/name), prior match score pre-fill (flipped W/L from opponent's submissions), and `match_player()` fuzzy matching via pg_trgm. Match indicators (Matched/Ambiguous/Similar/New) shown on review grid.
 - **Match-by-match wizard steps**: 2-step flow (Upload Screenshot → Review & Submit) with step indicators, replacing scroll-to-discover pattern.
 - **Match review grid**: Tournament summary bar, match summary badges, player matching explanation — matching the upload results grid's layout and styling.
+- **Edit Tournaments grid parity**: Admin Edit Results grid now has editable placements with auto-reorder, Add Player button, tied placements support, and Show W/L/T override toggle — matching the Submit Results grid.
 
 ### Changed
 - **Card picker redesign**: Consolidated Paste + Manual Entry into single "Manual Entry" card. Reordered cards for better flow. Digital scanner styling (navy/blue gradient, grid overlay, cyan border). Coming Soon card styled as muted scanner variant.
