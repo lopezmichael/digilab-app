@@ -113,7 +113,12 @@ reverse_geocode_with_mapbox <- function(lat, lng) {
     # ArcGIS returns country codes (USA, GBR, etc.) — map common ones to full names
     country_map <- c(USA = "United States", GBR = "United Kingdom", CAN = "Canada",
                      AUS = "Australia", JPN = "Japan", DEU = "Germany", FRA = "France",
-                     BRA = "Brazil", MEX = "Mexico", KOR = "South Korea")
+                     BRA = "Brazil", MEX = "Mexico", KOR = "South Korea",
+                     IRL = "Ireland", ITA = "Italy", ESP = "Spain", PRT = "Portugal",
+                     NLD = "Netherlands", DNK = "Denmark", HRV = "Croatia",
+                     NZL = "New Zealand", IDN = "Indonesia", SAU = "Saudi Arabia",
+                     COL = "Colombia", CRI = "Costa Rica", ARG = "Argentina",
+                     CHL = "Chile")
     country <- if (!is.na(country_code) && country_code %in% names(country_map)) {
       country_map[[country_code]]
     } else {
