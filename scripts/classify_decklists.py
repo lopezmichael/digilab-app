@@ -437,16 +437,16 @@ CLASSIFICATION_RULES = [
     ("Dinomon", ["Dinorexmon", "Dinomon", "Agumon"], 2),
 
     # Red Hybrid (Takuya line) — split by mega
-    ("Red Hybrid EmperorGreymon", ["EmperorGreymon", "Aldamon", "BurningGreymon"], 2),
-    ("Red Hybrid EmperorGreymon", ["EmperorGreymon", "Agunimon", "Flamemon"], 2),
-    ("Red Hybrid AncientGreymon", ["AncientGreymon", "Aldamon", "BurningGreymon"], 2),
-    ("Red Hybrid AncientGreymon", ["AncientGreymon", "Agunimon", "Flamemon"], 2),
+    ("Red Hybrid (EmperorGreymon)", ["EmperorGreymon", "Aldamon", "BurningGreymon"], 2),
+    ("Red Hybrid (EmperorGreymon)", ["EmperorGreymon", "Agunimon", "Flamemon"], 2),
+    ("Red Hybrid (AncientGreymon)", ["AncientGreymon", "Aldamon", "BurningGreymon"], 2),
+    ("Red Hybrid (AncientGreymon)", ["AncientGreymon", "Agunimon", "Flamemon"], 2),
 
     # Ariemon
-    ("Ariemon", ["Ariemon", "Huankunmon", "Sanzomon"], 2),
-    ("Ariemon", ["Ariemon", "Xiangpengmon"], 2),
-    ("Ariemon", ["Sanzomon", "Venusmon", "Cho-Hakkaimon"], 2),
-    ("Ariemon", ["Muchomon", "Sanzomon", "Gokuumon"], 2),
+    ("Aquatic (Ariemon)", ["Ariemon", "Huankunmon", "Sanzomon"], 2),
+    ("Aquatic (Ariemon)", ["Ariemon", "Xiangpengmon"], 2),
+    ("Aquatic (Ariemon)", ["Sanzomon", "Venusmon", "Cho-Hakkaimon"], 2),
+    ("Aquatic (Ariemon)", ["Muchomon", "Sanzomon", "Gokuumon"], 2),
 
     # Dynasmon
     ("Dynasmon", ["Dynasmon", "Lordomon"], 1),
