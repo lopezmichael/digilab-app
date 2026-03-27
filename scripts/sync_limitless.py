@@ -245,9 +245,15 @@ def infer_format(tournament_name, event_date, cursor):
     match = re.search(r'(BT)-?(\d+)|(EX)-?(\d+)', tournament_name, re.IGNORECASE)
     if match:
         if match.group(1):  # BT match
-            return f"BT{match.group(2)}"
+            candidate = f"BT{match.group(2)}"
         else:  # EX match
-            return f"EX{match.group(4)}"
+            candidate = f"EX{match.group(4)}"
+        # Validate format exists in DB before returning
+        cursor.execute("SELECT 1 FROM formats WHERE format_id = %s", (candidate,))
+        if cursor.fetchone():
+            return candidate
+        # Format not in DB — fall through to date-based inference
+        print(f"      Note: '{candidate}' from name not in formats table, using date fallback")
 
     # Strategy 2: Date-based fallback
     try:
