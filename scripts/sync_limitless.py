@@ -17,7 +17,7 @@ Usage:
 
 Arguments:
     --organizer ID     Limitless organizer ID to sync
-    --all-tier1        Sync all Tier 1 organizers (452, 281, 559, 578)
+    --all-tier1        Sync all Tier 1 organizers (452, 281, 559, 578, 2536, 1009)
     --since DATE       Only sync tournaments on or after this date (YYYY-MM-DD)
     --incremental      Auto-detect since date from last sync (stored in limitless_sync_state)
     --classify         Run deck archetype auto-classification after sync
@@ -55,12 +55,14 @@ REQUEST_DELAY = 1.5  # seconds between API calls
 
 # Tier 1 organizers for --all-tier1 flag
 # These are high-quality organizers with good deck coverage (50%+ decklists)
+# skip_deck_check: True for organizers that don't track decklists on Limitless
 TIER1_ORGANIZERS = {
-    452: "Eagle's Nest",
-    281: "PHOENIX REBORN",
-    559: "DMV Drakes",
-    578: "MasterRukasu",
-    2536: "Expanse Italia",
+    452:  {"name": "Eagle's Nest",     "skip_deck_check": False},
+    281:  {"name": "PHOENIX REBORN",   "skip_deck_check": False},
+    559:  {"name": "DMV Drakes",       "skip_deck_check": False},
+    578:  {"name": "MasterRukasu",     "skip_deck_check": False},
+    2536: {"name": "Expanse Italia",   "skip_deck_check": False},
+    1009: {"name": "DigiGalaxy",       "skip_deck_check": True},
 }
 
 
@@ -401,7 +403,7 @@ def count_total_rounds(details):
     return total_rounds if total_rounds > 0 else None
 
 
-def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
+def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False, skip_deck_check=False):
     """Sync a single tournament: details, standings, pairings.
 
     Args:
@@ -410,6 +412,7 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
         organizer_id: Limitless organizer ID
         store_id: Local store_id to associate with
         dry_run: If True, only print what would happen
+        skip_deck_check: If True, skip the deck coverage check (for organizers without decklists)
 
     Returns:
         Dict with sync stats, or None if skipped
@@ -472,7 +475,8 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
     print(f"got {len(standings)}")
 
     # Check deck coverage — skip tournaments where top 3 have no deck data
-    if standings:
+    # (unless organizer has skip_deck_check enabled)
+    if not skip_deck_check and standings:
         top_3 = [s for s in standings if s.get("placing") and s["placing"] <= 3]
         top_3_with_deck = sum(1 for s in top_3 if s.get("deck") and s["deck"].get("id"))
         if top_3 and top_3_with_deck == 0:
@@ -768,7 +772,9 @@ def sync_organizer(conn, cursor, organizer_id, since_date, dry_run=False, limit=
     Returns:
         Dict with overall sync stats
     """
-    organizer_name = TIER1_ORGANIZERS.get(organizer_id, f"Organizer {organizer_id}")
+    org_config = TIER1_ORGANIZERS.get(organizer_id, {"name": f"Organizer {organizer_id}", "skip_deck_check": False})
+    organizer_name = org_config["name"]
+    skip_deck_check = org_config["skip_deck_check"]
     print(f"\n{'=' * 60}")
     print(f"Syncing: {organizer_name} (ID: {organizer_id})")
     print(f"{'=' * 60}")
@@ -818,7 +824,7 @@ def sync_organizer(conn, cursor, organizer_id, since_date, dry_run=False, limit=
 
     for tournament in tournaments:
         try:
-            result = sync_tournament(cursor, tournament, organizer_id, store_id, dry_run)
+            result = sync_tournament(cursor, tournament, organizer_id, store_id, dry_run, skip_deck_check)
 
             if result is None:
                 stats["tournaments_skipped"] += 1
@@ -1458,7 +1464,7 @@ def main():
     parser.add_argument("--organizer", type=int,
                         help="Limitless organizer ID to sync")
     parser.add_argument("--all-tier1", action="store_true",
-                        help="Sync all Tier 1 organizers")
+                        help="Sync all Tier 1 organizers (452, 281, 559, 578, 2536, 1009)")
     parser.add_argument("--since",
                         help="Only sync tournaments on or after this date (YYYY-MM-DD)")
     parser.add_argument("--incremental", action="store_true",
@@ -1557,6 +1563,15 @@ def main():
         classified_count = run_classify_decklists(cursor)
         conn.commit()
 
+    # Compute summary stats (before MV refresh, which needs total_synced)
+    total_synced = sum(s.get("tournaments_synced", 0) for s in all_stats)
+    total_skipped = sum(s.get("tournaments_skipped", 0) for s in all_stats)
+    total_results = sum(s.get("total_results", 0) for s in all_stats)
+    total_matches = sum(s.get("total_matches", 0) for s in all_stats)
+    total_players = sum(s.get("total_players_created", 0) for s in all_stats)
+    total_decks = sum(s.get("total_deck_requests", 0) for s in all_stats)
+    errors = [s for s in all_stats if "error" in s]
+
     # Refresh materialized views after sync
     if not args.dry_run and total_synced > 0:
         print("\nRefreshing materialized views...")
@@ -1584,14 +1599,6 @@ def main():
     print("\n" + "=" * 60)
     print("SYNC COMPLETE")
     print("=" * 60)
-
-    total_synced = sum(s.get("tournaments_synced", 0) for s in all_stats)
-    total_skipped = sum(s.get("tournaments_skipped", 0) for s in all_stats)
-    total_results = sum(s.get("total_results", 0) for s in all_stats)
-    total_matches = sum(s.get("total_matches", 0) for s in all_stats)
-    total_players = sum(s.get("total_players_created", 0) for s in all_stats)
-    total_decks = sum(s.get("total_deck_requests", 0) for s in all_stats)
-    errors = [s for s in all_stats if "error" in s]
 
     print(f"Tournaments synced: {total_synced}")
     print(f"Tournaments skipped: {total_skipped}")
