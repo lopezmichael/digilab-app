@@ -529,10 +529,10 @@ validate_decklist_url <- function(url, strict = FALSE) {
   if (is.null(url) || is.na(url)) return(NULL)
   url <- trimws(url)
   if (nchar(url) == 0) return(NULL)
-  if (!grepl("^https?://", url, ignore.case = TRUE)) return(NULL)
+  if (!grepl("^https://", url, ignore.case = TRUE)) return(NULL)
   if (grepl("[<>\\s\"]", url, perl = TRUE)) return(NULL)
   # Extract domain and check against allowlist
-  domain <- sub("^https?://([^/]+).*$", "\\1", url, ignore.case = TRUE)
+  domain <- sub("^https://([^/]+).*$", "\\1", url, ignore.case = TRUE)
   domain <- tolower(sub("^www\\.", "", domain))
   if (!domain %in% ALLOWED_DECKLIST_DOMAINS) {
     if (strict) return(NULL)

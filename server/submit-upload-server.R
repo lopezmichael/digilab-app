@@ -451,9 +451,18 @@ observeEvent(input$sr_step1_next, {
 
   # Combine results — normalize columns across CSV and OCR results before rbind
   all_cols <- unique(unlist(lapply(all_results, names)))
+  # Infer column types from existing data frames for proper typed NAs
+  col_types <- list()
+  for (df in all_results) {
+    for (col in names(df)) {
+      if (is.null(col_types[[col]])) col_types[[col]] <- class(df[[col]])[1]
+    }
+  }
   all_results <- lapply(all_results, function(df) {
     for (col in setdiff(all_cols, names(df))) {
-      df[[col]] <- NA
+      typed_na <- switch(col_types[[col]] %||% "character",
+        numeric = NA_real_, integer = NA_integer_, NA_character_)
+      df[[col]] <- typed_na
     }
     df[, all_cols, drop = FALSE]
   })

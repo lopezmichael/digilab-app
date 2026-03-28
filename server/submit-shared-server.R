@@ -230,8 +230,7 @@ observeEvent(input$sr_event_type, {
   if (!is.null(event_type) && event_type == "regionals") {
     # Hide scene, show regional organizers
     shinyjs::hide("sr_scene_wrapper")
-    updateSelectInput(session, "sr_store",
-                      label = tags$span("Organizer", tags$span(class = "required-indicator", "*")))
+    shinyjs::runjs("$('#sr_store').closest('.form-group, .shiny-input-container').find('label').html('Organizer <span class=\"required-indicator\">*</span>');")
     organizers <- safe_query(db_pool, "
       SELECT store_id, name FROM stores
       WHERE is_active = TRUE AND is_regional_organizer = TRUE
@@ -243,8 +242,7 @@ observeEvent(input$sr_event_type, {
   } else if (!is.null(prev) && prev == "regionals") {
     # Switching away from regionals — restore normal scene→store flow
     shinyjs::show("sr_scene_wrapper")
-    updateSelectInput(session, "sr_store",
-                      label = tags$span("Store", tags$span(class = "required-indicator", "*")))
+    shinyjs::runjs("$('#sr_store').closest('.form-group, .shiny-input-container').find('label').html('Store <span class=\"required-indicator\">*</span>');")
     updateSelectInput(session, "sr_store",
                       choices = c("Select scene first..." = ""))
   }
