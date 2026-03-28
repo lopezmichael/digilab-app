@@ -32,6 +32,9 @@ parse_tcgplus_csv <- function(file_path, total_rounds = 4) {
   name_col <- grep("^User.Name$|^Username$|^Name$|^Player$", names(csv), ignore.case = TRUE, value = TRUE)[1]
   points_col <- grep("^Win.Points$|^Points$|^WinPoints$", names(csv), ignore.case = TRUE, value = TRUE)[1]
   deck_url_col <- grep("^Deck.URLs?$|^DeckURL$|^Deck.Link$", names(csv), ignore.case = TRUE, value = TRUE)[1]
+  omw_col <- grep("^OMW[^O]|^OMW$|^Opp\\.Match|^Opp[^.]*Match.*Win", names(csv), ignore.case = TRUE, value = TRUE)[1]
+  oomw_col <- grep("^OOMW|^Opp\\.Opp|^Opp.*Opp.*Match.*Win", names(csv), ignore.case = TRUE, value = TRUE)[1]
+  memo_col <- grep("^Memo$|^Notes?$", names(csv), ignore.case = TRUE, value = TRUE)[1]
 
   if (is.na(rank_col) || is.na(name_col)) {
     stop("Not a Bandai TCG+ CSV — missing Ranking or User Name columns")
@@ -85,6 +88,22 @@ parse_tcgplus_csv <- function(file_path, total_rounds = 4) {
     result$deck_url[is.na(result$deck_url) | result$deck_url == ""] <- NA_character_
   }
 
+  # Extract tiebreaker stats (OMW%, OOMW%) — stored for reference, not displayed
+  if (!is.na(omw_col)) {
+    raw <- trimws(as.character(csv[[omw_col]]))
+    result$omw_pct <- suppressWarnings(as.numeric(sub("%$", "", raw)))
+  }
+  if (!is.na(oomw_col)) {
+    raw <- trimws(as.character(csv[[oomw_col]]))
+    result$oomw_pct <- suppressWarnings(as.numeric(sub("%$", "", raw)))
+  }
+
+  # Extract memo — may contain deck names in some events
+  if (!is.na(memo_col)) {
+    result$memo <- trimws(as.character(csv[[memo_col]]))
+    result$memo[is.na(result$memo) | result$memo == "" | tolower(result$memo) == "undefined"] <- NA_character_
+  }
+
   message(sprintf("[CSV] Parsed %d players from CSV", nrow(result)))
   result
 }
@@ -127,8 +146,11 @@ sr_complete_ocr_processing <- function(combined, total_players, total_rounds, pa
           ties = 0,
           stringsAsFactors = FALSE
         )
-        # Preserve deck_url column if it exists
+        # Preserve CSV-sourced columns if they exist
         if ("deck_url" %in% names(combined)) blank_row$deck_url <- NA_character_
+        if ("omw_pct" %in% names(combined)) blank_row$omw_pct <- NA_real_
+        if ("oomw_pct" %in% names(combined)) blank_row$oomw_pct <- NA_real_
+        if ("memo" %in% names(combined)) blank_row$memo <- NA_character_
         combined <- rbind(combined, blank_row)
       }
     }
@@ -427,7 +449,23 @@ observeEvent(input$sr_step1_next, {
     return()
   }
 
-  # Combine results from all screenshots
+  # Combine results — normalize columns across CSV and OCR results before rbind
+  all_cols <- unique(unlist(lapply(all_results, names)))
+  # Infer column types from existing data frames for proper typed NAs
+  col_types <- list()
+  for (df in all_results) {
+    for (col in names(df)) {
+      if (is.null(col_types[[col]])) col_types[[col]] <- class(df[[col]])[1]
+    }
+  }
+  all_results <- lapply(all_results, function(df) {
+    for (col in setdiff(all_cols, names(df))) {
+      typed_na <- switch(col_types[[col]] %||% "character",
+        numeric = NA_real_, integer = NA_integer_, NA_character_)
+      df[[col]] <- typed_na
+    }
+    df[, all_cols, drop = FALSE]
+  })
   combined <- do.call(rbind, all_results)
 
   # Smart deduplication for overlapping screenshots

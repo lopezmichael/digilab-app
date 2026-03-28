@@ -210,6 +210,7 @@ observeEvent(input$sr_scene, {
     stores <- safe_query(db_pool, "
       SELECT store_id, name FROM stores
       WHERE is_active = TRUE AND scene_id = $1
+        AND COALESCE(is_regional_organizer, FALSE) = FALSE
       ORDER BY name
     ", params = list(as.integer(scene_val)), default = data.frame())
   }
@@ -218,6 +219,34 @@ observeEvent(input$sr_scene, {
   updateSelectInput(session, "sr_store",
                     choices = c("Select store..." = "", choices))
 })
+
+# Swap store dropdown for regional organizers when event type = Regionals
+rv$sr_event_type_prev <- NULL
+observeEvent(input$sr_event_type, {
+  event_type <- input$sr_event_type
+  prev <- rv$sr_event_type_prev
+  rv$sr_event_type_prev <- event_type
+
+  if (!is.null(event_type) && event_type == "regionals") {
+    # Hide scene, show regional organizers
+    shinyjs::hide("sr_scene_wrapper")
+    shinyjs::runjs("$('#sr_store').closest('.form-group, .shiny-input-container').find('label').html('Organizer <span class=\"required-indicator\">*</span>');")
+    organizers <- safe_query(db_pool, "
+      SELECT store_id, name FROM stores
+      WHERE is_active = TRUE AND is_regional_organizer = TRUE
+      ORDER BY name
+    ", default = data.frame())
+    choices <- if (nrow(organizers) > 0) setNames(organizers$store_id, organizers$name) else character()
+    updateSelectInput(session, "sr_store",
+                      choices = c("Select organizer..." = "", choices))
+  } else if (!is.null(prev) && prev == "regionals") {
+    # Switching away from regionals — restore normal scene→store flow
+    shinyjs::show("sr_scene_wrapper")
+    shinyjs::runjs("$('#sr_store').closest('.form-group, .shiny-input-container').find('label').html('Store <span class=\"required-indicator\">*</span>');")
+    updateSelectInput(session, "sr_store",
+                      choices = c("Select scene first..." = ""))
+  }
+}, ignoreNULL = FALSE)
 
 # Populate format dropdown
 observe({
@@ -1022,6 +1051,13 @@ observeEvent(input$sr_add_player, {
     result_id = NA_integer_,
     stringsAsFactors = FALSE
   )
+  # Add optional CSV-sourced columns if grid has them (from OCR/CSV upload)
+  for (col in c("deck_url", "memo")) {
+    if (col %in% names(rv$sr_grid_data)) blank_row[[col]] <- NA_character_
+  }
+  for (col in c("omw_pct", "oomw_pct")) {
+    if (col %in% names(rv$sr_grid_data)) blank_row[[col]] <- NA_real_
+  }
   rv$sr_grid_data <- rbind(rv$sr_grid_data, blank_row)
 })
 
@@ -1449,10 +1485,17 @@ observeEvent(input$sr_submit_results, {
           }
         }
 
+        # Carry CSV-sourced fields through for INSERT (deck_url, tiebreakers, memo)
+        deck_url <- if ("deck_url" %in% names(row) && !is.na(row$deck_url)) row$deck_url else NA_character_
+        omw_pct <- if ("omw_pct" %in% names(row) && !is.na(row$omw_pct)) row$omw_pct else NA_real_
+        oomw_pct <- if ("oomw_pct" %in% names(row) && !is.na(row$oomw_pct)) row$oomw_pct else NA_real_
+        memo <- if ("memo" %in% names(row) && !is.na(row$memo)) row$memo else NA_character_
+
         resolved_rows[[idx]] <- list(
           player_id = player_id, player_name = name,
           archetype_id = archetype_id, pending_deck_request_id = pending_deck_request_id,
-          placement = row$placement, wins = wins, losses = losses, ties = ties, pts = pts
+          placement = row$placement, wins = wins, losses = losses, ties = ties, pts = pts,
+          deck_url = deck_url, omw_pct = omw_pct, oomw_pct = oomw_pct, memo = memo
         )
       }
 
@@ -1475,10 +1518,12 @@ observeEvent(input$sr_submit_results, {
         r <- resolved_rows[[idx]]
         DBI::dbExecute(conn, "
           INSERT INTO results (tournament_id, player_id, archetype_id, pending_deck_request_id,
-                               placement, wins, losses, ties, points)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                               placement, wins, losses, ties, points,
+                               decklist_url, omw_pct, oomw_pct, memo)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         ", params = list(tournament_id, r$player_id, r$archetype_id,
-                         r$pending_deck_request_id, r$placement, r$wins, r$losses, r$ties, r$pts))
+                         r$pending_deck_request_id, r$placement, r$wins, r$losses, r$ties, r$pts,
+                         r$deck_url, r$omw_pct, r$oomw_pct, r$memo))
       }
 
       DBI::dbExecute(conn, "COMMIT")
@@ -1645,6 +1690,12 @@ observeEvent(input$sr_paste_apply, {
       matched_player_id = NA_integer_, matched_member_number = NA_character_,
       result_id = NA_integer_, stringsAsFactors = FALSE
     )
+    for (col in c("deck_url", "memo")) {
+      if (col %in% names(grid)) blank_row[[col]] <- NA_character_
+    }
+    for (col in c("omw_pct", "oomw_pct")) {
+      if (col %in% names(grid)) blank_row[[col]] <- NA_real_
+    }
     grid <- rbind(grid, blank_row)
   }
 

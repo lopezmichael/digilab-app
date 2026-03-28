@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS stores (
     phone VARCHAR,
     is_active BOOLEAN DEFAULT TRUE,
     is_online BOOLEAN DEFAULT FALSE,
+    is_regional_organizer BOOLEAN DEFAULT FALSE,
     country VARCHAR DEFAULT 'USA',        -- Country code for international support
     limitless_organizer_id INTEGER,  -- Limitless TCG organizer ID for auto-sync
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -254,6 +255,7 @@ CREATE TABLE IF NOT EXISTS tournaments (
     rounds INTEGER,
     limitless_id VARCHAR,
     record_format TEXT DEFAULT 'points',  -- 'points' or 'wlt' — how results were entered
+    venue_name TEXT,            -- Venue name for regionals/traveling events (venue ≠ organizer)
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -282,6 +284,9 @@ CREATE TABLE IF NOT EXISTS results (
     points INTEGER,        -- Original points value as entered (NULL for WLT-entered results)
     decklist_url VARCHAR,  -- Link to external decklist (DeckLog, digimonmeta, etc.)
     decklist_json TEXT,  -- JSON stored as text (for future full decklist storage)
+    omw_pct NUMERIC(5,2),  -- Opponent Match Win % from Bandai TCG+ CSV
+    oomw_pct NUMERIC(5,2), -- Opponent's Opponent Match Win % from Bandai TCG+ CSV
+    memo TEXT,             -- Memo field from Bandai TCG+ CSV (may contain deck names)
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

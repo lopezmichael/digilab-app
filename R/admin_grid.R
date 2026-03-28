@@ -525,7 +525,7 @@ ALLOWED_DECKLIST_DOMAINS <- c(
   "tcgstacked.com"
 )
 
-validate_decklist_url <- function(url) {
+validate_decklist_url <- function(url, strict = FALSE) {
   if (is.null(url) || is.na(url)) return(NULL)
   url <- trimws(url)
   if (nchar(url) == 0) return(NULL)
@@ -534,7 +534,11 @@ validate_decklist_url <- function(url) {
   # Extract domain and check against allowlist
   domain <- sub("^https://([^/]+).*$", "\\1", url, ignore.case = TRUE)
   domain <- tolower(sub("^www\\.", "", domain))
-  if (!domain %in% ALLOWED_DECKLIST_DOMAINS) return(NULL)
+  if (!domain %in% ALLOWED_DECKLIST_DOMAINS) {
+    if (strict) return(NULL)
+    # Permissive mode: accept any valid HTTPS URL, log unknown domain
+    message("[DECKLIST] Unknown domain accepted: ", domain, " — URL: ", url)
+  }
   url
 }
 
@@ -886,6 +890,7 @@ match_player <- function(name, con, member_number = NULL, scene_id = NULL) {
 # Maps column names: username -> player_name, etc.
 # -----------------------------------------------------------------------------
 ocr_to_grid_data <- function(ocr_results) {
+  n <- nrow(ocr_results)
   data.frame(
     placement = ocr_results$placement,
     player_name = ocr_results$username,
@@ -894,11 +899,15 @@ ocr_to_grid_data <- function(ocr_results) {
     wins = as.integer(ocr_results$wins),
     losses = as.integer(ocr_results$losses),
     ties = as.integer(ocr_results$ties),
-    deck_id = if ("deck_id" %in% names(ocr_results)) ocr_results$deck_id else rep(NA_integer_, nrow(ocr_results)),
+    deck_id = if ("deck_id" %in% names(ocr_results)) ocr_results$deck_id else rep(NA_integer_, n),
     match_status = ocr_results$match_status,
     matched_player_id = ocr_results$matched_player_id,
-    matched_member_number = rep(NA_character_, nrow(ocr_results)),
-    result_id = rep(NA_integer_, nrow(ocr_results)),
+    matched_member_number = rep(NA_character_, n),
+    result_id = rep(NA_integer_, n),
+    deck_url = if ("deck_url" %in% names(ocr_results)) ocr_results$deck_url else rep(NA_character_, n),
+    omw_pct = if ("omw_pct" %in% names(ocr_results)) ocr_results$omw_pct else rep(NA_real_, n),
+    oomw_pct = if ("oomw_pct" %in% names(ocr_results)) ocr_results$oomw_pct else rep(NA_real_, n),
+    memo = if ("memo" %in% names(ocr_results)) ocr_results$memo else rep(NA_character_, n),
     stringsAsFactors = FALSE
   )
 }
