@@ -1250,6 +1250,17 @@ observeEvent(input$edit_grid_save, {
                   SELECT player_id FROM players WHERE member_number = $1 AND is_active = TRUE
                 ", params = list(member_num))
                 if (nrow(existing_player) > 0) {
+                  # Check if that player already has a result in this tournament
+                  already_in_tournament <- DBI::dbGetQuery(conn, "
+                    SELECT result_id FROM results
+                    WHERE tournament_id = $1 AND player_id = $2
+                  ", params = list(tournament_id, existing_player$player_id[1]))
+                  if (nrow(already_in_tournament) > 0) {
+                    DBI::dbExecute(conn, "ROLLBACK")
+                    notify(sprintf("Cannot reassign — player with Bandai ID %s already has a result in this tournament.", member_num),
+                           type = "error", duration = 8)
+                    return()
+                  }
                   # Reassign result to the player who owns that Bandai ID
                   player_id <- existing_player$player_id[1]
                 } else {
