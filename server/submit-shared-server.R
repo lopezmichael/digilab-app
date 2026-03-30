@@ -9,6 +9,7 @@ source("R/ocr.R")
 
 # Initialize reactive values for the unified submit flow
 rv$sr_active_method <- NULL        # "upload", "grid_entry", "match", "decklist"
+rv$sr_submission_method <- NULL    # Tracks how data was entered for tournaments.submission_method
 rv$sr_active_tournament_id <- NULL
 rv$sr_grid_data <- NULL
 rv$sr_record_format <- "points"
@@ -84,6 +85,7 @@ observeEvent(input$sr_card_upload, {
 observeEvent(input$sr_card_grid_entry, {
   req(rv$is_admin)
   rv$sr_active_method <- "grid_entry"
+  rv$sr_submission_method <- "manual_grid"
   shinyjs::hide("sr_method_picker")
   shinyjs::show("sr_wizard")
   shinyjs::hide("sr_upload_section")
@@ -120,6 +122,7 @@ sr_back_to_picker <- function() {
 
   rv$sr_active_method <- NULL
   rv$sr_active_tournament_id <- NULL
+  rv$sr_submission_method <- NULL
   rv$sr_grid_data <- NULL
   rv$sr_player_matches <- list()
   rv$sr_ocr_results <- NULL
@@ -1344,20 +1347,25 @@ observeEvent(input$sr_submit_results, {
     DBI::dbExecute(conn, "BEGIN")
 
     tryCatch({
-      # Create tournament if needed (upload flow)
+      # Create tournament if needed (upload flow) or update existing (grid flow)
       tournament_id <- rv$sr_active_tournament_id
       submit_by <- if (isTRUE(rv$is_admin)) current_admin_username(rv) else "public_submit"
+      submission_method <- rv$sr_submission_method
       if (is.null(tournament_id)) {
         tourney_result <- DBI::dbGetQuery(conn, "
-          INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds, record_format, updated_by)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds, record_format, updated_by, submission_method)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
           RETURNING tournament_id
         ", params = list(
           as.integer(input$sr_store), as.character(input$sr_date), input$sr_event_type,
-          input$sr_format, nrow(filled_rows), rounds, record_format, submit_by
+          input$sr_format, nrow(filled_rows), rounds, record_format, submit_by, submission_method
         ))
         tournament_id <- tourney_result$tournament_id[1]
         rv$sr_active_tournament_id <- tournament_id
+      } else if (!is.null(submission_method)) {
+        # Grid flow: tournament was created earlier, set submission_method now at final submit
+        DBI::dbExecute(conn, "UPDATE tournaments SET submission_method = $1 WHERE tournament_id = $2",
+                       params = list(submission_method, tournament_id))
       }
 
       # Get scene_id
@@ -1709,4 +1717,7 @@ observeEvent(input$sr_paste_apply, {
     }
   }
   rv$sr_grid_data <- grid
+
+  # Track that paste was used (applied at final submit time)
+  rv$sr_submission_method <- "paste_grid"
 })

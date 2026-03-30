@@ -484,8 +484,8 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
     cursor.execute("""
         INSERT INTO tournaments
             (store_id, event_date, event_type, format, player_count,
-             rounds, limitless_id, record_format, notes, created_at, updated_at)
-        VALUES (%s, %s, 'online', %s, %s, %s, %s, 'wlt', %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+             rounds, limitless_id, record_format, notes, submission_method, created_at, updated_at)
+        VALUES (%s, %s, 'online', %s, %s, %s, %s, 'wlt', %s, 'limitless_sync', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING tournament_id
     """, (
         store_id,

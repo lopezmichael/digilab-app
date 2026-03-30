@@ -338,6 +338,9 @@ observeEvent(input$sr_step1_next, {
   csv_indices <- which(file_exts == "csv")
   img_indices <- which(file_exts != "csv")
 
+  # Track upload type for submission_method column (applied at final submit time)
+  rv$sr_submission_method <- if (length(img_indices) > 0) "screenshot_ocr" else "csv_upload"
+
   all_results <- list()
   ocr_errors <- c()
   ocr_texts <- c()
