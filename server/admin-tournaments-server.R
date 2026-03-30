@@ -1244,7 +1244,8 @@ observeEvent(input$edit_grid_save, {
             if (bandai_modified && isTRUE(rv$is_superadmin)) {
               # Super admin detach: Bandai ID changed or cleared (name may also have changed)
               # Create new player or reassign to existing player with the new Bandai ID
-              player_id <- detach_to_player(conn, name, member_num, scene_id, tournament_id)
+              player_id <- detach_to_player(conn, name, member_num, scene_id, tournament_id,
+                                            admin_username = current_admin_username(rv))
               if (is.null(player_id)) {
                 DBI::dbExecute(conn, "ROLLBACK")
                 notify(sprintf("Cannot reassign — player with Bandai ID %s already has a result in this tournament.", member_num),
@@ -1294,8 +1295,8 @@ observeEvent(input$edit_grid_save, {
               auto_anon <- should_auto_anonymize(name, member_num)
               player_slug <- generate_unique_slug(conn, name)
               new_player <- DBI::dbGetQuery(conn,
-                "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized) VALUES ($1, $2, $3, $4, $5, $6) RETURNING player_id",
-                params = list(name, player_slug, clean_member, identity_status, scene_id, auto_anon))
+                "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, updated_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING player_id",
+                params = list(name, player_slug, clean_member, identity_status, scene_id, auto_anon, current_admin_username(rv)))
               player_id <- new_player$player_id[1]
             }
           }

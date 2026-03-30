@@ -5,6 +5,45 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
+# Slug generation — global scope so both R/ files and server/ files can use them
+# (server/ files source with local=TRUE, so functions defined there aren't visible
+# to functions defined here in the global environment)
+# -----------------------------------------------------------------------------
+generate_slug <- function(text) {
+  if (is.null(text) || !nzchar(trimws(text))) return(NA_character_)
+  text |> trimws() |> tolower() |>
+    gsub("[^a-z0-9]+", "-", x = _) |>
+    gsub("^-|-$", "", x = _)
+}
+
+generate_unique_slug <- function(db_pool, text, exclude_player_id = NULL) {
+  base_slug <- generate_slug(text)
+  if (is.na(base_slug)) return(NA_character_)
+
+  if (!is.null(exclude_player_id)) {
+    existing <- safe_query_impl(db_pool,
+      "SELECT COUNT(*) as n FROM players WHERE slug = $1 AND is_active = TRUE AND player_id != $2",
+      params = list(base_slug, exclude_player_id), default = data.frame(n = 0))
+  } else {
+    existing <- safe_query_impl(db_pool,
+      "SELECT COUNT(*) as n FROM players WHERE slug = $1 AND is_active = TRUE",
+      params = list(base_slug), default = data.frame(n = 0))
+  }
+
+  if (existing$n[1] == 0) return(base_slug)
+
+  for (i in 2:100) {
+    candidate <- paste0(base_slug, "-", i)
+    check <- safe_query_impl(db_pool,
+      "SELECT COUNT(*) as n FROM players WHERE slug = $1 AND is_active = TRUE",
+      params = list(candidate), default = data.frame(n = 0))
+    if (check$n[1] == 0) return(candidate)
+  }
+
+  return(paste0(base_slug, "-", as.integer(Sys.time())))
+}
+
+# -----------------------------------------------------------------------------
 # normalize_member_number: Standardize Bandai TCG+ IDs to 10-digit zero-padded
 # Strips #, trims whitespace, left-pads with zeros. Passes through GUEST IDs.
 # -----------------------------------------------------------------------------
@@ -47,7 +86,7 @@ should_auto_anonymize <- function(name, member_number = NULL) {
 # Returns player_id on success, or NULL if the target player is already in the
 # tournament (caller must ROLLBACK and notify).
 # -----------------------------------------------------------------------------
-detach_to_player <- function(conn, name, member_num, scene_id, tournament_id) {
+detach_to_player <- function(conn, name, member_num, scene_id, tournament_id, admin_username = "unknown") {
   if (has_real_member_number(member_num)) {
     # Bandai ID changed to a different value — check if a player with that ID exists
     existing_player <- DBI::dbGetQuery(conn, "
@@ -66,18 +105,18 @@ detach_to_player <- function(conn, name, member_num, scene_id, tournament_id) {
     auto_anon <- should_auto_anonymize(name, member_num)
     player_slug <- generate_unique_slug(conn, name)
     new_player <- DBI::dbGetQuery(conn,
-      "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized)
-       VALUES ($1, $2, $3, 'verified', $4, $5) RETURNING player_id",
-      params = list(name, player_slug, member_num, scene_id, auto_anon))
+      "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, updated_by)
+       VALUES ($1, $2, $3, 'verified', $4, $5, $6) RETURNING player_id",
+      params = list(name, player_slug, member_num, scene_id, auto_anon, admin_username))
     return(new_player$player_id[1])
   } else {
     # Bandai ID cleared — create new unverified, scene-locked player
     auto_anon <- should_auto_anonymize(name, NULL)
     player_slug <- generate_unique_slug(conn, name)
     new_player <- DBI::dbGetQuery(conn,
-      "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized)
-       VALUES ($1, $2, NULL, 'unverified', $3, $4) RETURNING player_id",
-      params = list(name, player_slug, scene_id, auto_anon))
+      "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, updated_by)
+       VALUES ($1, $2, NULL, 'unverified', $3, $4, $5) RETURNING player_id",
+      params = list(name, player_slug, scene_id, auto_anon, admin_username))
     return(new_player$player_id[1])
   }
 }

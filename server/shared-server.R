@@ -19,46 +19,8 @@ current_admin_username <- function(rv) {
 #' Generate URL-friendly slug from text
 #' @param text String to slugify
 #' @return Lowercase string with special chars replaced by hyphens, or NA
-generate_slug <- function(text) {
-  if (is.null(text) || !nzchar(trimws(text))) return(NA_character_)
-  text |> trimws() |> tolower() |>
-    gsub("[^a-z0-9]+", "-", x = _) |>
-    gsub("^-|-$", "", x = _)
-}
-
-#' Generate unique player slug, appending suffix if needed
-#' @param db_pool Database connection pool
-#' @param text Display name to slugify
-#' @param exclude_player_id Player ID to exclude from uniqueness check (for updates)
-#' @return Unique slug string, or NA if text is empty
-generate_unique_slug <- function(db_pool, text, exclude_player_id = NULL) {
-  base_slug <- generate_slug(text)
-  if (is.na(base_slug)) return(NA_character_)
-
-  # Check for existing slug
-  if (!is.null(exclude_player_id)) {
-    existing <- safe_query(db_pool,
-      "SELECT COUNT(*) as n FROM players WHERE slug = $1 AND is_active = TRUE AND player_id != $2",
-      params = list(base_slug, exclude_player_id), default = data.frame(n = 0))
-  } else {
-    existing <- safe_query(db_pool,
-      "SELECT COUNT(*) as n FROM players WHERE slug = $1 AND is_active = TRUE",
-      params = list(base_slug), default = data.frame(n = 0))
-  }
-
-  if (existing$n[1] == 0) return(base_slug)
-
-  # Append suffix for uniqueness
-  for (i in 2:100) {
-    candidate <- paste0(base_slug, "-", i)
-    check <- safe_query(db_pool,
-      "SELECT COUNT(*) as n FROM players WHERE slug = $1 AND is_active = TRUE",
-      params = list(candidate), default = data.frame(n = 0))
-    if (check$n[1] == 0) return(candidate)
-  }
-
-  return(paste0(base_slug, "-", as.integer(Sys.time())))
-}
+# generate_slug() and generate_unique_slug() are defined in R/admin_grid.R
+# (global scope) so both R/ utility files and server/ files can access them.
 
 #' Generate unique store slug, appending suffix if needed
 #' @param db_pool Database connection pool

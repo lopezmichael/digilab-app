@@ -55,7 +55,8 @@ accent_safe_slug <- function(text) {
 #' @param country Character country name of the new metro scene
 #' @param state_region Character state/region name (can be NULL)
 #' @param continent Character continent code (can be NULL)
-ensure_parent_scenes <- function(pool, country, state_region, continent) {
+#' @param admin_username Character username of the admin performing the action (for audit trail)
+ensure_parent_scenes <- function(pool, country, state_region, continent, admin_username = "system") {
   if (is.null(country) || is.na(country) || country == "") return()
 
   # 1. Ensure country scene exists
@@ -71,9 +72,9 @@ ensure_parent_scenes <- function(pool, country, state_region, continent) {
       params = list(country_slug), default = data.frame(n = 1))
     if (slug_check$n[1] == 0) {
       safe_execute(pool,
-        "INSERT INTO scenes (name, slug, display_name, scene_type, country, continent, is_active)
-         VALUES ($1, $2, $3, 'country', $4, $5, TRUE)",
-        params = list(country, country_slug, country, country, continent))
+        "INSERT INTO scenes (name, slug, display_name, scene_type, country, continent, is_active, updated_by)
+         VALUES ($1, $2, $3, 'country', $4, $5, TRUE, $6)",
+        params = list(country, country_slug, country, country, continent, admin_username))
       message(sprintf("[PARENT SCENES] Created country scene: %s (%s)", country, country_slug))
     }
   }
@@ -115,9 +116,9 @@ ensure_parent_scenes <- function(pool, country, state_region, continent) {
   if (slug_check$n[1] > 0) return()  # collision — skip, admin can create manually
 
   safe_execute(pool,
-    "INSERT INTO scenes (name, slug, display_name, scene_type, country, state_region, continent, is_active)
-     VALUES ($1, $2, $3, 'state', $4, $5, $6, TRUE)",
-    params = list(state_region, state_slug, state_region, country, state_region, continent))
+    "INSERT INTO scenes (name, slug, display_name, scene_type, country, state_region, continent, is_active, updated_by)
+     VALUES ($1, $2, $3, 'state', $4, $5, $6, TRUE, $7)",
+    params = list(state_region, state_slug, state_region, country, state_region, continent, admin_username))
   message(sprintf("[PARENT SCENES] Created state scene: %s / %s (%s)", country, state_region, state_slug))
 }
 
@@ -476,14 +477,14 @@ execute_scene_save <- function() {
 
     insert_result <- safe_query(db_pool,
       "INSERT INTO scenes (name, slug, display_name, scene_type, latitude, longitude,
-       is_active, country, state_region, continent)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       is_active, country, state_region, continent, updated_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING scene_id",
       params = list(form$display_name, form$slug, form$display_name, form$scene_type,
                     if (is.na(form$lat)) NA_real_ else form$lat,
                     if (is.na(form$lng)) NA_real_ else form$lng,
                     form$is_active, form$country, form$state_region,
-                    derive_continent(form$country)),
+                    derive_continent(form$country), current_admin_username(rv)),
       default = data.frame())
 
     if (nrow(insert_result) > 0) {
@@ -492,7 +493,8 @@ execute_scene_save <- function() {
       # Auto-create parent country/state scenes if this is a new metro
       if (form$scene_type == "metro") {
         ensure_parent_scenes(db_pool, form$country, form$state_region,
-                             derive_continent(form$country))
+                             derive_continent(form$country),
+                             admin_username = current_admin_username(rv))
       }
 
       rv$refresh_scenes <- rv$refresh_scenes + 1

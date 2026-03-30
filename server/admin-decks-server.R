@@ -216,9 +216,9 @@ observeEvent(input$add_archetype, {
 
   tryCatch({
     safe_execute(db_pool, "
-      INSERT INTO deck_archetypes (archetype_name, display_card_id, primary_color, secondary_color, is_multi_color)
-      VALUES ($1, $2, $3, $4, $5)
-    ", params = list(name, card_id, primary_color, secondary_color, isTRUE(input$deck_multi_color)))
+      INSERT INTO deck_archetypes (archetype_name, display_card_id, primary_color, secondary_color, is_multi_color, updated_by)
+      VALUES ($1, $2, $3, $4, $5, $6)
+    ", params = list(name, card_id, primary_color, secondary_color, isTRUE(input$deck_multi_color), current_admin_username(rv)))
 
     notify(paste("Added archetype:", name), type = "message")
 
@@ -982,10 +982,10 @@ create_deck_from_request <- function(req_id, deck_name, primary_color, secondary
   tryCatch({
     # Create new archetype
     archetype_result <- safe_query(db_pool, "
-      INSERT INTO deck_archetypes (archetype_name, primary_color, secondary_color, display_card_id)
-      VALUES ($1, $2, $3, $4)
+      INSERT INTO deck_archetypes (archetype_name, primary_color, secondary_color, display_card_id, updated_by)
+      VALUES ($1, $2, $3, $4, $5)
       RETURNING archetype_id
-    ", params = list(deck_name, primary_color, secondary_color, card_id),
+    ", params = list(deck_name, primary_color, secondary_color, card_id, current_admin_username(rv)),
        default = data.frame())
     new_archetype_id <- archetype_result$archetype_id[1]
 

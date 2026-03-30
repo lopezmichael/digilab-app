@@ -422,11 +422,12 @@ observeEvent(input$add_store, {
 
     store_slug <- generate_unique_store_slug(db_pool, store_name)
     store_result <- safe_query(db_pool, "
-      INSERT INTO stores (name, slug, address, city, state, zip_code, latitude, longitude, website, is_online, country, scene_id)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      INSERT INTO stores (name, slug, address, city, state, zip_code, latitude, longitude, website, is_online, country, scene_id, updated_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING store_id
     ", params = list(store_name, store_slug, address, store_city_db,
-                     state, zip_code, lat, lng, website, is_online, store_country, scene_id),
+                     state, zip_code, lat, lng, website, is_online, store_country, scene_id,
+                     current_admin_username(rv)),
        default = data.frame(store_id = integer()))
     new_id <- store_result$store_id[1]
 
