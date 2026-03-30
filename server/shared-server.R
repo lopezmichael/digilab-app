@@ -1214,6 +1214,34 @@ get_archetype_choices <- function(pool) {
 # Admin Scope Helpers: Scene access by permission tier
 # ---------------------------------------------------------------------------
 
+#' Resolve a scene slug to the Shiny-internal dropdown format.
+#' The Astro frontend sends raw slugs (e.g., "texas", "united-states").
+#' The Shiny dropdown uses prefix convention ("country:United States", "state:Texas").
+#' This function bridges the two: country/state slugs → prefix, metro slugs → passthrough.
+#' @param pool Database connection pool
+#' @param slug Character scene slug from URL or localStorage
+#' @return Resolved scene value in Shiny dropdown format
+resolve_scene_slug <- function(pool, slug) {
+  if (is.null(slug) || slug == "" || slug == "all" || slug == "online") return(slug)
+  # Already in prefix format — pass through
+
+  if (startsWith(slug, "country:") || startsWith(slug, "state:")) return(slug)
+
+  row <- safe_query(pool,
+    "SELECT scene_type, country, state_region FROM scenes
+     WHERE slug = $1 AND is_active = TRUE LIMIT 1",
+    params = list(slug), default = data.frame())
+
+  if (nrow(row) == 0) return(slug)  # unknown slug, pass through
+
+  switch(row$scene_type[1],
+    "country" = paste0("country:", row$country[1]),
+    "state"   = paste0("state:", row$state_region[1]),
+    "online"  = "online",
+    slug  # metro or anything else — keep raw slug
+  )
+}
+
 #' Get scene IDs an admin can manage based on their role
 #' @param pool Database connection pool
 #' @param admin_user The admin_user reactive list (must have $role, $user_id)
@@ -1478,7 +1506,7 @@ build_filters_param <- function(table_alias = "t",
       } else if (isTRUE(startsWith(scene, "country:"))) {
         country_val <- sub("^country:", "", scene)
         sql_parts <- c(sql_parts, sprintf(
-          "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE country = $%d)",
+          "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE country = $%d AND scene_type = 'metro')",
           store_alias, idx
         ))
         params <- c(params, list(country_val))
@@ -1486,7 +1514,7 @@ build_filters_param <- function(table_alias = "t",
       } else if (isTRUE(startsWith(scene, "state:"))) {
         state_val <- sub("^state:", "", scene)
         sql_parts <- c(sql_parts, sprintf(
-          "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE country = 'United States' AND state_region = $%d)",
+          "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE country = 'United States' AND state_region = $%d AND scene_type = 'metro')",
           store_alias, idx
         ))
         params <- c(params, list(state_val))
@@ -1505,7 +1533,7 @@ build_filters_param <- function(table_alias = "t",
         sql_parts <- c(sql_parts, sprintf("AND %s.is_online = TRUE", store_alias))
       } else {
         sql_parts <- c(sql_parts, sprintf(
-          "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE continent = $%d)",
+          "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE continent = $%d AND scene_type = 'metro')",
           store_alias, idx
         ))
         params <- c(params, list(continent))
@@ -1577,7 +1605,7 @@ build_mv_filters <- function(format = NULL,
       # Country-level filter: all scenes in a country
       country_val <- sub("^country:", "", scene)
       sql_parts <- c(sql_parts, sprintf(
-        "AND %sscene_id IN (SELECT scene_id FROM scenes WHERE country = $%d)", prefix, idx
+        "AND %sscene_id IN (SELECT scene_id FROM scenes WHERE country = $%d AND scene_type = 'metro')", prefix, idx
       ))
       params <- c(params, list(country_val))
       idx <- idx + 1
@@ -1585,7 +1613,7 @@ build_mv_filters <- function(format = NULL,
       # US state-level filter: all scenes in a state
       state_val <- sub("^state:", "", scene)
       sql_parts <- c(sql_parts, sprintf(
-        "AND %sscene_id IN (SELECT scene_id FROM scenes WHERE country = 'United States' AND state_region = $%d)",
+        "AND %sscene_id IN (SELECT scene_id FROM scenes WHERE country = 'United States' AND state_region = $%d AND scene_type = 'metro')",
         prefix, idx
       ))
       params <- c(params, list(state_val))
@@ -1603,7 +1631,7 @@ build_mv_filters <- function(format = NULL,
       sql_parts <- c(sql_parts, sprintf("AND %sis_online = TRUE", prefix))
     } else {
       sql_parts <- c(sql_parts, sprintf(
-        "AND %sscene_id IN (SELECT scene_id FROM scenes WHERE continent = $%d)", prefix, idx
+        "AND %sscene_id IN (SELECT scene_id FROM scenes WHERE continent = $%d AND scene_type = 'metro')", prefix, idx
       ))
       params <- c(params, list(continent))
       idx <- idx + 1

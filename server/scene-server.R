@@ -357,7 +357,7 @@ observeEvent(db_pool, {
       continent <- stored$continent
     }
     if (!is.null(stored$scene) && stored$scene != "") {
-      scene_selected <- apply_slug_redirect(stored$scene)
+      scene_selected <- resolve_scene_slug(db_pool, apply_slug_redirect(stored$scene))
     }
   }
 
@@ -418,7 +418,7 @@ observeEvent(input$scene_from_storage, {
 
   # If there's a stored scene preference, apply it
   if (!is.null(stored$scene) && stored$scene != "") {
-    scene_slug <- apply_slug_redirect(stored$scene)
+    scene_slug <- resolve_scene_slug(db_pool, apply_slug_redirect(stored$scene))
 
     continent <- stored$continent %||% "all"
     rv$current_continent <- continent
