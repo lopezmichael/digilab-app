@@ -98,9 +98,9 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.9.0 - Unified Submit Results Tab
+### Latest Release: v1.9.2 - Match History Schema & Layout-Aware Parser
 
-Consolidated public "Upload Results" and admin "Enter Results" tabs into a single unified "Submit Results" tab with a card-picker landing page. Six entry methods under one roof: Bandai TCG+ Upload, Paste from Spreadsheet, Manual Entry, Match-by-Match, Add Decklists, and Match Results CSV (coming soon). Grid UX improvements include editable placement, tied placements, dynamic Add Player button, and W/L/T override toggle. See `CHANGELOG.md` for full details.
+Layout-aware match history OCR parser using GCV bounding boxes, replacing text-only heuristics. Schema additions: `match_type` (normal/bye/default) and `source` (limitless/ocr/manual) on matches table. Mirror rows for local match submissions. Bye/default detection and handling. See `CHANGELOG.md` for full details.
 
 See `ROADMAP.md` for the full version plan.
 
@@ -108,6 +108,8 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v1.9.2 | Match History Schema & Layout-Aware Parser |
+| v1.9.1 | Auto-Anonymize Guest & Placeholder Players |
 | v1.9.0 | Unified Submit Results Tab |
 | v1.7.8 | Admin Scene Scoping & Merge Fix |
 | v1.7.7 | Duplicate Player Name Fixes |
@@ -366,7 +368,7 @@ python scripts/sync_limitless.py --all-tier1 --since 2025-10-01 --classify
 # Automated: GitHub Actions runs weekly (sync-limitless.yml)
 ```
 
-**Tier 1 Organizers:** Eagle's Nest (452), PHOENIX REBORN (281), DMV Drakes (559), MasterRukasu (578), Expanse Italia (2536)
+**Tier 1 Organizers:** Eagle's Nest (452), PHOENIX REBORN (281), DMV Drakes (559), MasterRukasu (578), Expanse Italia (2536), DigiGalaxy (1009)
 
 ## Code Style Notes
 
@@ -389,6 +391,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.9.0** - Unified Submit Results Tab
+**v1.9.2** - Match History Schema & Layout-Aware Parser
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

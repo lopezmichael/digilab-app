@@ -1264,8 +1264,8 @@ parse_tournament_standings <- function(ocr_text, total_rounds = 4, verbose = TRU
 #' @param verbose Print debug messages
 #' @return Data frame with columns: round, opponent_username, opponent_member_number,
 #'         games_won, games_lost, games_tied, match_points
-parse_match_history <- function(ocr_text, verbose = TRUE) {
-  if (verbose) message("[MATCH] Starting to parse match history...")
+parse_match_history_text <- function(ocr_text, verbose = TRUE) {
+  if (verbose) message("[MATCH] Starting to parse match history (text)...")
 
   if (is.null(ocr_text) || ocr_text == "") {
     if (verbose) message("[MATCH] No OCR text to parse")
@@ -1488,4 +1488,526 @@ parse_match_history <- function(ocr_text, verbose = TRUE) {
   rownames(result_df) <- NULL
 
   result_df
+}
+
+#' Layout-aware match history parser using GCV bounding boxes
+#'
+#' Parses Bandai TCG+ match history screenshots using word-level bounding box
+#' coordinates for column alignment. The match history screen has 4 columns:
+#' Round | Opponent (name + member#) | Results (X-X-X) | Points (0/1/3)
+#'
+#' @param annotations Data frame with columns: text, x_min, y_min, x_max, y_max
+#' @param image_width Image width in pixels
+#' @param image_height Image height in pixels
+#' @param verbose Print debug messages
+#' @return List with matches (data frame) and metadata (list)
+parse_match_history_layout <- function(annotations, image_width, image_height, verbose = TRUE) {
+
+  empty_result <- data.frame(
+    round = integer(),
+    opponent_username = character(),
+    opponent_member_number = character(),
+    games_won = integer(),
+    games_lost = integer(),
+    games_tied = integer(),
+    match_points = integer(),
+    match_type = character(),
+    stringsAsFactors = FALSE
+  )
+
+  if (verbose) message("[MATCH-LAYOUT] Starting layout-aware match history parsing...")
+
+  if (is.null(annotations) || nrow(annotations) == 0) {
+    if (verbose) message("[MATCH-LAYOUT] No annotations to parse")
+    return(empty_result)
+  }
+
+  if (image_width <= 0 || image_height <= 0) {
+    if (verbose) message("[MATCH-LAYOUT] Invalid image dimensions: ", image_width, "x", image_height)
+    return(empty_result)
+  }
+
+  if (verbose) message("[MATCH-LAYOUT] ", nrow(annotations), " annotations, image: ",
+                        image_width, "x", image_height)
+
+  # --- Step 1: Normalize coordinates to percentages ---
+  ann <- annotations
+  ann$x_center_pct <- ((ann$x_min + ann$x_max) / 2) / image_width * 100
+  ann$y_center_pct <- ((ann$y_min + ann$y_max) / 2) / image_height * 100
+  ann$y_min_pct <- ann$y_min / image_height * 100
+  ann$y_max_pct <- ann$y_max / image_height * 100
+  ann$x_min_pct <- ann$x_min / image_width * 100
+  ann$x_max_pct <- ann$x_max / image_width * 100
+
+  if (verbose) {
+    message("[MATCH-LAYOUT] Sample annotations (first 10):")
+    for (i in seq_len(min(10, nrow(ann)))) {
+      message("[MATCH-LAYOUT]   '", ann$text[i], "' x_center=", round(ann$x_center_pct[i], 1),
+              "% y_center=", round(ann$y_center_pct[i], 1), "%")
+    }
+  }
+
+  # --- Step 2: Filter status bar (y < 5%) and nav bar (y > 92%) ---
+  n_before <- nrow(ann)
+  ann <- ann[ann$y_center_pct >= 5 & ann$y_center_pct <= 92, ]
+  if (verbose) message("[MATCH-LAYOUT] Filtered top/bottom bars: ", n_before, " -> ", nrow(ann))
+
+  if (nrow(ann) == 0) return(empty_result)
+
+  # --- Step 3: Extract metadata from above table (best-effort) ---
+  metadata <- list(ranking = NA, total_points = NA, store_name = NA, event_name = NA)
+
+  # --- Step 4: Detect header row from keywords ---
+  header_keywords <- c("round", "opponent", "results", "points")
+  header_ann <- ann[tolower(ann$text) %in% header_keywords, ]
+
+  # Column boundary defaults (percentage of image width)
+  round_max <- 12       # Round column: 0-12%
+  opponent_min <- 12    # Opponent: 12-58%
+  opponent_max <- 58
+  results_min <- 58     # Results: 58-80%
+  results_max <- 80
+  points_min <- 80      # Points: 80-100%
+
+  header_y <- NA
+
+  if (nrow(header_ann) >= 2) {
+    # Header row Y is the median Y of header keywords
+    header_y <- median(header_ann$y_center_pct)
+    if (verbose) message("[MATCH-LAYOUT] Header row detected at y=", round(header_y, 1), "%")
+
+    # Refine column boundaries from header X-positions
+    for (h in seq_len(nrow(header_ann))) {
+      kw <- tolower(header_ann$text[h])
+      x_center <- header_ann$x_center_pct[h]
+      x_min_h <- header_ann$x_min_pct[h]
+      x_max_h <- header_ann$x_max_pct[h]
+
+      if (kw == "round") {
+        round_max <- x_max_h + 3
+        opponent_min <- x_max_h + 1
+        if (verbose) message("[MATCH-LAYOUT]   'round' at x=", round(x_center, 1),
+                              "%, round_max=", round(round_max, 1), "%")
+      } else if (kw == "opponent") {
+        opponent_min <- x_min_h - 2
+        if (verbose) message("[MATCH-LAYOUT]   'opponent' at x=", round(x_center, 1),
+                              "%, opponent_min=", round(opponent_min, 1), "%")
+      } else if (kw == "results") {
+        results_min <- x_min_h - 2
+        opponent_max <- x_min_h - 2
+        results_max <- x_max_h + 10
+        if (verbose) message("[MATCH-LAYOUT]   'results' at x=", round(x_center, 1),
+                              "%, results_min=", round(results_min, 1), "%")
+      } else if (kw == "points") {
+        points_min <- x_min_h - 2
+        results_max <- x_min_h - 2
+        if (verbose) message("[MATCH-LAYOUT]   'points' at x=", round(x_center, 1),
+                              "%, points_min=", round(points_min, 1), "%")
+      }
+    }
+
+    # Remove header row and everything above it
+    ann <- ann[ann$y_center_pct > header_y + 2, ]
+    if (verbose) message("[MATCH-LAYOUT] Removed header and above, ", nrow(ann), " annotations remain")
+  } else {
+    if (verbose) message("[MATCH-LAYOUT] No header row found (scrolled screenshot?), using defaults")
+  }
+
+  if (verbose) {
+    message("[MATCH-LAYOUT] Column boundaries: round=[0-", round(round_max, 1),
+            "%], opponent=[", round(opponent_min, 1), "-", round(opponent_max, 1),
+            "%], results=[", round(results_min, 1), "-", round(results_max, 1),
+            "%], points=[", round(points_min, 1), "-100%]")
+  }
+
+  if (nrow(ann) == 0) return(empty_result)
+
+  # --- Step 5: Filter known noise text ---
+  noise_patterns <- c(
+    "privacy", "policy", "digimon", "card", "game", "home",
+    "my", "events", "event", "search", "decks", "others",
+    "store", "match", "history",
+    "bandai", "obandai", "akiyoshi", "animation", "reserved", "rights",
+    "all", "\u00a9", "toei",
+    "ranking", "cardgame", "ranki", "ng",
+    "eard", "bamb",
+    "+",
+    "co", "ltd", "hongo", "bunkyo-ku", "bunkyo",
+    "tokyo", "inc",
+    # Match history legend
+    "3:", "1:", "0:", "win,", "draw,", "lose",
+    "win", "draw", "lose"
+  )
+
+  is_noise <- tolower(ann$text) %in% noise_patterns |
+    grepl("^B[\\x{2B50}\\x{2736}\\x{2606}\\x{2605}\\x{2731}\u2b51\u2736\u2606\u2605X]+$", ann$text, perl = TRUE) |
+    grepl("^BXXX", ann$text) |
+    grepl("^\u00a9", ann$text) |
+    grepl("^\\.$", ann$text) |
+    grepl("^[^A-Za-z0-9]$", ann$text)
+
+  n_before <- nrow(ann)
+  ann <- ann[!is_noise, ]
+  if (verbose) message("[MATCH-LAYOUT] Filtered noise: ", n_before, " -> ", nrow(ann))
+
+  if (nrow(ann) == 0) return(empty_result)
+
+  # --- Step 6: Cluster into rows by Y-center ---
+  ann <- ann[order(ann$y_center_pct), ]
+  row_ids <- integer(nrow(ann))
+  current_row <- 1
+  row_ids[1] <- 1
+
+  if (nrow(ann) > 1) {
+    for (i in 2:nrow(ann)) {
+      if (ann$y_center_pct[i] - ann$y_center_pct[i - 1] > 1.5) {
+        current_row <- current_row + 1
+      }
+      row_ids[i] <- current_row
+    }
+  }
+
+  ann$row_id <- row_ids
+  n_rows <- max(row_ids)
+  if (verbose) message("[MATCH-LAYOUT] Clustered into ", n_rows, " visual rows")
+
+  # --- Step 7: Extract match data from each row ---
+  results <- list()
+
+  for (r in seq_len(n_rows)) {
+    row_ann <- ann[ann$row_id == r, ]
+    if (nrow(row_ann) == 0) next
+
+    row_y_center <- mean(row_ann$y_center_pct)
+
+    # Classify annotations by column
+    round_texts <- row_ann[row_ann$x_center_pct <= round_max, , drop = FALSE]
+    opponent_texts <- row_ann[row_ann$x_center_pct > opponent_min &
+                                row_ann$x_center_pct <= opponent_max, , drop = FALSE]
+    results_texts <- row_ann[row_ann$x_center_pct > results_min &
+                               row_ann$x_center_pct <= results_max, , drop = FALSE]
+    points_texts <- row_ann[row_ann$x_center_pct > points_min, , drop = FALSE]
+
+    if (verbose && nrow(row_ann) > 0) {
+      all_text <- paste(row_ann$text, collapse = " | ")
+      message("[MATCH-LAYOUT] Row ", r, " (y=", round(row_y_center, 1), "%): ", all_text)
+    }
+
+    # --- Extract round number ---
+    round_num <- NA_integer_
+    if (nrow(round_texts) > 0) {
+      for (rt in seq_len(nrow(round_texts))) {
+        cleaned <- gsub("[^0-9]", "", round_texts$text[rt])
+        if (nchar(cleaned) > 0) {
+          val <- suppressWarnings(as.integer(cleaned))
+          if (!is.na(val) && val >= 1 && val <= 15) {
+            round_num <- val
+            break
+          }
+        }
+      }
+    }
+
+    # --- Extract opponent username and member number ---
+    opponent_username <- NA_character_
+    opponent_member <- NA_character_
+    match_type <- "normal"
+
+    if (nrow(opponent_texts) > 0) {
+      # Sort by Y position (username above member number)
+      opponent_texts <- opponent_texts[order(opponent_texts$y_center_pct), ]
+
+      # Separate into visual sub-lines (within 1% Y = same line)
+      sub_lines <- list()
+      current_sub <- list(opponent_texts[1, ])
+      if (nrow(opponent_texts) > 1) {
+        for (ot in 2:nrow(opponent_texts)) {
+          if (abs(opponent_texts$y_center_pct[ot] -
+                  opponent_texts$y_center_pct[ot - 1]) <= 1.0) {
+            current_sub[[length(current_sub) + 1]] <- opponent_texts[ot, ]
+          } else {
+            sub_lines[[length(sub_lines) + 1]] <- do.call(rbind, current_sub)
+            current_sub <- list(opponent_texts[ot, ])
+          }
+        }
+      }
+      sub_lines[[length(sub_lines) + 1]] <- do.call(rbind, current_sub)
+
+      # Process each sub-line
+      for (sl in seq_along(sub_lines)) {
+        sub_line <- sub_lines[[sl]]
+        sub_line <- sub_line[order(sub_line$x_center_pct), ]
+        line_text <- paste(sub_line$text, collapse = " ")
+
+        # Check for "Win by Default" / bye patterns
+        # GCV may split "Win" into the round column, leaving "by Default" in opponent
+        if (grepl("Win\\s+by\\s+Default", line_text, ignore.case = TRUE) ||
+            grepl("^by\\s+Default$", line_text, ignore.case = TRUE) ||
+            grepl("^Default$", line_text, ignore.case = TRUE)) {
+          match_type <- "default"
+          opponent_username <- "Win by Default"
+          if (verbose) message("[MATCH-LAYOUT]   Win by Default detected")
+          next
+        }
+
+        # Check for 10-digit member number
+        if (grepl("\\d{10}", line_text)) {
+          mem_match <- regmatches(line_text, regexec("(\\d{10})", line_text))[[1]]
+          if (length(mem_match) > 1) {
+            opponent_member <- mem_match[2]
+            if (verbose) message("[MATCH-LAYOUT]   Member number: ", opponent_member)
+            next
+          }
+        }
+
+        # Check for GUEST##### pattern
+        if (grepl("GUEST\\d{5}", line_text, ignore.case = TRUE)) {
+          mem_match <- regmatches(line_text, regexec("(GUEST\\d{5})", line_text, ignore.case = TRUE))[[1]]
+          if (length(mem_match) > 1) {
+            opponent_member <- mem_match[2]
+            if (verbose) message("[MATCH-LAYOUT]   Member number (GUEST): ", opponent_member)
+            next
+          }
+        }
+
+        # Skip "Member" / "Number" keywords
+        if (grepl("^Member$", line_text, ignore.case = TRUE) ||
+            grepl("^Number$", line_text, ignore.case = TRUE) ||
+            grepl("^Member\\s+Number", line_text, ignore.case = TRUE)) {
+          # Try to extract embedded member number
+          full_match <- regmatches(line_text,
+                                    regexec("Member\\s+Number\\s*:?\\s*(\\d{10}|GUEST\\d{5})",
+                                            line_text, ignore.case = TRUE))[[1]]
+          if (length(full_match) > 1) {
+            opponent_member <- full_match[2]
+            if (verbose) message("[MATCH-LAYOUT]   Member number (labeled): ", opponent_member)
+          }
+          next
+        }
+
+        # Check individual annotations for member numbers
+        has_member <- FALSE
+        for (at in seq_len(nrow(sub_line))) {
+          ann_text <- sub_line$text[at]
+          if (grepl("^\\d{10}$", ann_text)) {
+            opponent_member <- ann_text
+            has_member <- TRUE
+            if (verbose) message("[MATCH-LAYOUT]   Member number (individual): ", opponent_member)
+          } else if (grepl("^GUEST\\d{5}$", ann_text, ignore.case = TRUE)) {
+            opponent_member <- ann_text
+            has_member <- TRUE
+            if (verbose) message("[MATCH-LAYOUT]   Member number (GUEST individual): ", opponent_member)
+          }
+        }
+        if (has_member) next
+
+        # This sub-line is a username candidate
+        username_parts <- c()
+        for (at in seq_len(nrow(sub_line))) {
+          ann_text <- sub_line$text[at]
+          if (grepl("^(Member|Number)$", ann_text, ignore.case = TRUE)) next
+          username_parts <- c(username_parts, ann_text)
+        }
+
+        if (length(username_parts) > 0 && is.na(opponent_username)) {
+          opponent_username <- paste(username_parts, collapse = " ")
+          if (verbose) message("[MATCH-LAYOUT]   Username: '", opponent_username, "'")
+        }
+      }
+    }
+
+    # Scan all row text for member numbers if not found in opponent column
+    if (is.na(opponent_member) && match_type == "normal") {
+      for (ri in seq_len(nrow(row_ann))) {
+        txt <- row_ann$text[ri]
+        if (grepl("^\\d{10}$", txt)) {
+          opponent_member <- txt
+          if (verbose) message("[MATCH-LAYOUT]   Member number (row scan): ", opponent_member)
+          break
+        } else if (grepl("^GUEST\\d{5}$", txt, ignore.case = TRUE)) {
+          opponent_member <- txt
+          if (verbose) message("[MATCH-LAYOUT]   Member number (row scan GUEST): ", opponent_member)
+          break
+        }
+      }
+    }
+
+    # --- Extract results (X-X-X) ---
+    games_won <- NA_integer_
+    games_lost <- NA_integer_
+    games_tied <- NA_integer_
+
+    if (nrow(results_texts) > 0) {
+      # Try to find X-X-X pattern in combined text or individual annotations
+      for (rt in seq_len(nrow(results_texts))) {
+        result_match <- regmatches(results_texts$text[rt],
+                                     regexec("^(\\d)$", results_texts$text[rt]))[[1]]
+        # Individual digits — collect them
+      }
+
+      # Try combined text approach first
+      results_texts_sorted <- results_texts[order(results_texts$x_center_pct), ]
+      combined <- paste(results_texts_sorted$text, collapse = "")
+      # Match X-X-X with optional spaces/dashes
+      combined_match <- regmatches(combined, regexec("(\\d)\\s*-\\s*(\\d)\\s*-\\s*(\\d)", combined))[[1]]
+      if (length(combined_match) > 1) {
+        games_won <- as.integer(combined_match[2])
+        games_lost <- as.integer(combined_match[3])
+        games_tied <- as.integer(combined_match[4])
+        if (verbose) message("[MATCH-LAYOUT]   Results: ", games_won, "-", games_lost, "-", games_tied)
+      } else {
+        # Try individual annotations — OCR might split "2-1-0" into "2-1-0" or "2" "-" "1" "-" "0"
+        digits <- c()
+        for (rt in seq_len(nrow(results_texts_sorted))) {
+          txt <- results_texts_sorted$text[rt]
+          # Extract all digits
+          d <- regmatches(txt, gregexpr("\\d", txt))[[1]]
+          digits <- c(digits, d)
+        }
+        if (length(digits) >= 3) {
+          games_won <- as.integer(digits[1])
+          games_lost <- as.integer(digits[2])
+          games_tied <- as.integer(digits[3])
+          if (verbose) message("[MATCH-LAYOUT]   Results (digits): ", games_won, "-", games_lost, "-", games_tied)
+        }
+      }
+    }
+
+    # --- Extract points ---
+    match_points <- NA_integer_
+    if (nrow(points_texts) > 0) {
+      for (pt in seq_len(nrow(points_texts))) {
+        cleaned <- gsub("[^0-9]", "", points_texts$text[pt])
+        if (nchar(cleaned) > 0) {
+          val <- suppressWarnings(as.integer(cleaned))
+          if (!is.na(val) && val %in% c(0L, 1L, 3L)) {
+            match_points <- val
+            if (verbose) message("[MATCH-LAYOUT]   Points: ", match_points)
+            break
+          }
+        }
+      }
+    }
+
+    # --- Validate: need at least a round or opponent to be a real row ---
+    has_round <- !is.na(round_num)
+    has_opponent <- !is.na(opponent_username) || match_type == "default"
+
+    if (!has_round && !has_opponent) {
+      if (verbose) message("[MATCH-LAYOUT]   Skipping row ", r, ": no round or opponent")
+      next
+    }
+
+    # Defaults for byes/defaults
+    if (match_type == "default") {
+      if (is.na(games_won)) games_won <- 0L
+      if (is.na(games_lost)) games_lost <- 0L
+      if (is.na(games_tied)) games_tied <- 0L
+      if (is.na(match_points)) match_points <- 3L  # Default wins give 3 points
+    }
+
+    results[[length(results) + 1]] <- data.frame(
+      round = if (is.na(round_num)) length(results) + 1L else round_num,
+      opponent_username = if (is.na(opponent_username)) "" else opponent_username,
+      opponent_member_number = if (is.na(opponent_member)) NA_character_ else opponent_member,
+      games_won = if (is.na(games_won)) 0L else games_won,
+      games_lost = if (is.na(games_lost)) 0L else games_lost,
+      games_tied = if (is.na(games_tied)) 0L else games_tied,
+      match_points = if (is.na(match_points)) 0L else match_points,
+      match_type = match_type,
+      stringsAsFactors = FALSE
+    )
+
+    if (verbose) {
+      message("[MATCH-LAYOUT]   -> Round ", round_num, ": ",
+              if (match_type == "default") "Win by Default" else opponent_username,
+              " (", opponent_member, ") ",
+              games_won, "-", games_lost, "-", games_tied, " pts=", match_points)
+    }
+  }
+
+  if (verbose) message("[MATCH-LAYOUT] Extracted ", length(results), " match rows")
+
+  if (length(results) == 0) return(empty_result)
+
+  # Build result data frame
+  result_df <- do.call(rbind, results)
+  result_df <- result_df[order(result_df$round), ]
+  rownames(result_df) <- NULL
+
+  if (verbose) {
+    message("[MATCH-LAYOUT] Final: ", nrow(result_df), " matches")
+    for (i in seq_len(nrow(result_df))) {
+      message("[MATCH-LAYOUT]   R", result_df$round[i], " vs ", result_df$opponent_username[i],
+              " (", result_df$opponent_member_number[i], ") ",
+              result_df$games_won[i], "-", result_df$games_lost[i], "-", result_df$games_tied[i],
+              " pts=", result_df$match_points[i],
+              if (result_df$match_type[i] != "normal") paste0(" [", result_df$match_type[i], "]") else "")
+    }
+  }
+
+  result_df
+}
+
+#' Parse match history with layout-first fallback strategy
+#'
+#' Tries the layout-aware parser first (uses bounding boxes).
+#' Falls back to the text-based parser if layout parsing fails.
+#' Same pattern as parse_standings().
+#'
+#' @param ocr_result Result from gcv_detect_text() — either a list or plain text string
+#' @param verbose Print debug messages
+#' @return Data frame with columns: round, opponent_username, opponent_member_number,
+#'         games_won, games_lost, games_tied, match_points, match_type
+parse_match_history <- function(ocr_result, verbose = TRUE) {
+  # Handle both new list format and legacy plain text
+  if (is.list(ocr_result)) {
+    text <- ocr_result$text
+    annotations <- ocr_result$annotations
+    image_width <- ocr_result$image_width
+    image_height <- ocr_result$image_height
+  } else {
+    text <- ocr_result
+    annotations <- NULL
+    image_width <- 0
+    image_height <- 0
+  }
+
+  # Try layout-aware parser first
+  if (!is.null(annotations) && nrow(annotations) > 0 && image_width > 0 && image_height > 0) {
+    if (verbose) message("[OCR] Trying layout-aware match history parser...")
+
+    layout_result <- tryCatch({
+      parse_match_history_layout(annotations, image_width, image_height, verbose = verbose)
+    }, error = function(e) {
+      if (verbose) message("[OCR] Layout match parser error: ", e$message)
+      data.frame()
+    })
+
+    # Validate: need at least 1 match with opponent or default
+    if (nrow(layout_result) > 0) {
+      has_opponent <- any(!is.na(layout_result$opponent_username) & layout_result$opponent_username != "")
+      has_results <- any(!is.na(layout_result$games_won))
+
+      if (has_opponent && has_results) {
+        if (verbose) message("[OCR] Using layout match parser (", nrow(layout_result), " matches found)")
+        return(layout_result)
+      } else {
+        if (verbose) message("[OCR] Layout match parser returned incomplete data, falling back to text parser")
+      }
+    } else {
+      if (verbose) message("[OCR] Layout match parser returned 0 matches, falling back to text parser")
+    }
+  }
+
+  # Fallback to text-based parser
+  if (verbose) message("[OCR] Using text-based match history parser")
+  result <- parse_match_history_text(text, verbose = verbose)
+
+  # Add match_type column if missing (text parser doesn't produce it)
+  if (nrow(result) > 0 && !"match_type" %in% names(result)) {
+    result$match_type <- "normal"
+  }
+
+  result
 }

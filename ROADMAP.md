@@ -1,6 +1,6 @@
 ---
-currentVersion: "1.9.0"
-lastUpdated: "2026-03-23"
+currentVersion: "1.9.2"
+lastUpdated: "2026-03-29"
 
 inProgress: []
 
@@ -18,11 +18,6 @@ planned:
     tags: [security, fix]
     targetVersion: "v1.9.0"
 
-  - id: ocr-improvements
-    title: "OCR Upload Improvements"
-    description: "Bug fixes and process improvements for screenshot-based OCR uploads including better error handling and accuracy."
-    tags: [feature, data]
-    targetVersion: "v1.9.0"
 
   # v1.10.0 — Onboarding & Dashboard Rework
   - id: onboarding-rework
@@ -197,6 +192,14 @@ planned:
     targetVersion: "Future"
 
 completed:
+  # v1.9.2 — Match History Schema & Layout-Aware Parser
+  - id: ocr-improvements
+    title: "OCR Upload Improvements"
+    description: "Layout-aware match history parser using GCV bounding boxes, match_type/source schema columns, mirror rows for local submissions, bye/default handling."
+    tags: [feature, data]
+    date: "2026-03"
+    version: "v1.9.2"
+
   # v1.9.0 — Unified Submit Results
   - id: results-upload-redesign
     title: "Unified Submit Results Tab & Grid Improvements"

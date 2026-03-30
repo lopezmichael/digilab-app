@@ -311,11 +311,13 @@ CREATE TABLE IF NOT EXISTS matches (
     tournament_id INTEGER NOT NULL REFERENCES tournaments(tournament_id) ON DELETE CASCADE,
     round_number INTEGER NOT NULL,
     player_id INTEGER NOT NULL REFERENCES players(player_id) ON DELETE RESTRICT,
-    opponent_id INTEGER NOT NULL REFERENCES players(player_id) ON DELETE RESTRICT,
+    opponent_id INTEGER REFERENCES players(player_id) ON DELETE RESTRICT,  -- NULL for byes/defaults
     games_won INTEGER NOT NULL DEFAULT 0,
     games_lost INTEGER NOT NULL DEFAULT 0,
     games_tied INTEGER NOT NULL DEFAULT 0,
     match_points INTEGER NOT NULL DEFAULT 0,  -- 3=win, 1=draw, 0=loss
+    match_type VARCHAR(10) DEFAULT 'normal',  -- normal, bye, default
+    source VARCHAR(20) DEFAULT 'manual',      -- limitless, ocr, manual
     submitted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(tournament_id, round_number, player_id)
 );

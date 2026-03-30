@@ -37,6 +37,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **OCR OBANDAI noise**: Google Cloud Vision merges `©BANDAI` into `OBANDAI` token. Added to noise filter list.
 - **Meta filters not conjunctive**: "Top 3 Only" + "Has Decklist" applied independently — showed archetypes with any top-3 AND any decklist, not archetypes where a top-3 result has a decklist. Now queries with both conditions on the same result row. Same fix in deck profile modal.
 
+## [1.9.2] - 2026-03-29 - Match History Schema & Layout-Aware Parser
+
+### Added
+- **Layout-aware match history parser**: New `parse_match_history_layout()` uses GCV bounding box coordinates for column alignment instead of text-only heuristics. Detects 4-column layout (Round, Opponent, Results, Points) from header keywords, dynamically sets column boundaries. Outperforms text parser on 3 of 10 test screenshots (catches rounds the text parser misses).
+- **Match type tracking**: New `match_type` column on matches table (`normal`, `bye`, `default`). "Win by Default" rows automatically tagged during OCR parsing and excluded from mirror row creation.
+- **Match source tracking**: New `source` column on matches table (`limitless`, `ocr`, `manual`). Existing data backfilled — 38,305 Limitless matches and 19 OCR matches tagged.
+- **Mirror rows for local submissions**: Match-by-match submit now inserts the opponent's perspective (flipped W/L) alongside the player's row, matching the Limitless sync behavior. Duplicate-safe via `ON CONFLICT DO NOTHING` pattern with dedicated savepoints.
+- **Migration 013**: `opponent_id` nullable for byes/defaults, `match_type` and `source` columns added, existing data backfilled. 19 existing OCR matches backfilled with mirror rows.
+
+### Changed
+- **OCR parser routing**: `parse_match_history()` wrapper now tries layout parser first (when bounding boxes available), falls back to text parser. Same pattern as `parse_standings()`.
+- **Full OCR result passed to parser**: Submit server now passes the full `ocr_result` list (with annotations + dimensions) instead of just the text string, enabling layout-aware parsing.
+- **Limitless sync source tagging**: All 4 match INSERT statements in `sync_limitless.py` now include `source='limitless'`.
+
+### Fixed
+- **Mirror row savepoint isolation**: Mirror INSERT wrapped in its own savepoint so failures don't poison the outer transaction.
+- **"Win by Default" split detection**: GCV splits "Win" into the round column area, leaving only "by Default" in the opponent column. Parser and server now match the partial pattern.
+
 ## [1.9.1] - 2026-03-25 - Auto-Anonymize Guest & Placeholder Players
 
 ### Added

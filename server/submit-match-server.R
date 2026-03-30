@@ -457,9 +457,9 @@ observeEvent(input$sr_match_process_ocr, {
 
   message("[MATCH SUBMIT] OCR text length: ", nchar(ocr_text))
 
-  # Parse match history
+  # Parse match history (pass full OCR result for layout-aware parsing)
   parsed <- tryCatch({
-    parse_match_history(ocr_text, verbose = TRUE)
+    parse_match_history(ocr_result, verbose = TRUE)
   }, error = function(e) {
     message("[MATCH SUBMIT] Parse error: ", e$message)
     data.frame()
@@ -482,6 +482,7 @@ observeEvent(input$sr_match_process_ocr, {
           games_lost = 0,
           games_tied = 0,
           match_points = 0,
+          match_type = "normal",
           stringsAsFactors = FALSE
         )
         parsed <- rbind(parsed, blank_row)
@@ -793,34 +794,40 @@ observeEvent(input$sr_match_submit, {
         as.integer(row$match_points)
       }
 
-      opp_has_real_id <- has_real_member_number(opponent_member)
-      clean_opp_member <- if (opp_has_real_id) opponent_member else NA_character_
-      opp_auto_anon <- should_auto_anonymize(opponent_username, opponent_member)
-
-      # Use pre-matched player ID from auto-fill if available —
-      # but only if the user hasn't edited the opponent name
-      name_changed <- !is.null(opponent_username) && nchar(opponent_username) > 0 &&
-                      tolower(trimws(opponent_username)) != tolower(trimws(row$opponent_username %||% ""))
-      pre_matched_id <- if (!name_changed && "opponent_player_id" %in% names(row) && !is.na(row$opponent_player_id)) {
-        as.integer(row$opponent_player_id)
+      # Determine match type from parsed data or default
+      row_match_type <- if ("match_type" %in% names(row) && !is.na(row$match_type)) {
+        row$match_type
       } else {
-        NULL
+        "normal"
       }
 
-      if (!is.null(pre_matched_id)) {
-        opponent_id <- pre_matched_id
-        # Still update member number if we have a real one
-        if (opp_has_real_id) {
-          DBI::dbExecute(conn, "
-            UPDATE players SET member_number = $1, identity_status = 'verified'
-            WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
-          ", params = list(clean_opp_member, opponent_id))
-        }
+      # Check for bye/default — "Win by Default" opponent
+      is_bye_or_default <- row_match_type %in% c("bye", "default") ||
+        grepl("(Win\\s+)?by\\s+Default", opponent_username, ignore.case = TRUE) ||
+        grepl("^Default$", opponent_username, ignore.case = TRUE)
+
+      if (is_bye_or_default) {
+        # Bye/default: no opponent, no player creation, no mirror row
+        row_match_type <- "default"
+        opponent_id <- NA_integer_
       } else {
-        # Fallback: run match_player() at submission time
-        opp_match_info <- match_player(opponent_username, conn, member_number = clean_opp_member, scene_id = match_scene_id)
-        if (opp_match_info$status == "matched") {
-          opponent_id <- opp_match_info$player_id
+        opp_has_real_id <- has_real_member_number(opponent_member)
+        clean_opp_member <- if (opp_has_real_id) opponent_member else NA_character_
+        opp_auto_anon <- should_auto_anonymize(opponent_username, opponent_member)
+
+        # Use pre-matched player ID from auto-fill if available —
+        # but only if the user hasn't edited the opponent name
+        name_changed <- !is.null(opponent_username) && nchar(opponent_username) > 0 &&
+                        tolower(trimws(opponent_username)) != tolower(trimws(row$opponent_username %||% ""))
+        pre_matched_id <- if (!name_changed && "opponent_player_id" %in% names(row) && !is.na(row$opponent_player_id)) {
+          as.integer(row$opponent_player_id)
+        } else {
+          NULL
+        }
+
+        if (!is.null(pre_matched_id)) {
+          opponent_id <- pre_matched_id
+          # Still update member number if we have a real one
           if (opp_has_real_id) {
             DBI::dbExecute(conn, "
               UPDATE players SET member_number = $1, identity_status = 'verified'
@@ -828,14 +835,34 @@ observeEvent(input$sr_match_submit, {
             ", params = list(clean_opp_member, opponent_id))
           }
         } else {
-          opp_identity <- if (opp_has_real_id) "verified" else "unverified"
-          # Check for existing player by member_number first to avoid duplicate key
-          if (opp_has_real_id) {
-            existing_opp <- DBI::dbGetQuery(conn,
-              "SELECT player_id FROM players WHERE member_number = $1 LIMIT 1",
-              params = list(clean_opp_member))
-            if (nrow(existing_opp) > 0) {
-              opponent_id <- existing_opp$player_id[1]
+          # Fallback: run match_player() at submission time
+          opp_match_info <- match_player(opponent_username, conn, member_number = clean_opp_member, scene_id = match_scene_id)
+          if (opp_match_info$status == "matched") {
+            opponent_id <- opp_match_info$player_id
+            if (opp_has_real_id) {
+              DBI::dbExecute(conn, "
+                UPDATE players SET member_number = $1, identity_status = 'verified'
+                WHERE player_id = $2 AND (member_number IS NULL OR member_number = '')
+              ", params = list(clean_opp_member, opponent_id))
+            }
+          } else {
+            opp_identity <- if (opp_has_real_id) "verified" else "unverified"
+            # Check for existing player by member_number first to avoid duplicate key
+            if (opp_has_real_id) {
+              existing_opp <- DBI::dbGetQuery(conn,
+                "SELECT player_id FROM players WHERE member_number = $1 LIMIT 1",
+                params = list(clean_opp_member))
+              if (nrow(existing_opp) > 0) {
+                opponent_id <- existing_opp$player_id[1]
+              } else {
+                opp_slug <- generate_unique_slug(conn, opponent_username)
+                new_opponent <- DBI::dbGetQuery(conn, "
+                  INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized)
+                  VALUES ($1, $2, $3, $4, $5, $6)
+                  RETURNING player_id
+                ", params = list(opponent_username, opp_slug, clean_opp_member, opp_identity, match_scene_id, opp_auto_anon))
+                opponent_id <- new_opponent$player_id[1]
+              }
             } else {
               opp_slug <- generate_unique_slug(conn, opponent_username)
               new_opponent <- DBI::dbGetQuery(conn, "
@@ -845,33 +872,69 @@ observeEvent(input$sr_match_submit, {
               ", params = list(opponent_username, opp_slug, clean_opp_member, opp_identity, match_scene_id, opp_auto_anon))
               opponent_id <- new_opponent$player_id[1]
             }
-          } else {
-            opp_slug <- generate_unique_slug(conn, opponent_username)
-            new_opponent <- DBI::dbGetQuery(conn, "
-              INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized)
-              VALUES ($1, $2, $3, $4, $5, $6)
-              RETURNING player_id
-            ", params = list(opponent_username, opp_slug, clean_opp_member, opp_identity, match_scene_id, opp_auto_anon))
-            opponent_id <- new_opponent$player_id[1]
           }
         }
       }
 
       tryCatch({
         DBI::dbExecute(conn, sprintf("SAVEPOINT match_%d", i))
+
+        # Insert player's perspective
         DBI::dbExecute(conn, "
-          INSERT INTO matches (tournament_id, round_number, player_id, opponent_id, games_won, games_lost, games_tied, match_points)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          INSERT INTO matches (tournament_id, round_number, player_id, opponent_id,
+                               games_won, games_lost, games_tied, match_points,
+                               match_type, source)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         ", params = list(
           tournament_id,
           as.integer(row$round),
           player_id,
-          opponent_id,
+          if (is_bye_or_default) NA_integer_ else opponent_id,
           games_won,
           games_lost,
           games_tied,
-          match_points
+          match_points,
+          row_match_type,
+          "ocr"
         ))
+
+        # Insert mirror row (opponent's perspective) — skip for byes/defaults
+        if (!is_bye_or_default && !is.na(opponent_id)) {
+          # Flip W/L for opponent's perspective
+          opp_won <- games_lost
+          opp_lost <- games_won
+          opp_tied <- games_tied
+          opp_points <- if (opp_won > opp_lost) 3L else if (opp_won < opp_lost) 0L else 1L
+
+          tryCatch({
+            DBI::dbExecute(conn, sprintf("SAVEPOINT mirror_%d", i))
+            DBI::dbExecute(conn, "
+              INSERT INTO matches (tournament_id, round_number, player_id, opponent_id,
+                                   games_won, games_lost, games_tied, match_points,
+                                   match_type, source)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            ", params = list(
+              tournament_id,
+              as.integer(row$round),
+              opponent_id,
+              player_id,
+              opp_won,
+              opp_lost,
+              opp_tied,
+              opp_points,
+              "normal",
+              "ocr"
+            ))
+            DBI::dbExecute(conn, sprintf("RELEASE SAVEPOINT mirror_%d", i))
+          }, error = function(me) {
+            # Roll back mirror savepoint to keep transaction healthy
+            tryCatch(DBI::dbExecute(conn, sprintf("ROLLBACK TO SAVEPOINT mirror_%d", i)), error = function(re) NULL)
+            if (!grepl("unique|duplicate", me$message, ignore.case = TRUE)) {
+              message("[MATCH SUBMIT] Mirror row error (non-duplicate): ", me$message)
+            }
+          })
+        }
+
         DBI::dbExecute(conn, sprintf("RELEASE SAVEPOINT match_%d", i))
         matches_inserted <- matches_inserted + 1
       }, error = function(e) {

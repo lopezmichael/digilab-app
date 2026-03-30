@@ -61,6 +61,7 @@ TIER1_ORGANIZERS = {
     559: "DMV Drakes",
     578: "MasterRukasu",
     2536: "Expanse Italia",
+    1009: "DigiGalaxy",
 }
 
 
@@ -648,16 +649,16 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
             cursor.execute("""
                 INSERT INTO matches
                     (match_id, tournament_id, round_number, player_id, opponent_id,
-                     games_won, games_lost, games_tied, match_points, submitted_at)
-                VALUES (%s, %s, %s, %s, %s, 0, 0, 0, %s, CURRENT_TIMESTAMP)
+                     games_won, games_lost, games_tied, match_points, source, submitted_at)
+                VALUES (%s, %s, %s, %s, %s, 0, 0, 0, %s, 'limitless', CURRENT_TIMESTAMP)
             """, (next_match_id, next_tournament_id, round_number, player1_id, player2_id, p1_points))
 
             # Player 2's perspective
             cursor.execute("""
                 INSERT INTO matches
                     (match_id, tournament_id, round_number, player_id, opponent_id,
-                     games_won, games_lost, games_tied, match_points, submitted_at)
-                VALUES (%s, %s, %s, %s, %s, 0, 0, 0, %s, CURRENT_TIMESTAMP)
+                     games_won, games_lost, games_tied, match_points, source, submitted_at)
+                VALUES (%s, %s, %s, %s, %s, 0, 0, 0, %s, 'limitless', CURRENT_TIMESTAMP)
             """, (next_match_id + 1, next_tournament_id, round_number, player2_id, player1_id, p2_points))
 
             matches_inserted += 2
@@ -1046,15 +1047,15 @@ def repair_tournament(cursor, tournament_id, limitless_id):
             cursor.execute("""
                 INSERT INTO matches
                     (match_id, tournament_id, round_number, player_id, opponent_id,
-                     games_won, games_lost, games_tied, match_points, submitted_at)
-                VALUES (%s, %s, %s, %s, %s, 0, 0, 0, %s, CURRENT_TIMESTAMP)
+                     games_won, games_lost, games_tied, match_points, source, submitted_at)
+                VALUES (%s, %s, %s, %s, %s, 0, 0, 0, %s, 'limitless', CURRENT_TIMESTAMP)
             """, (next_match_id, tournament_id, round_number, player1_id, player2_id, p1_points))
 
             cursor.execute("""
                 INSERT INTO matches
                     (match_id, tournament_id, round_number, player_id, opponent_id,
-                     games_won, games_lost, games_tied, match_points, submitted_at)
-                VALUES (%s, %s, %s, %s, %s, 0, 0, 0, %s, CURRENT_TIMESTAMP)
+                     games_won, games_lost, games_tied, match_points, source, submitted_at)
+                VALUES (%s, %s, %s, %s, %s, 0, 0, 0, %s, 'limitless', CURRENT_TIMESTAMP)
             """, (next_match_id + 1, tournament_id, round_number, player2_id, player1_id, p2_points))
 
             matches_inserted += 2
