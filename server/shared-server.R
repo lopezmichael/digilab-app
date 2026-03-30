@@ -1258,6 +1258,37 @@ parse_state_prefix <- function(scene) {
   }
 }
 
+#' Convert a Shiny-internal scene prefix back to a URL-safe slug.
+#' Reverse of resolve_scene_slug(): maps "country:Germany" → "germany",
+#' "state:Texas::United States" → "texas".
+#' Passes through values that are already slugs, "all", "online", NULL, "".
+#' @param pool Database connection pool
+#' @param scene Character scene value (may be prefix or slug)
+#' @return Character slug suitable for URLs and localStorage
+scene_prefix_to_slug <- function(pool, scene) {
+  if (is.null(scene) || scene == "" || scene == "all" || scene == "online") return(scene)
+
+  if (startsWith(scene, "country:")) {
+    country <- sub("^country:", "", scene)
+    row <- safe_query(pool,
+      "SELECT slug FROM scenes WHERE scene_type = 'country' AND country = $1 AND is_active = TRUE LIMIT 1",
+      params = list(country), default = data.frame())
+    if (nrow(row) > 0) return(row$slug[1])
+    return(scene)
+  }
+
+  if (startsWith(scene, "state:")) {
+    sp <- parse_state_prefix(scene)
+    row <- safe_query(pool,
+      "SELECT slug FROM scenes WHERE scene_type = 'state' AND country = $1 AND state_region = $2 AND is_active = TRUE LIMIT 1",
+      params = list(sp$country, sp$state_region), default = data.frame())
+    if (nrow(row) > 0) return(row$slug[1])
+    return(scene)
+  }
+
+  scene  # already a slug
+}
+
 #' Get scene IDs an admin can manage based on their role
 #' @param pool Database connection pool
 #' @param admin_user The admin_user reactive list (must have $role, $user_id)

@@ -468,7 +468,7 @@ execute_scene_save <- function() {
     existing <- safe_query(db_pool,
       "SELECT COUNT(*) as n FROM scenes WHERE slug = $1",
       params = list(form$slug),
-      default = data.frame(n = 0))
+      default = data.frame(n = 1))
     if (existing$n[1] > 0) {
       notify("A scene with that slug already exists", type = "error")
       return()
@@ -524,7 +524,7 @@ execute_scene_save <- function() {
     existing <- safe_query(db_pool,
       "SELECT COUNT(*) as n FROM scenes WHERE slug = $1 AND scene_id != $2",
       params = list(form$slug, sid),
-      default = data.frame(n = 0))
+      default = data.frame(n = 1))
     if (existing$n[1] > 0) {
       notify("A scene with that slug already exists", type = "error")
       return()

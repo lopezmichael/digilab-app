@@ -270,7 +270,7 @@ observeEvent(rv$current_nav, {
         params$tab <- rv$current_nav
       }
       if (!is.null(rv$current_scene)) {
-        params$scene <- rv$current_scene
+        params$scene <- scene_prefix_to_slug(db_pool, rv$current_scene)
       }
       # Use replace instead of push to avoid cluttering history with tab changes
       update_browser_url(session, params, replace = TRUE)
@@ -404,7 +404,7 @@ update_url_for_player <- function(session, player_id, display_name) {
 
   # Preserve scene if set
   if (!is.null(rv$current_scene)) {
-    params$scene <- rv$current_scene
+    params$scene <- scene_prefix_to_slug(db_pool, rv$current_scene)
   }
 
   # Preserve community filter if active
@@ -421,7 +421,7 @@ update_url_for_deck <- function(session, archetype_id, slug) {
   params <- list(deck = slug, tab = "meta")
 
   if (!is.null(rv$current_scene)) {
-    params$scene <- rv$current_scene
+    params$scene <- scene_prefix_to_slug(db_pool, rv$current_scene)
   }
 
   # Preserve community filter if active
@@ -442,7 +442,7 @@ update_url_for_store <- function(session, store_id, slug) {
   }
 
   if (!is.null(rv$current_scene)) {
-    params$scene <- rv$current_scene
+    params$scene <- scene_prefix_to_slug(db_pool, rv$current_scene)
   }
 
   # Preserve community filter if active
@@ -463,7 +463,7 @@ update_url_for_tournament <- function(session, tournament_id) {
   }
 
   if (!is.null(rv$current_scene)) {
-    params$scene <- rv$current_scene
+    params$scene <- scene_prefix_to_slug(db_pool, rv$current_scene)
   }
 
   # Preserve community filter if active
@@ -487,7 +487,7 @@ clear_community_filter <- function(session) {
     params$tab <- rv$current_nav
   }
   if (!is.null(rv$current_scene)) {
-    params$scene <- rv$current_scene
+    params$scene <- scene_prefix_to_slug(db_pool, rv$current_scene)
   }
   update_browser_url(session, params, replace = TRUE)
 }
@@ -502,7 +502,7 @@ clear_url_entity <- function(session) {
   }
 
   if (!is.null(rv$current_scene)) {
-    params$scene <- rv$current_scene
+    params$scene <- scene_prefix_to_slug(db_pool, rv$current_scene)
   }
 
   update_browser_url(session, params, replace = TRUE)

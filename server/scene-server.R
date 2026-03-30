@@ -536,8 +536,10 @@ observeEvent(input$scene_selector, {
   track_event("scene_change", scene = new_scene)
 
   # Save both continent and scene to localStorage
+  # Convert prefix back to slug — Astro expects a slug, not "country:Germany"
+  scene_for_storage <- scene_prefix_to_slug(db_pool, new_scene)
   session$sendCustomMessage("saveScenePreference", list(
-    scene = new_scene,
+    scene = scene_for_storage,
     continent = input$continent_selector %||% "all"
   ))
 
