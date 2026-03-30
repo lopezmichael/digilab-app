@@ -1865,10 +1865,18 @@ parse_match_history_layout <- function(annotations, image_width, image_height, v
           digits <- c(digits, d)
         }
         if (length(digits) >= 3) {
-          games_won <- as.integer(digits[1])
-          games_lost <- as.integer(digits[2])
-          games_tied <- as.integer(digits[3])
-          if (verbose) message("[MATCH-LAYOUT]   Results (digits): ", games_won, "-", games_lost, "-", games_tied)
+          gw <- as.integer(digits[1])
+          gl <- as.integer(digits[2])
+          gt <- as.integer(digits[3])
+          # Sanity check: game counts should be 0-3 for best-of-5
+          if (all(c(gw, gl, gt) <= 3)) {
+            games_won <- gw
+            games_lost <- gl
+            games_tied <- gt
+            if (verbose) message("[MATCH-LAYOUT]   Results (digits): ", games_won, "-", games_lost, "-", games_tied)
+          } else if (verbose) {
+            message("[MATCH-LAYOUT]   Results (digits) rejected — values out of range: ", gw, "-", gl, "-", gt)
+          }
         }
       }
     }

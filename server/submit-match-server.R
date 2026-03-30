@@ -794,8 +794,10 @@ observeEvent(input$sr_match_submit, {
         as.integer(row$match_points)
       }
 
-      # Determine match type from parsed data or default
-      row_match_type <- if ("match_type" %in% names(row) && !is.na(row$match_type)) {
+      # Determine match type from parsed data or default — validate against allowed values
+      VALID_MATCH_TYPES <- c("normal", "bye", "default")
+      row_match_type <- if ("match_type" %in% names(row) && !is.na(row$match_type) &&
+                            row$match_type %in% VALID_MATCH_TYPES) {
         row$match_type
       } else {
         "normal"
