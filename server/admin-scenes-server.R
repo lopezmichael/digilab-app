@@ -25,6 +25,102 @@ derive_continent <- function(country) {
   NA_character_
 }
 
+# Country code prefixes for non-US state scene slugs.
+# Must match the CASE mapping in db/migrations/009_country_state_scenes.sql.
+COUNTRY_SLUG_PREFIX <- c(
+  "Germany" = "de", "Spain" = "es", "United Kingdom" = "uk",
+  "Australia" = "au", "Brazil" = "br", "France" = "fr",
+  "Italy" = "it", "Portugal" = "pt", "Canada" = "ca", "Mexico" = "mx"
+)
+
+#' Generate an accent-safe slug from text.
+#' Transliterates common accented characters before slugifying.
+#' @param text String to slugify
+#' @return Lowercase slug with hyphens, or NA
+accent_safe_slug <- function(text) {
+  if (is.null(text) || is.na(text) || !nzchar(trimws(text))) return(NA_character_)
+  text <- trimws(text)
+  # Transliterate common accented characters to ASCII
+  from <- "ÁÉÍÓÚáéíóúÀÈÌÒÙàèìòùÂÊÎÔÛâêîôûÄËÏÖÜäëïöüÃÑÕãñõÇç"
+  to   <- "AEIOUaeiouAEIOUaeiouAEIOUaeiouAEIOUaeiouANOanocc"
+  text <- chartr(from, to, text)
+  text |> tolower() |>
+    gsub("[^a-z0-9]+", "-", x = _) |>
+    gsub("^-|-$", "", x = _)
+}
+
+#' Ensure parent country and state scenes exist after creating a metro scene.
+#' Creates missing parent scenes idempotently (checks before INSERT).
+#' @param pool Database connection pool
+#' @param country Character country name of the new metro scene
+#' @param state_region Character state/region name (can be NULL)
+#' @param continent Character continent code (can be NULL)
+ensure_parent_scenes <- function(pool, country, state_region, continent) {
+  if (is.null(country) || is.na(country) || country == "") return()
+
+  # 1. Ensure country scene exists
+  country_slug <- accent_safe_slug(country)
+  existing <- safe_query(pool,
+    "SELECT scene_id FROM scenes WHERE scene_type = 'country' AND country = $1 LIMIT 1",
+    params = list(country), default = data.frame())
+
+  if (nrow(existing) == 0 && !is.na(country_slug)) {
+    # Verify slug doesn't collide
+    slug_check <- safe_query(pool,
+      "SELECT COUNT(*) as n FROM scenes WHERE slug = $1",
+      params = list(country_slug), default = data.frame(n = 1))
+    if (slug_check$n[1] == 0) {
+      safe_execute(pool,
+        "INSERT INTO scenes (name, slug, display_name, scene_type, country, continent, is_active)
+         VALUES ($1, $2, $3, 'country', $4, $5, TRUE)",
+        params = list(country, country_slug, country, country, continent))
+      message(sprintf("[PARENT SCENES] Created country scene: %s (%s)", country, country_slug))
+    }
+  }
+
+  # 2. Ensure state scene exists if 2+ metros now share this (country, state_region)
+  if (is.null(state_region) || is.na(state_region) || state_region == "") return()
+
+  metro_count <- safe_query(pool,
+    "SELECT COUNT(*) as n FROM scenes
+     WHERE scene_type = 'metro' AND is_active = TRUE
+       AND country = $1 AND state_region = $2",
+    params = list(country, state_region), default = data.frame(n = 0))
+
+  if (metro_count$n[1] < 2) return()  # only 1 metro — no state scene needed yet
+
+  state_exists <- safe_query(pool,
+    "SELECT scene_id FROM scenes
+     WHERE scene_type = 'state' AND country = $1 AND state_region = $2 LIMIT 1",
+    params = list(country, state_region), default = data.frame())
+
+  if (nrow(state_exists) > 0) return()  # already exists
+
+  # Generate slug: US states use plain name, non-US use country-code prefix
+  base_slug <- accent_safe_slug(state_region)
+  if (is.na(base_slug)) return()
+
+  if (country != "United States") {
+    prefix <- COUNTRY_SLUG_PREFIX[country]
+    if (is.na(prefix)) prefix <- tolower(substr(country, 1, 2))
+    state_slug <- paste0(prefix, "-", base_slug)
+  } else {
+    state_slug <- base_slug
+  }
+
+  # Verify slug doesn't collide
+  slug_check <- safe_query(pool,
+    "SELECT COUNT(*) as n FROM scenes WHERE slug = $1",
+    params = list(state_slug), default = data.frame(n = 1))
+  if (slug_check$n[1] > 0) return()  # collision — skip, admin can create manually
+
+  safe_execute(pool,
+    "INSERT INTO scenes (name, slug, display_name, scene_type, country, state_region, continent, is_active)
+     VALUES ($1, $2, $3, 'state', $4, $5, $6, TRUE)",
+    params = list(state_region, state_slug, state_region, country, state_region, continent))
+  message(sprintf("[PARENT SCENES] Created state scene: %s / %s (%s)", country, state_region, state_slug))
+}
+
 # Editing state
 editing_scene_id <- reactiveVal(NULL)
 
@@ -372,7 +468,7 @@ execute_scene_save <- function() {
     existing <- safe_query(db_pool,
       "SELECT COUNT(*) as n FROM scenes WHERE slug = $1",
       params = list(form$slug),
-      default = data.frame(n = 0))
+      default = data.frame(n = 1))
     if (existing$n[1] > 0) {
       notify("A scene with that slug already exists", type = "error")
       return()
@@ -392,6 +488,13 @@ execute_scene_save <- function() {
 
     if (nrow(insert_result) > 0) {
       notify(paste0("Scene '", form$display_name, "' created"), type = "message")
+
+      # Auto-create parent country/state scenes if this is a new metro
+      if (form$scene_type == "metro") {
+        ensure_parent_scenes(db_pool, form$country, form$state_region,
+                             derive_continent(form$country))
+      }
+
       rv$refresh_scenes <- rv$refresh_scenes + 1
 
       # Post scene update announcement to Discord
@@ -421,7 +524,7 @@ execute_scene_save <- function() {
     existing <- safe_query(db_pool,
       "SELECT COUNT(*) as n FROM scenes WHERE slug = $1 AND scene_id != $2",
       params = list(form$slug, sid),
-      default = data.frame(n = 0))
+      default = data.frame(n = 1))
     if (existing$n[1] > 0) {
       notify("A scene with that slug already exists", type = "error")
       return()

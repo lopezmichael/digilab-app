@@ -98,11 +98,9 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.9.2 - Match History Schema & Layout-Aware Parser
+### Latest Release: v1.9.3 - Country & State Scene Hierarchy
 
-Layout-aware match history OCR parser using GCV bounding boxes, replacing text-only heuristics. Schema additions: `match_type` (normal/bye/default) and `source` (limitless/ocr/manual) on matches table with CHECK constraints. Mirror rows for local match submissions. Bye/default detection and handling. See `CHANGELOG.md` for full details.
-
-Post-release fixes: super admin bootstrap vulnerability (fail-open default), player detach bugs (name+Bandai change, slug transaction isolation, auto-anonymize), CSV deck URL allowlist enforcement, match type validation hardening, regional organizer revert.
+Scene hierarchy rows (`scene_type = 'country'` and `'state'`) so the Astro frontend tree selector has selectable, linkable parent nodes above metro scenes. Slug resolution layer bridges Astro's raw URL slugs to Shiny's internal prefix format. Auto-creation of parent scenes when new metros are added. See `CHANGELOG.md` for full details.
 
 See `ROADMAP.md` for the full version plan.
 
@@ -110,6 +108,7 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v1.9.3 | Country & State Scene Hierarchy |
 | v1.9.2 | Match History Schema & Layout-Aware Parser |
 | v1.9.1 | Auto-Anonymize Guest & Placeholder Players |
 | v1.9.0 | Unified Submit Results Tab |
@@ -415,6 +414,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.9.2** - Match History Schema & Layout-Aware Parser
+**v1.9.3** - Country & State Scene Hierarchy
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

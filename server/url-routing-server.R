@@ -84,16 +84,19 @@ observeEvent(input$url_initial, {
   # Process in order: scene -> tab -> entity modal
 
   # 1. Scene filter
+  #    Resolve slug to Shiny-internal format (e.g., "texas" → "state:Texas")
+  #    so the dropdown and filter builders work with the prefix convention.
   if (!is.null(params$scene)) {
-    rv$current_scene <- params$scene
+    resolved_scene <- resolve_scene_slug(db_pool, params$scene)
+    rv$current_scene <- resolved_scene
 
-    # Derive continent from scene value for proper dropdown sync
-    if (startsWith(params$scene, "country:") || startsWith(params$scene, "state:")) {
+    # Derive continent from resolved scene value for proper dropdown sync
+    if (startsWith(resolved_scene, "country:") || startsWith(resolved_scene, "state:")) {
       # Country/state scenes: look up continent from DB
-      country_val <- if (startsWith(params$scene, "state:")) {
-        "United States"
+      country_val <- if (startsWith(resolved_scene, "state:")) {
+        parse_state_prefix(resolved_scene)$country
       } else {
-        sub("^country:", "", params$scene)
+        sub("^country:", "", resolved_scene)
       }
       cont <- safe_query(db_pool,
         "SELECT DISTINCT continent FROM scenes WHERE country = $1 AND continent IS NOT NULL LIMIT 1",
@@ -103,15 +106,15 @@ observeEvent(input$url_initial, {
         updateSelectInput(session, "continent_selector", selected = cont$continent[1])
         session$sendCustomMessage("updateContinentIcon", get_continent_icon(cont$continent[1]))
       }
-    } else if (params$scene == "online") {
+    } else if (resolved_scene == "online") {
       rv$current_continent <- "online"
       updateSelectInput(session, "continent_selector", selected = "online")
       session$sendCustomMessage("updateContinentIcon", get_continent_icon("online"))
-    } else if (params$scene != "all") {
+    } else if (resolved_scene != "all") {
       # Regular metro slug: look up its continent
       cont <- safe_query(db_pool,
         "SELECT continent FROM scenes WHERE slug = $1 AND continent IS NOT NULL LIMIT 1",
-        params = list(params$scene), default = data.frame(continent = "all"))
+        params = list(resolved_scene), default = data.frame(continent = "all"))
       if (nrow(cont) > 0 && !is.na(cont$continent[1])) {
         rv$current_continent <- cont$continent[1]
         updateSelectInput(session, "continent_selector", selected = cont$continent[1])
@@ -267,7 +270,7 @@ observeEvent(rv$current_nav, {
         params$tab <- rv$current_nav
       }
       if (!is.null(rv$current_scene)) {
-        params$scene <- rv$current_scene
+        params$scene <- scene_prefix_to_slug(db_pool, rv$current_scene)
       }
       # Use replace instead of push to avoid cluttering history with tab changes
       update_browser_url(session, params, replace = TRUE)
@@ -401,7 +404,7 @@ update_url_for_player <- function(session, player_id, display_name) {
 
   # Preserve scene if set
   if (!is.null(rv$current_scene)) {
-    params$scene <- rv$current_scene
+    params$scene <- scene_prefix_to_slug(db_pool, rv$current_scene)
   }
 
   # Preserve community filter if active
@@ -418,7 +421,7 @@ update_url_for_deck <- function(session, archetype_id, slug) {
   params <- list(deck = slug, tab = "meta")
 
   if (!is.null(rv$current_scene)) {
-    params$scene <- rv$current_scene
+    params$scene <- scene_prefix_to_slug(db_pool, rv$current_scene)
   }
 
   # Preserve community filter if active
@@ -439,7 +442,7 @@ update_url_for_store <- function(session, store_id, slug) {
   }
 
   if (!is.null(rv$current_scene)) {
-    params$scene <- rv$current_scene
+    params$scene <- scene_prefix_to_slug(db_pool, rv$current_scene)
   }
 
   # Preserve community filter if active
@@ -460,7 +463,7 @@ update_url_for_tournament <- function(session, tournament_id) {
   }
 
   if (!is.null(rv$current_scene)) {
-    params$scene <- rv$current_scene
+    params$scene <- scene_prefix_to_slug(db_pool, rv$current_scene)
   }
 
   # Preserve community filter if active
@@ -484,7 +487,7 @@ clear_community_filter <- function(session) {
     params$tab <- rv$current_nav
   }
   if (!is.null(rv$current_scene)) {
-    params$scene <- rv$current_scene
+    params$scene <- scene_prefix_to_slug(db_pool, rv$current_scene)
   }
   update_browser_url(session, params, replace = TRUE)
 }
@@ -499,7 +502,7 @@ clear_url_entity <- function(session) {
   }
 
   if (!is.null(rv$current_scene)) {
-    params$scene <- rv$current_scene
+    params$scene <- scene_prefix_to_slug(db_pool, rv$current_scene)
   }
 
   update_browser_url(session, params, replace = TRUE)

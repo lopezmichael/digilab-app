@@ -1214,6 +1214,81 @@ get_archetype_choices <- function(pool) {
 # Admin Scope Helpers: Scene access by permission tier
 # ---------------------------------------------------------------------------
 
+#' Resolve a scene slug to the Shiny-internal dropdown format.
+#' The Astro frontend sends raw slugs (e.g., "texas", "united-states").
+#' The Shiny dropdown uses prefix convention:
+#'   country → "country:United States"
+#'   state   → "state:Texas::United States"  (state_region::country)
+#' This function bridges the two: country/state slugs → prefix, metro slugs → passthrough.
+#' @param pool Database connection pool
+#' @param slug Character scene slug from URL or localStorage
+#' @return Resolved scene value in Shiny dropdown format
+resolve_scene_slug <- function(pool, slug) {
+  if (is.null(slug) || slug == "" || slug == "all" || slug == "online") return(slug)
+  if (startsWith(slug, "country:") || startsWith(slug, "state:")) return(slug)
+
+  row <- safe_query(pool,
+    "SELECT scene_type, country, state_region FROM scenes
+     WHERE slug = $1 AND is_active = TRUE LIMIT 1",
+    params = list(slug), default = data.frame())
+
+  if (nrow(row) == 0) return(slug)  # unknown slug, pass through
+
+  switch(row$scene_type[1],
+    "country" = paste0("country:", row$country[1]),
+    "state"   = paste0("state:", row$state_region[1], "::", row$country[1]),
+    "online"  = "online",
+    slug  # metro or anything else — keep raw slug
+  )
+}
+
+#' Parse a state: prefix value into state_region and country.
+#' Handles both formats:
+#'   "state:Texas::United States" (new, explicit country)
+#'   "state:Texas"               (legacy, assumes United States)
+#' @param scene Character scene value starting with "state:"
+#' @return List with $state_region and $country
+parse_state_prefix <- function(scene) {
+  val <- sub("^state:", "", scene)
+  if (grepl("::", val, fixed = TRUE)) {
+    parts <- strsplit(val, "::", fixed = TRUE)[[1]]
+    list(state_region = parts[1], country = parts[2])
+  } else {
+    list(state_region = val, country = "United States")
+  }
+}
+
+#' Convert a Shiny-internal scene prefix back to a URL-safe slug.
+#' Reverse of resolve_scene_slug(): maps "country:Germany" → "germany",
+#' "state:Texas::United States" → "texas".
+#' Passes through values that are already slugs, "all", "online", NULL, "".
+#' @param pool Database connection pool
+#' @param scene Character scene value (may be prefix or slug)
+#' @return Character slug suitable for URLs and localStorage
+scene_prefix_to_slug <- function(pool, scene) {
+  if (is.null(scene) || scene == "" || scene == "all" || scene == "online") return(scene)
+
+  if (startsWith(scene, "country:")) {
+    country <- sub("^country:", "", scene)
+    row <- safe_query(pool,
+      "SELECT slug FROM scenes WHERE scene_type = 'country' AND country = $1 AND is_active = TRUE LIMIT 1",
+      params = list(country), default = data.frame())
+    if (nrow(row) > 0) return(row$slug[1])
+    return(scene)
+  }
+
+  if (startsWith(scene, "state:")) {
+    sp <- parse_state_prefix(scene)
+    row <- safe_query(pool,
+      "SELECT slug FROM scenes WHERE scene_type = 'state' AND country = $1 AND state_region = $2 AND is_active = TRUE LIMIT 1",
+      params = list(sp$country, sp$state_region), default = data.frame())
+    if (nrow(row) > 0) return(row$slug[1])
+    return(scene)
+  }
+
+  scene  # already a slug
+}
+
 #' Get scene IDs an admin can manage based on their role
 #' @param pool Database connection pool
 #' @param admin_user The admin_user reactive list (must have $role, $user_id)
@@ -1478,19 +1553,19 @@ build_filters_param <- function(table_alias = "t",
       } else if (isTRUE(startsWith(scene, "country:"))) {
         country_val <- sub("^country:", "", scene)
         sql_parts <- c(sql_parts, sprintf(
-          "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE country = $%d)",
+          "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE country = $%d AND scene_type = 'metro')",
           store_alias, idx
         ))
         params <- c(params, list(country_val))
         idx <- idx + 1
       } else if (isTRUE(startsWith(scene, "state:"))) {
-        state_val <- sub("^state:", "", scene)
+        sp <- parse_state_prefix(scene)
         sql_parts <- c(sql_parts, sprintf(
-          "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE country = 'United States' AND state_region = $%d)",
-          store_alias, idx
+          "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE country = $%d AND state_region = $%d AND scene_type = 'metro')",
+          store_alias, idx, idx + 1
         ))
-        params <- c(params, list(state_val))
-        idx <- idx + 1
+        params <- c(params, list(sp$country, sp$state_region))
+        idx <- idx + 2
       } else {
         sql_parts <- c(sql_parts, sprintf(
           "AND %s.scene_id = (SELECT scene_id FROM scenes WHERE slug = $%d)",
@@ -1505,7 +1580,7 @@ build_filters_param <- function(table_alias = "t",
         sql_parts <- c(sql_parts, sprintf("AND %s.is_online = TRUE", store_alias))
       } else {
         sql_parts <- c(sql_parts, sprintf(
-          "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE continent = $%d)",
+          "AND %s.scene_id IN (SELECT scene_id FROM scenes WHERE continent = $%d AND scene_type = 'metro')",
           store_alias, idx
         ))
         params <- c(params, list(continent))
@@ -1577,19 +1652,19 @@ build_mv_filters <- function(format = NULL,
       # Country-level filter: all scenes in a country
       country_val <- sub("^country:", "", scene)
       sql_parts <- c(sql_parts, sprintf(
-        "AND %sscene_id IN (SELECT scene_id FROM scenes WHERE country = $%d)", prefix, idx
+        "AND %sscene_id IN (SELECT scene_id FROM scenes WHERE country = $%d AND scene_type = 'metro')", prefix, idx
       ))
       params <- c(params, list(country_val))
       idx <- idx + 1
     } else if (isTRUE(startsWith(scene, "state:"))) {
-      # US state-level filter: all scenes in a state
-      state_val <- sub("^state:", "", scene)
+      # State-level filter: all metro scenes in country + state_region
+      sp <- parse_state_prefix(scene)
       sql_parts <- c(sql_parts, sprintf(
-        "AND %sscene_id IN (SELECT scene_id FROM scenes WHERE country = 'United States' AND state_region = $%d)",
-        prefix, idx
+        "AND %sscene_id IN (SELECT scene_id FROM scenes WHERE country = $%d AND state_region = $%d AND scene_type = 'metro')",
+        prefix, idx, idx + 1
       ))
-      params <- c(params, list(state_val))
-      idx <- idx + 1
+      params <- c(params, list(sp$country, sp$state_region))
+      idx <- idx + 2
     } else {
       sql_parts <- c(sql_parts, sprintf(
         "AND %sscene_id = (SELECT scene_id FROM scenes WHERE slug = $%d)", prefix, idx
@@ -1603,7 +1678,7 @@ build_mv_filters <- function(format = NULL,
       sql_parts <- c(sql_parts, sprintf("AND %sis_online = TRUE", prefix))
     } else {
       sql_parts <- c(sql_parts, sprintf(
-        "AND %sscene_id IN (SELECT scene_id FROM scenes WHERE continent = $%d)", prefix, idx
+        "AND %sscene_id IN (SELECT scene_id FROM scenes WHERE continent = $%d AND scene_type = 'metro')", prefix, idx
       ))
       params <- c(params, list(continent))
       idx <- idx + 1

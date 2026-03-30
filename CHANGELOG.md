@@ -53,6 +53,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **OCR OBANDAI noise**: Google Cloud Vision merges `©BANDAI` into `OBANDAI` token. Added to noise filter list.
 - **Meta filters not conjunctive**: "Top 3 Only" + "Has Decklist" applied independently — showed archetypes with any top-3 AND any decklist, not archetypes where a top-3 result has a decklist. Now queries with both conditions on the same result row. Same fix in deck profile modal.
 
+## [1.9.3] - 2026-03-30 - Country & State Scene Hierarchy
+
+### Added
+- **Country and state scene rows**: Migration 009 inserts `scene_type = 'country'` and `scene_type = 'state'` rows derived from existing metro scenes. 22 country scenes, 19 US state scenes, 4 non-US state scenes (multi-metro regions only). Enables Astro frontend tree selector with selectable, linkable parent nodes (continent → country → state → metro).
+- **Slug resolution layer**: `resolve_scene_slug()` translates Astro's raw URL slugs (`?scene=texas`, `?scene=germany`) to Shiny-internal prefix format (`state:Texas::United States`, `country:Germany`) at 3 entry points (URL load, localStorage initial, localStorage observer).
+- **Reverse slug mapper**: `scene_prefix_to_slug()` converts internal prefixes back to URL-safe slugs for browser URLs and localStorage persistence.
+- **State prefix with country**: `state:` prefix now always includes country (`state:Texas::United States`, `state:England::United Kingdom`). `parse_state_prefix()` handles both new and legacy formats with backward-compatible fallback to United States.
+- **Auto-create parent scenes**: `ensure_parent_scenes()` in admin scene creation automatically creates missing country scenes and state scenes (when 2+ metros share a state_region) after new metro creation. Accent-safe slug generation, country-code prefixed slugs for non-US states.
+
+### Fixed
+- **URL parameter leaked internal prefixes**: Browser URL `?scene=` showed `country:Germany` instead of `germany`. Applied `scene_prefix_to_slug()` to all 7 URL update locations.
+- **localStorage leaked internal prefixes**: Dropdown scene selection saved prefix format to localStorage instead of slug. Astro expects slugs, not Shiny-internal prefix format.
+- **State filter hardcoded United States**: `build_filters_param()` and `build_mv_filters()` state subqueries assumed all states were US. Now parameterized with country from `parse_state_prefix()`.
+- **Filter subqueries missing scene_type guard**: 6 subqueries in `build_filters_param()` and `build_mv_filters()` (country, state, continent) now include `AND scene_type = 'metro'` to prevent data leakage from parent scene rows.
+- **Fail-open slug collision checks**: `execute_scene_save()` used `default = data.frame(n = 0)` for slug uniqueness checks — DB failure allowed duplicate slug creation. Changed to fail-closed `default = data.frame(n = 1)`.
+
 ## [1.9.2] - 2026-03-29 - Match History Schema & Layout-Aware Parser
 
 ### Added

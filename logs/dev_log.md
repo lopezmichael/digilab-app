@@ -4,6 +4,29 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-30: Country & State Scene Hierarchy (v1.9.3)
+
+### Scene Hierarchy for Astro Tree Selector
+Added `scene_type = 'country'` and `scene_type = 'state'` rows to the scenes table. The Astro frontend is building a collapsible geographic tree selector (continent → country → state → metro) that needs real DB rows for parent nodes to be selectable and URL-addressable. Migration 009 derived 45 rows from existing metro scene data: 22 countries, 19 US states, 4 non-US state regions (only where 2+ metros share a state_region).
+
+### Slug Resolution Bridge
+Astro sends raw slugs (`?scene=texas`), Shiny uses prefix convention internally (`state:Texas::United States`). Added `resolve_scene_slug()` at 3 entry points to translate. Added reverse mapper `scene_prefix_to_slug()` for URL/localStorage output. State prefix now always includes country to support non-US states correctly.
+
+### Auto-Create Parent Scenes
+When a new metro scene is created via admin UI, `ensure_parent_scenes()` automatically creates missing country/state scene rows. State scenes only created when 2+ metros share the same (country, state_region). Non-US state slugs use country-code prefixes (e.g., `de-lower-saxony`) to avoid collisions with metro slugs.
+
+### Bugs Found in Code Review
+- URL `?scene=` parameter leaked internal prefixes like `country:Germany` instead of raw slugs
+- localStorage saved prefix format instead of slugs (breaks Astro)
+- State filters hardcoded "United States" — now parameterized via `parse_state_prefix()`
+- 6 filter subqueries missing `AND scene_type = 'metro'` guard
+- Slug collision checks in `execute_scene_save()` used fail-open defaults
+
+### Accent Handling
+Non-ASCII characters in country/state names (e.g., Andalucía) caused broken slugs. Added `TRANSLATE`-based accent stripping in both SQL migration and R-side `accent_safe_slug()`. The `chartr()` from/to mapping must stay in sync with the SQL.
+
+---
+
 ## 2026-03-30: Security Audit & Code Review Pass
 
 ### Fail-Open Bootstrap Vulnerability
