@@ -4,6 +4,27 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-30: Security Audit & Code Review Pass
+
+### Fail-Open Bootstrap Vulnerability
+Bug report: super admin saw "Create Super Admin" modal on site reload. Root cause: startup query `SELECT COUNT(*) FROM admin_users` had `default = 0L` — if the query failed (pool exhaustion, timeout), the app interpreted 0 as "no admins exist" and showed the bootstrap flow. This is a **fail-open** pattern — failure grants access. Fixed by removing the entire bootstrap path (one-time setup, already used). Lesson: security-sensitive defaults must be fail-closed (deny on failure, not grant).
+
+### Player Detach Bug Fixes
+Secret8znMan reported that editing a player's Bandai ID in Edit Tournament "worked for one player but not others." Root cause: the detach logic only triggered when `name_unchanged && bandai_changed`. Changing both name and Bandai ID fell through to the name-change branch, silently discarding the Bandai ID edit. Fixed by restructuring: any Bandai ID modification by a super admin now triggers detach regardless of name changes. Also extracted `detach_to_player()` helper into `R/admin_grid.R`.
+
+Two additional fixes in the same area: `generate_unique_slug(db_pool)` inside transactions couldn't see uncommitted players from the same save batch (switched to `conn`), and detach-created players now call `should_auto_anonymize()`.
+
+### Regional Organizer Revert
+Feature was partially implemented (schema + submit wizard wiring) but missing admin UI, venue_name usage, and scene scoping. No production data existed — zero regionals tournaments, Olli Baba had no tournaments. Fully reverted: code removed, schema columns dropped, store deleted. "Regionals" kept as event type. Will be rebuilt properly when needed.
+
+### CSV Deck URL Validation
+CSV deck URLs were stored raw without validation. Now validated through the domain allowlist at parse time and before INSERT. Removed the unused `strict` parameter from `validate_decklist_url` — always enforce the whitelist.
+
+### Match Type Hardening
+Added CHECK constraints on `match_type` and `source` columns. Application-level validation before INSERT. Limitless sync now explicitly sets `match_type='normal'`. OCR digit fallback rejects game results > 3.
+
+---
+
 ## 2026-03-29: Match History Schema Changes & Layout-Aware Parser
 
 ### Schema Enhancements (Migration 013)

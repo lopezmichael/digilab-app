@@ -100,7 +100,9 @@ The architecture doc contains:
 
 ### Latest Release: v1.9.2 - Match History Schema & Layout-Aware Parser
 
-Layout-aware match history OCR parser using GCV bounding boxes, replacing text-only heuristics. Schema additions: `match_type` (normal/bye/default) and `source` (limitless/ocr/manual) on matches table. Mirror rows for local match submissions. Bye/default detection and handling. See `CHANGELOG.md` for full details.
+Layout-aware match history OCR parser using GCV bounding boxes, replacing text-only heuristics. Schema additions: `match_type` (normal/bye/default) and `source` (limitless/ocr/manual) on matches table with CHECK constraints. Mirror rows for local match submissions. Bye/default detection and handling. See `CHANGELOG.md` for full details.
+
+Post-release fixes: super admin bootstrap vulnerability (fail-open default), player detach bugs (name+Bandai change, slug transaction isolation, auto-anonymize), CSV deck URL allowlist enforcement, match type validation hardening, regional organizer revert.
 
 See `ROADMAP.md` for the full version plan.
 

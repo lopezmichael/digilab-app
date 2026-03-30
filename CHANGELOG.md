@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Match review grid**: Tournament summary bar, match summary badges, player matching explanation — matching the upload results grid's layout and styling.
 - **Edit Tournaments grid parity**: Admin Edit Results grid now has editable placements with auto-reorder, Add Player button, tied placements support, and Show W/L/T override toggle — matching the Submit Results grid.
 
+### Reverted
+- **Regional tournament organizer support**: Incomplete feature (no admin UI, no scene scoping design, broken scene cascade) reverted. Schema columns dropped, Olli Baba store deleted. "Regionals" kept as a selectable event type.
+
+### Removed
+- **Dead code cleanup**: `rv$sr_csv_deck_urls` reactive (set but never read), `strict` parameter on `validate_decklist_url` (never used), `rv$needs_bootstrap` reactive value.
+
 ### Changed
 - **Card picker redesign**: Consolidated Paste + Manual Entry into single "Manual Entry" card. Reordered cards for better flow. Digital scanner styling (navy/blue gradient, grid overlay, cyan border). Coming Soon card styled as muted scanner variant.
 - **Match-by-Match redesign**: Replaced store/tournament dropdown pattern with Bandai ID lookup → tournament history → screenshot upload (mirrors decklist flow). Removed manual username/member number inputs — player identity comes from lookup.
@@ -21,7 +27,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Design pass on internal pages**: Custom tournament list styling (de-oranged text), scanner-pattern hint boxes, Player Found banner with home scene, selected tournament banners with blue left-border, aligned lookup/save buttons.
 - **Match indicator positioning**: Round column uses same `upload-result-placement` pattern as upload grid for consistent badge placement above the row.
 
+### Security
+- **Super admin bootstrap flow removed**: Database query failure during startup defaulted admin_count to 0, triggering the "Create Super Admin" modal on reload (fail-open vulnerability). Removed the entire one-time bootstrap path since it's already been used.
+- **Admin auth guard on tournament delete/clear**: `sr_clear_results_only` and `sr_delete_tournament_confirm` handlers only checked for `sr_active_tournament_id`, which gets set during public submission. Added `req(rv$is_admin)` to both.
+- **CSV deck URL allowlist enforced**: Deck URLs from CSV imports were stored raw without validation. Now validated through `validate_decklist_url()` at parse time and before INSERT — only HTTPS URLs from approved deckbuilder domains are accepted.
+- **Match type/source CHECK constraints**: Added database CHECK constraints on `match_type` (`normal`/`bye`/`default`) and `source` (`limitless`/`ocr`/`manual`) columns to prevent arbitrary values.
+
 ### Fixed
+- **Player detach: name + Bandai ID change**: Changing both a player's name and Bandai ID in Edit Tournament now correctly triggers the detach flow instead of silently dropping the Bandai ID change.
+- **Slug generation transaction isolation**: `generate_unique_slug` inside transactions now uses the transaction connection (`conn`) instead of `db_pool`, preventing duplicate slug races when creating multiple players in one save batch. Fixed in admin-tournaments, submit-shared, and submit-upload.
+- **Detach auto-anonymize**: Players created via the super admin detach flow now call `should_auto_anonymize()` instead of hardcoding `is_anonymized = FALSE`.
+- **OCR game results sanity bound**: The digit fallback parser for match results now rejects values > 3 per game (impossible in best-of-5).
 - **Grid auto-reorder on placement change**: Editing a placement number and tabbing out now auto-sorts the grid. Player match badges and all row data follow the reorder correctly.
 - **Card picker layout gaps**: Hidden admin cards no longer leave blank spaces for public users (switched from `layout_columns` to CSS flex).
 - **JS event handler re-binding**: Consolidated grid event handlers into single one-time binding with delegated events.
