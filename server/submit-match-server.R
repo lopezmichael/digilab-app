@@ -803,7 +803,7 @@ observeEvent(input$sr_match_submit, {
 
       # Check for bye/default — "Win by Default" opponent
       is_bye_or_default <- row_match_type %in% c("bye", "default") ||
-        grepl("Win\\s+by\\s+Default", opponent_username, ignore.case = TRUE) ||
+        grepl("(Win\\s+)?by\\s+Default", opponent_username, ignore.case = TRUE) ||
         grepl("^Default$", opponent_username, ignore.case = TRUE)
 
       if (is_bye_or_default) {

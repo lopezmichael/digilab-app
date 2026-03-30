@@ -1740,7 +1740,9 @@ parse_match_history_layout <- function(annotations, image_width, image_height, v
         line_text <- paste(sub_line$text, collapse = " ")
 
         # Check for "Win by Default" / bye patterns
+        # GCV may split "Win" into the round column, leaving "by Default" in opponent
         if (grepl("Win\\s+by\\s+Default", line_text, ignore.case = TRUE) ||
+            grepl("^by\\s+Default$", line_text, ignore.case = TRUE) ||
             grepl("^Default$", line_text, ignore.case = TRUE)) {
           match_type <- "default"
           opponent_username <- "Win by Default"
