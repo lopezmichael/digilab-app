@@ -234,7 +234,8 @@ CREATE TABLE IF NOT EXISTS deck_requests (
     suggested_archetype_name VARCHAR,  -- What classification thought it was (may not exist in DB yet)
     decklist_json TEXT,                -- The actual card list for admin review
     source VARCHAR DEFAULT 'manual',   -- 'manual', 'limitless_sync', 'classification'
-    result_id INTEGER                  -- Link back to result for updating after approval
+    result_id INTEGER,                 -- Link back to result for updating after approval
+    reviewed_by TEXT                    -- Admin username who approved/rejected
 );
 
 -- Create index for pending requests lookup
@@ -255,6 +256,7 @@ CREATE TABLE IF NOT EXISTS tournaments (
     limitless_id VARCHAR,
     record_format TEXT DEFAULT 'points',  -- 'points' or 'wlt' — how results were entered
     notes TEXT,
+    submission_method VARCHAR(30),    -- How data was entered: screenshot_ocr, csv_upload, manual_grid, paste_grid, limitless_sync
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_by TEXT                   -- Admin username who last modified

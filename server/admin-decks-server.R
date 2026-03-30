@@ -942,9 +942,9 @@ assign_request_to_existing_archetype <- function(req_id, archetype_id, session, 
     # Update the deck request
     safe_execute(db_pool, "
       UPDATE deck_requests
-      SET status = 'approved', approved_archetype_id = $1, reviewed_at = CURRENT_TIMESTAMP
+      SET status = 'approved', approved_archetype_id = $1, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = $3
       WHERE request_id = $2
-    ", params = list(archetype_id, req_id))
+    ", params = list(archetype_id, req_id, current_admin_username(rv)))
 
     # Auto-update any results that used this pending request
     updated_count <- safe_execute(db_pool, "
@@ -992,9 +992,9 @@ create_deck_from_request <- function(req_id, deck_name, primary_color, secondary
     # Update the deck request
     safe_execute(db_pool, "
       UPDATE deck_requests
-      SET status = 'approved', approved_archetype_id = $1, reviewed_at = CURRENT_TIMESTAMP
+      SET status = 'approved', approved_archetype_id = $1, reviewed_at = CURRENT_TIMESTAMP, reviewed_by = $3
       WHERE request_id = $2
-    ", params = list(new_archetype_id, req_id))
+    ", params = list(new_archetype_id, req_id, current_admin_username(rv)))
 
     # Auto-update any results that used this pending request
     updated_count <- safe_execute(db_pool, "
@@ -1035,8 +1035,8 @@ reject_deck_request <- function(req_id, replacement_archetype_id, session, rv) {
                            params = list(req_id), default = data.frame(deck_name = character()))
 
     safe_execute(db_pool, "
-      UPDATE deck_requests SET status = 'rejected', reviewed_at = CURRENT_TIMESTAMP WHERE request_id = $1
-    ", params = list(req_id))
+      UPDATE deck_requests SET status = 'rejected', reviewed_at = CURRENT_TIMESTAMP, reviewed_by = $2 WHERE request_id = $1
+    ", params = list(req_id, current_admin_username(rv)))
 
     # Determine replacement deck ID
     if (is.null(replacement_archetype_id)) {
