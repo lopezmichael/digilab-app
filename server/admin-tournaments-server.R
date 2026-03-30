@@ -1239,47 +1239,17 @@ observeEvent(input$edit_grid_save, {
             orig_member <- original$original_member[1]
             if (is.na(orig_member)) orig_member <- ""
             name_unchanged <- tolower(trimws(name)) == tolower(trimws(original$original_name[1]))
-            bandai_changed <- has_real_member_number(orig_member) && member_num != orig_member
+            bandai_modified <- has_real_member_number(orig_member) && member_num != orig_member
 
-            if (name_unchanged && bandai_changed && isTRUE(rv$is_superadmin)) {
-              # Super admin detach: Bandai ID cleared or changed on existing result
+            if (bandai_modified && isTRUE(rv$is_superadmin)) {
+              # Super admin detach: Bandai ID changed or cleared (name may also have changed)
               # Create new player or reassign to existing player with the new Bandai ID
-              if (has_real_member_number(member_num)) {
-                # Bandai ID changed to a different value — check if a player with that ID exists
-                existing_player <- DBI::dbGetQuery(conn, "
-                  SELECT player_id FROM players WHERE member_number = $1 AND is_active = TRUE
-                ", params = list(member_num))
-                if (nrow(existing_player) > 0) {
-                  # Check if that player already has a result in this tournament
-                  already_in_tournament <- DBI::dbGetQuery(conn, "
-                    SELECT result_id FROM results
-                    WHERE tournament_id = $1 AND player_id = $2
-                  ", params = list(tournament_id, existing_player$player_id[1]))
-                  if (nrow(already_in_tournament) > 0) {
-                    DBI::dbExecute(conn, "ROLLBACK")
-                    notify(sprintf("Cannot reassign — player with Bandai ID %s already has a result in this tournament.", member_num),
-                           type = "error", duration = 8)
-                    return()
-                  }
-                  # Reassign result to the player who owns that Bandai ID
-                  player_id <- existing_player$player_id[1]
-                } else {
-                  # Create new verified player with the new Bandai ID
-                  player_slug <- generate_unique_slug(db_pool, name)
-                  new_player <- DBI::dbGetQuery(conn,
-                    "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized)
-                     VALUES ($1, $2, $3, 'verified', $4, FALSE) RETURNING player_id",
-                    params = list(name, player_slug, member_num, scene_id))
-                  player_id <- new_player$player_id[1]
-                }
-              } else {
-                # Bandai ID cleared — create new unverified, scene-locked player
-                player_slug <- generate_unique_slug(db_pool, name)
-                new_player <- DBI::dbGetQuery(conn,
-                  "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized)
-                   VALUES ($1, $2, NULL, 'unverified', $3, FALSE) RETURNING player_id",
-                  params = list(name, player_slug, scene_id))
-                player_id <- new_player$player_id[1]
+              player_id <- detach_to_player(conn, name, member_num, scene_id, tournament_id)
+              if (is.null(player_id)) {
+                DBI::dbExecute(conn, "ROLLBACK")
+                notify(sprintf("Cannot reassign — player with Bandai ID %s already has a result in this tournament.", member_num),
+                       type = "error", duration = 8)
+                return()
               }
             } else if (name_unchanged) {
               # Name unchanged, Bandai ID not changed (or not super admin) — keep existing player
@@ -1298,7 +1268,7 @@ observeEvent(input$edit_grid_save, {
               } else {
                 # No match or matched same player — treat as name correction, rename
                 player_id <- original$player_id[1]
-                updated_slug <- generate_unique_slug(db_pool, name, exclude_player_id = player_id)
+                updated_slug <- generate_unique_slug(conn, name, exclude_player_id = player_id)
                 DBI::dbExecute(conn, "
                   UPDATE players SET display_name = $1, slug = $2,
                          updated_at = CURRENT_TIMESTAMP, updated_by = $3
@@ -1322,7 +1292,7 @@ observeEvent(input$edit_grid_save, {
               identity_status <- if (has_real_id) "verified" else "unverified"
               clean_member <- if (has_real_id) member_num else NA_character_
               auto_anon <- should_auto_anonymize(name, member_num)
-              player_slug <- generate_unique_slug(db_pool, name)
+              player_slug <- generate_unique_slug(conn, name)
               new_player <- DBI::dbGetQuery(conn,
                 "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized) VALUES ($1, $2, $3, $4, $5, $6) RETURNING player_id",
                 params = list(name, player_slug, clean_member, identity_status, scene_id, auto_anon))

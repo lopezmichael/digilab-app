@@ -1423,14 +1423,14 @@ observeEvent(input$sr_submit_results, {
               if (nrow(existing) > 0) {
                 player_id <- existing$player_id[1]
               } else {
-                player_slug <- generate_unique_slug(db_pool, name)
+                player_slug <- generate_unique_slug(conn, name)
                 new_player <- DBI::dbGetQuery(conn,
                   "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized) VALUES ($1, $2, $3, $4, $5, $6) RETURNING player_id",
                   params = list(name, player_slug, clean_member, identity_status, scene_id, auto_anon))
                 player_id <- new_player$player_id[1]
               }
             } else {
-              player_slug <- generate_unique_slug(db_pool, name)
+              player_slug <- generate_unique_slug(conn, name)
               new_player <- DBI::dbGetQuery(conn,
                 "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized) VALUES ($1, $2, $3, $4, $5, $6) RETURNING player_id",
                 params = list(name, player_slug, clean_member, identity_status, scene_id, auto_anon))

@@ -40,6 +40,48 @@ should_auto_anonymize <- function(name, member_number = NULL) {
   is_guest_name(name) || is_placeholder_member(member_number %||% "")
 }
 
+# -----------------------------------------------------------------------------
+# detach_to_player: Create or find a player for a super admin detach operation
+# Used when a super admin changes a Bandai ID (with or without a name change)
+# to split a result away from the original player.
+# Returns player_id on success, or NULL if the target player is already in the
+# tournament (caller must ROLLBACK and notify).
+# -----------------------------------------------------------------------------
+detach_to_player <- function(conn, name, member_num, scene_id, tournament_id) {
+  if (has_real_member_number(member_num)) {
+    # Bandai ID changed to a different value — check if a player with that ID exists
+    existing_player <- DBI::dbGetQuery(conn, "
+      SELECT player_id FROM players WHERE member_number = $1 AND is_active = TRUE
+    ", params = list(member_num))
+    if (nrow(existing_player) > 0) {
+      # Check if that player already has a result in this tournament
+      already_in <- DBI::dbGetQuery(conn, "
+        SELECT result_id FROM results
+        WHERE tournament_id = $1 AND player_id = $2
+      ", params = list(tournament_id, existing_player$player_id[1]))
+      if (nrow(already_in) > 0) return(NULL)
+      return(existing_player$player_id[1])
+    }
+    # Create new verified player with the new Bandai ID
+    auto_anon <- should_auto_anonymize(name, member_num)
+    player_slug <- generate_unique_slug(conn, name)
+    new_player <- DBI::dbGetQuery(conn,
+      "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized)
+       VALUES ($1, $2, $3, 'verified', $4, $5) RETURNING player_id",
+      params = list(name, player_slug, member_num, scene_id, auto_anon))
+    return(new_player$player_id[1])
+  } else {
+    # Bandai ID cleared — create new unverified, scene-locked player
+    auto_anon <- should_auto_anonymize(name, NULL)
+    player_slug <- generate_unique_slug(conn, name)
+    new_player <- DBI::dbGetQuery(conn,
+      "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized)
+       VALUES ($1, $2, NULL, 'unverified', $3, $4) RETURNING player_id",
+      params = list(name, player_slug, scene_id, auto_anon))
+    return(new_player$player_id[1])
+  }
+}
+
 # Get the scene_id for a tournament's store
 get_tournament_scene_id <- function(pool_or_conn, tournament_id) {
   result <- tryCatch(
