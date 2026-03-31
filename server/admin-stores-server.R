@@ -431,8 +431,8 @@ observeEvent(input$add_store, {
        default = data.frame(store_id = integer()))
     new_id <- store_result$store_id[1]
 
-    # Insert any pending schedules for physical stores
-    if (!is_online && length(rv$pending_schedules) > 0) {
+    # Insert any pending schedules
+    if (length(rv$pending_schedules) > 0) {
       for (i in seq_along(rv$pending_schedules)) {
         sched <- rv$pending_schedules[[i]]
         safe_execute(db_pool, "

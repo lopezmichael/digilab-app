@@ -95,10 +95,8 @@ admin_stores_ui <- tagList(
             textInput("store_website", "Website (optional)")
           ),
 
-          # --- Schedule section (physical stores only) ---
-          conditionalPanel(
-            condition = "!input.store_is_online",
-            admin_section("clock-fill", "Schedule",
+          # --- Schedule section ---
+          admin_section("clock-fill", "Schedule",
               # Show existing schedules when editing
               conditionalPanel(
                 condition = "input.editing_store_id && input.editing_store_id != ''",
@@ -166,7 +164,6 @@ admin_stores_ui <- tagList(
                     value = Sys.Date())
                 )
               )
-            )
           ),
 
           # --- Action buttons ---
