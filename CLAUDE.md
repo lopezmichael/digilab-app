@@ -98,9 +98,9 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.9.4 - Sentry Error Reporting Blind Spots
+### Latest Release: v1.9.5 - Match Submission Pipeline Fix
 
-Fixed 35 tryCatch error handlers across 12 server files that silently swallowed errors (showing user toasts but never reporting to Sentry). All admin CRUD, submit flows, and Discord webhook failures now report to Sentry. See `CHANGELOG.md` for full details.
+Fixed match-by-match submissions silently saving 0 matches due to PostgreSQL sequence collision with Limitless sync. Replaced plain INSERTs with upserts, added tournament completeness badges, and existing data preview in the match submission UI. See `CHANGELOG.md` for full details.
 
 See `ROADMAP.md` for the full version plan.
 
@@ -108,6 +108,7 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v1.9.5 | Match Submission Pipeline Fix |
 | v1.9.4 | Sentry Error Reporting Blind Spots |
 | v1.9.3 | Country & State Scene Hierarchy |
 | v1.9.2 | Match History Schema & Layout-Aware Parser |
@@ -415,6 +416,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v1.9.4** - Sentry Error Reporting Blind Spots
+**v1.9.5** - Match Submission Pipeline Fix
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.

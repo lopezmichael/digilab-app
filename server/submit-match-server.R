@@ -260,7 +260,21 @@ output$sr_match_tournament_history <- renderUI({
       class = "sr-tournament-list",
       lapply(seq_len(nrow(tournaments)), function(i) {
         t <- tournaments[i, ]
-        has_matches <- !is.na(t$match_count) && t$match_count > 0
+        match_count <- if (!is.na(t$match_count)) as.integer(t$match_count) else 0L
+        rounds <- if (!is.na(t$rounds)) as.integer(t$rounds) else NA_integer_
+
+        # Completeness badge
+        badge <- if (!is.na(rounds) && match_count >= rounds) {
+          span(class = "badge bg-success", sprintf("Complete (%d/%d)", match_count, rounds))
+        } else if (match_count > 0 && !is.na(rounds)) {
+          span(class = "badge bg-warning text-dark", sprintf("Partial (%d/%d)", match_count, rounds))
+        } else if (match_count > 0) {
+          span(class = "badge bg-success", paste(match_count, "matches"))
+        } else {
+          span(class = "badge bg-secondary", "No match data")
+        }
+
+        has_matches <- match_count > 0
 
         actionLink(
           paste0("sr_match_select_", i),
@@ -280,8 +294,7 @@ output$sr_match_tournament_history <- renderUI({
                        if (!is.na(t$rounds)) paste0(" \u2022 ", t$rounds, " rounds") else "")
               )
             ),
-            if (has_matches) span(class = "badge bg-success", paste(t$match_count, "matches"))
-            else span(class = "badge bg-secondary", "No match data")
+            badge
           ),
           class = paste0("sr-tournament-item",
                          if (has_matches) " sr-tournament-item--done" else "")
@@ -312,7 +325,67 @@ lapply(1:50, function(i) {
 
 output$sr_match_upload_form <- renderUI({
   req(rv$sr_match_selected_tournament)
+  req(rv$sr_match_player)
   selected <- rv$sr_match_selected_tournament
+  tournament_id <- as.integer(selected$tournament_id)
+  player_id <- as.integer(rv$sr_match_player$player_id)
+
+  # Query existing match data for this player + tournament (skip if none exist)
+  existing_matches <- if (!is.na(selected$match_count) && as.integer(selected$match_count) > 0) {
+    safe_query(db_pool, "
+      SELECT m.round_number, m.games_won, m.games_lost, m.games_tied, m.match_points,
+             m.source, p.display_name as opponent_name
+      FROM matches m
+      LEFT JOIN players p ON m.opponent_id = p.player_id
+      WHERE m.tournament_id = $1 AND m.player_id = $2
+      ORDER BY m.round_number
+    ", params = list(tournament_id, player_id), default = data.frame())
+  } else {
+    data.frame()
+  }
+
+  existing_count <- nrow(existing_matches)
+  rounds <- if (!is.na(selected$rounds)) as.integer(selected$rounds) else NA_integer_
+
+  # Build existing data preview if matches exist
+  existing_preview <- if (existing_count > 0) {
+    if (!is.na(rounds) && existing_count >= rounds) {
+      msg <- "All rounds already recorded. Upload a screenshot to update your match history."
+      alert_class <- "alert-success"
+    } else if (!is.na(rounds)) {
+      msg <- sprintf("%d of %d rounds have match data. Upload a screenshot to fill in or update.", existing_count, rounds)
+      alert_class <- "alert-info"
+    } else {
+      msg <- sprintf("%d rounds recorded. Upload a screenshot to update.", existing_count)
+      alert_class <- "alert-info"
+    }
+
+    # Compact existing match summary
+    match_rows <- lapply(seq_len(existing_count), function(j) {
+      m <- existing_matches[j, ]
+      opp_name <- if (!is.na(m$opponent_name)) m$opponent_name else "Bye"
+      record <- sprintf("%d-%d-%d", m$games_won, m$games_lost, m$games_tied)
+      tags$tr(
+        tags$td(class = "pe-2 text-muted", paste0("R", m$round_number)),
+        tags$td(class = "pe-3", opp_name),
+        tags$td(class = "pe-2", record),
+        tags$td(m$match_points)
+      )
+    })
+
+    div(
+      class = paste("alert", alert_class, "mt-2 mb-3"),
+      div(class = "d-flex align-items-center gap-2 mb-2",
+        bsicons::bs_icon("info-circle"),
+        tags$span(msg)
+      ),
+      tags$table(
+        class = "table table-sm table-borderless mb-0",
+        style = "font-size: 0.85rem;",
+        tags$tbody(match_rows)
+      )
+    )
+  }
 
   div(
     class = "admin-form-section",
@@ -327,6 +400,9 @@ output$sr_match_upload_form <- renderUI({
         selected$event_type,
         if (!is.na(selected$rounds)) paste0(" \u2014 ", selected$rounds, " rounds") else "")
     ),
+
+    # Existing data preview
+    existing_preview,
 
     # Screenshot upload
     div(class = "admin-form-section-label",
@@ -765,7 +841,8 @@ observeEvent(input$sr_match_submit, {
     match_scene_id <- get_tournament_scene_id(conn, tournament_id)
 
     # Insert each match - read from editable inputs
-    matches_inserted <- 0
+    matches_new <- 0
+    matches_updated <- 0
     for (i in seq_len(nrow(results))) {
       row <- results[i, ]
 
@@ -881,12 +958,23 @@ observeEvent(input$sr_match_submit, {
       tryCatch({
         DBI::dbExecute(conn, sprintf("SAVEPOINT match_%d", i))
 
-        # Insert player's perspective
-        DBI::dbExecute(conn, "
+        # Upsert player's perspective — player's own data always wins over mirror rows
+        upsert_result <- DBI::dbGetQuery(conn, "
           INSERT INTO matches (tournament_id, round_number, player_id, opponent_id,
                                games_won, games_lost, games_tied, match_points,
                                match_type, source)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          ON CONFLICT (tournament_id, round_number, player_id)
+          DO UPDATE SET
+            opponent_id = EXCLUDED.opponent_id,
+            games_won = EXCLUDED.games_won,
+            games_lost = EXCLUDED.games_lost,
+            games_tied = EXCLUDED.games_tied,
+            match_points = EXCLUDED.match_points,
+            match_type = EXCLUDED.match_type,
+            source = EXCLUDED.source,
+            submitted_at = CURRENT_TIMESTAMP
+          RETURNING match_id, (xmax = 0) AS was_inserted
         ", params = list(
           tournament_id,
           as.integer(row$round),
@@ -900,21 +988,29 @@ observeEvent(input$sr_match_submit, {
           "ocr"
         ))
 
-        # Insert mirror row (opponent's perspective) — skip for byes/defaults
+        if (nrow(upsert_result) > 0) {
+          if (isTRUE(upsert_result$was_inserted[1])) {
+            matches_new <- matches_new + 1
+          } else {
+            matches_updated <- matches_updated + 1
+          }
+        }
+
+        # Insert mirror row (opponent's perspective) — never overwrite player's own data
         if (!is_bye_or_default && !is.na(opponent_id)) {
-          # Flip W/L for opponent's perspective
           opp_won <- games_lost
           opp_lost <- games_won
           opp_tied <- games_tied
           opp_points <- if (opp_won > opp_lost) 3L else if (opp_won < opp_lost) 0L else 1L
 
+          DBI::dbExecute(conn, sprintf("SAVEPOINT mirror_%d", i))
           tryCatch({
-            DBI::dbExecute(conn, sprintf("SAVEPOINT mirror_%d", i))
             DBI::dbExecute(conn, "
               INSERT INTO matches (tournament_id, round_number, player_id, opponent_id,
                                    games_won, games_lost, games_tied, match_points,
                                    match_type, source)
               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+              ON CONFLICT (tournament_id, round_number, player_id) DO NOTHING
             ", params = list(
               tournament_id,
               as.integer(row$round),
@@ -929,23 +1025,18 @@ observeEvent(input$sr_match_submit, {
             ))
             DBI::dbExecute(conn, sprintf("RELEASE SAVEPOINT mirror_%d", i))
           }, error = function(me) {
-            # Roll back mirror savepoint to keep transaction healthy
             tryCatch(DBI::dbExecute(conn, sprintf("ROLLBACK TO SAVEPOINT mirror_%d", i)), error = function(re) NULL)
-            if (!grepl("unique|duplicate", me$message, ignore.case = TRUE)) {
-              message("[MATCH SUBMIT] Mirror row error (non-duplicate): ", me$message)
-            }
+            message("[MATCH SUBMIT] Mirror row error: ", me$message)
+            if (sentry_enabled) tryCatch(sentryR::capture_exception(me, tags = sentry_context_tags()), error = function(se) NULL)
           })
         }
 
         DBI::dbExecute(conn, sprintf("RELEASE SAVEPOINT match_%d", i))
-        matches_inserted <- matches_inserted + 1
       }, error = function(e) {
         tryCatch(DBI::dbExecute(conn, sprintf("ROLLBACK TO SAVEPOINT match_%d", i)), error = function(re) NULL)
-        if (grepl("unique|duplicate", e$message, ignore.case = TRUE)) {
-          message("[MATCH SUBMIT] Skipping duplicate match round ", row$round)
-        } else {
-          stop(e)  # Re-throw non-duplicate errors to trigger ROLLBACK
-        }
+        message("[MATCH SUBMIT] Error on round ", row$round, ": ", e$message)
+        if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
+        stop(e)  # Re-throw all errors to trigger ROLLBACK
       })
     }
 
@@ -967,8 +1058,13 @@ observeEvent(input$sr_match_submit, {
       rv$sr_match_tournaments <- sr_match_get_tournaments(db_pool, rv$sr_match_player$player_id)
     }
 
+    total_saved <- matches_new + matches_updated
+    detail_parts <- c()
+    if (matches_new > 0) detail_parts <- c(detail_parts, paste(matches_new, "new"))
+    if (matches_updated > 0) detail_parts <- c(detail_parts, paste(matches_updated, "updated"))
+    detail_str <- if (length(detail_parts) > 0) paste0(" (", paste(detail_parts, collapse = ", "), ")") else ""
     notify(
-      paste("Match history submitted!", matches_inserted, "matches recorded."),
+      sprintf("Match history submitted! %d matches saved%s.", total_saved, detail_str),
       type = "message"
     )
 
