@@ -4,6 +4,22 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-03-31: Match Upload Side-by-Side Layout
+
+### Problem
+After clicking a tournament in the match-by-match flow, the upload form rendered below the full tournament list, requiring users to scroll down to find it. Easy to forget the upload was there.
+
+### Solution
+Split the match step 1 into a two-panel grid layout: tournament list (left, scrollable at 520px) and upload/detail panel (right). The split panel only renders after player lookup succeeds (`sr_match_split_panel` renderUI gated on `rv$sr_match_tournaments`).
+
+### Existing Match Preview Redesign
+Replaced the plain Bootstrap alert + HTML table with a digital-styled component: navy-to-blue gradient header bar, W/L/T summary row, and per-round rows with color-coded result badges (green/red/gray). Follows the same aesthetic patterns as value boxes and stat cards (gradient backgrounds, cyan accents, translucent badges).
+
+### CSS Gotcha: `:empty` and Shiny `uiOutput`
+Shiny's `uiOutput` always renders a `<div class="shiny-html-output">` wrapper, even when the renderUI returns nothing via `req()`. So `:empty` on the parent container never matches. Fixed by targeting `.shiny-html-output:empty` inside the detail panel, and using `:has()` for mobile hide rules.
+
+---
+
 ## 2026-03-31: Match Submission Pipeline Fix (v1.9.5)
 
 ### Root Cause: Sequence Collision

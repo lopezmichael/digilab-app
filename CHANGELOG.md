@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Existing data preview**: When selecting a tournament with prior match data, a summary table of existing rounds is shown before the upload form — including opponent names, results, and source.
 - **Detailed submission toast**: Post-submit message now distinguishes new vs updated matches (e.g., "4 matches saved (2 new, 2 updated)").
 
+### Changed
+- **Match-by-match side-by-side layout**: Replaced single-column scroll layout with a two-panel split — tournament list on the left, upload form on the right. Selecting a tournament instantly shows the upload area beside the list without scrolling. Tournament list scrolls independently at 520px max-height.
+- **Digital-styled match preview**: Existing match data now renders as a styled panel with navy gradient header, W/L/T summary, and per-round rows with color-coded result badges (green W, red L, gray T) — replacing the plain Bootstrap alert + table.
+- **Tournament selection highlighting**: Selected tournament gets a cyan left-border accent and subtle background highlight. Custom status badges (Complete/Partial/No data) use translucent styling consistent with the app's aesthetic.
+- **Mobile responsive**: Side-by-side collapses to stacked layout below 768px, hiding the empty detail panel until a tournament is selected.
+
 ## [Unreleased]
 
 ### Added
