@@ -49,21 +49,14 @@ accent_safe_slug <- function(text) {
     gsub("^-|-$", "", x = _)
 }
 
-#' Ensure parent country and state scenes exist after creating a metro scene.
-#' Creates missing parent scenes idempotently (checks before INSERT).
-#' @param pool Database connection pool
-#' @param country Character country name of the new metro scene
-#' @param state_region Character state/region name (can be NULL)
-#' @param continent Character continent code (can be NULL)
-#' @param admin_username Character username of the admin performing the action (for audit trail)
 # Resolve the parent_scene_id for a scene based on its type, country, and state_region.
+# Metro → state (if exists) → country. State → country. Country/global/online → no parent.
 # Returns integer scene_id or NA_integer_ if no parent applies.
 resolve_parent_scene_id <- function(pool, scene_type, country, state_region) {
   if (scene_type %in% c("country", "global", "online")) return(NA_integer_)
   if (is.null(country) || is.na(country) || country == "") return(NA_integer_)
 
   if (scene_type == "state") {
-    # State scenes parent to their country scene
     parent <- safe_query(pool,
       "SELECT scene_id FROM scenes WHERE scene_type = 'country' AND country = $1 LIMIT 1",
       params = list(country), default = data.frame())
@@ -84,6 +77,13 @@ resolve_parent_scene_id <- function(pool, scene_type, country, state_region) {
   if (nrow(country_parent) > 0) country_parent$scene_id[1] else NA_integer_
 }
 
+#' Ensure parent country and state scenes exist after creating a metro scene.
+#' Creates missing parent scenes idempotently (checks before INSERT).
+#' @param pool Database connection pool
+#' @param country Character country name of the new metro scene
+#' @param state_region Character state/region name (can be NULL)
+#' @param continent Character continent code (can be NULL)
+#' @param admin_username Character username of the admin performing the action (for audit trail)
 ensure_parent_scenes <- function(pool, country, state_region, continent, admin_username = "system") {
   if (is.null(country) || is.na(country) || country == "") return()
 
@@ -93,7 +93,10 @@ ensure_parent_scenes <- function(pool, country, state_region, continent, admin_u
     "SELECT scene_id FROM scenes WHERE scene_type = 'country' AND country = $1 LIMIT 1",
     params = list(country), default = data.frame())
 
-  if (nrow(existing) == 0 && !is.na(country_slug)) {
+  country_scene_id <- NA_integer_
+  if (nrow(existing) > 0) {
+    country_scene_id <- existing$scene_id[1]
+  } else if (!is.na(country_slug)) {
     # Verify slug doesn't collide
     slug_check <- safe_query(pool,
       "SELECT COUNT(*) as n FROM scenes WHERE slug = $1",
@@ -104,6 +107,11 @@ ensure_parent_scenes <- function(pool, country, state_region, continent, admin_u
          VALUES ($1, $2, $3, 'country', $4, $5, TRUE, $6)",
         params = list(country, country_slug, country, country, continent, admin_username))
       message(sprintf("[PARENT SCENES] Created country scene: %s (%s)", country, country_slug))
+      # Fetch the new ID
+      new_country <- safe_query(pool,
+        "SELECT scene_id FROM scenes WHERE slug = $1 LIMIT 1",
+        params = list(country_slug), default = data.frame())
+      if (nrow(new_country) > 0) country_scene_id <- new_country$scene_id[1]
     }
   }
 
@@ -143,12 +151,11 @@ ensure_parent_scenes <- function(pool, country, state_region, continent, admin_u
     params = list(state_slug), default = data.frame(n = 1))
   if (slug_check$n[1] > 0) return()  # collision — skip, admin can create manually
 
-  # Link state scene to its country parent
-  country_parent_id <- resolve_parent_scene_id(pool, "state", country, state_region)
+  # Use already-fetched country_scene_id instead of re-querying
   safe_execute(pool,
     "INSERT INTO scenes (name, slug, display_name, scene_type, country, state_region, continent, is_active, updated_by, parent_scene_id)
      VALUES ($1, $2, $3, 'state', $4, $5, $6, TRUE, $7, $8)",
-    params = list(state_region, state_slug, state_region, country, state_region, continent, admin_username, country_parent_id))
+    params = list(state_region, state_slug, state_region, country, state_region, continent, admin_username, country_scene_id))
   message(sprintf("[PARENT SCENES] Created state scene: %s / %s (%s)", country, state_region, state_slug))
 }
 
