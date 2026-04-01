@@ -319,6 +319,8 @@ submit_results_ui <- tagList(
       # Step 1: Player lookup → tournament selection → screenshot upload
       div(
         id = "sr_match_step1",
+
+        # --- Player lookup card (always visible) ---
         card(
           card_header(
             class = "d-flex align-items-center gap-2",
@@ -347,15 +349,12 @@ submit_results_ui <- tagList(
             ),
 
             # --- Player info (rendered after lookup) ---
-            uiOutput("sr_match_player_info"),
-
-            # --- Tournament history (rendered after lookup) ---
-            uiOutput("sr_match_tournament_history"),
-
-            # --- Screenshot upload (rendered after tournament selection) ---
-            uiOutput("sr_match_upload_form")
+            uiOutput("sr_match_player_info")
           )
-        )
+        ),
+
+        # --- Side-by-side: Tournament list + Upload panel (hidden until lookup) ---
+        uiOutput("sr_match_split_panel")
       ),
 
       # Step 2: Review & submit (hidden initially)

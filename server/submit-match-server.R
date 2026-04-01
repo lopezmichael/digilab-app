@@ -235,12 +235,39 @@ output$sr_match_player_info <- renderUI({
 })
 
 # =============================================================================
+# Side-by-side Split Panel (only rendered after player lookup loads tournaments)
+# =============================================================================
+
+output$sr_match_split_panel <- renderUI({
+  req(rv$sr_match_tournaments)
+
+  div(
+    class = "sr-match-split",
+
+    # Left: Tournament list
+    div(
+      class = "sr-match-split-list",
+      uiOutput("sr_match_tournament_history")
+    ),
+
+    # Right: Upload / detail panel
+    div(
+      class = "sr-match-split-detail",
+      uiOutput("sr_match_upload_form")
+    )
+  )
+})
+
+# =============================================================================
 # Tournament History
 # =============================================================================
 
 output$sr_match_tournament_history <- renderUI({
   req(rv$sr_match_tournaments)
   tournaments <- rv$sr_match_tournaments
+  # Re-render when selection changes (for highlight state)
+  sel <- rv$sr_match_selected_tournament
+  selected_id <- if (!is.null(sel)) as.integer(sel$tournament_id) else NA_integer_
 
   if (nrow(tournaments) == 0) {
     return(div(
@@ -249,29 +276,29 @@ output$sr_match_tournament_history <- renderUI({
     ))
   }
 
-  div(
-    class = "admin-form-section",
-    div(class = "admin-form-section-label",
+  tagList(
+    div(class = "sr-split-panel-header",
       bsicons::bs_icon("trophy"),
-      "Tournament History"
+      tags$span("Tournament History")
     ),
-    tags$small(class = "sr-form-hint mb-2", "Select a tournament to add your match history"),
+    tags$small(class = "sr-form-hint mb-2 d-block", "Select a tournament to add your match history"),
     div(
       class = "sr-tournament-list",
       lapply(seq_len(nrow(tournaments)), function(i) {
         t <- tournaments[i, ]
         match_count <- if (!is.na(t$match_count)) as.integer(t$match_count) else 0L
         rounds <- if (!is.na(t$rounds)) as.integer(t$rounds) else NA_integer_
+        is_selected <- !is.na(selected_id) && as.integer(t$tournament_id) == selected_id
 
         # Completeness badge
         badge <- if (!is.na(rounds) && match_count >= rounds) {
-          span(class = "badge bg-success", sprintf("Complete (%d/%d)", match_count, rounds))
+          span(class = "badge sr-badge--complete", sprintf("Complete (%d/%d)", match_count, rounds))
         } else if (match_count > 0 && !is.na(rounds)) {
-          span(class = "badge bg-warning text-dark", sprintf("Partial (%d/%d)", match_count, rounds))
+          span(class = "badge sr-badge--partial", sprintf("Partial (%d/%d)", match_count, rounds))
         } else if (match_count > 0) {
-          span(class = "badge bg-success", paste(match_count, "matches"))
+          span(class = "badge sr-badge--complete", paste(match_count, "matches"))
         } else {
-          span(class = "badge bg-secondary", "No match data")
+          span(class = "badge sr-badge--empty", "No match data")
         }
 
         has_matches <- match_count > 0
@@ -297,6 +324,7 @@ output$sr_match_tournament_history <- renderUI({
             badge
           ),
           class = paste0("sr-tournament-item",
+                         if (is_selected) " sr-tournament-item--selected" else "",
                          if (has_matches) " sr-tournament-item--done" else "")
         )
       })
@@ -347,50 +375,73 @@ output$sr_match_upload_form <- renderUI({
   existing_count <- nrow(existing_matches)
   rounds <- if (!is.na(selected$rounds)) as.integer(selected$rounds) else NA_integer_
 
-  # Build existing data preview if matches exist
+  # Build existing match data panel with digital styling
   existing_preview <- if (existing_count > 0) {
     if (!is.na(rounds) && existing_count >= rounds) {
-      msg <- "All rounds already recorded. Upload a screenshot to update your match history."
-      alert_class <- "alert-success"
+      status_text <- "All rounds recorded"
+      status_class <- "sr-match-status--complete"
     } else if (!is.na(rounds)) {
-      msg <- sprintf("%d of %d rounds have match data. Upload a screenshot to fill in or update.", existing_count, rounds)
-      alert_class <- "alert-info"
+      status_text <- sprintf("%d of %d rounds", existing_count, rounds)
+      status_class <- "sr-match-status--partial"
     } else {
-      msg <- sprintf("%d rounds recorded. Upload a screenshot to update.", existing_count)
-      alert_class <- "alert-info"
+      status_text <- sprintf("%d rounds", existing_count)
+      status_class <- "sr-match-status--partial"
     }
 
-    # Compact existing match summary
+    # Win/loss summary
+    total_wins <- sum(existing_matches$games_won > existing_matches$games_lost)
+    total_losses <- sum(existing_matches$games_won < existing_matches$games_lost)
+    total_ties <- sum(existing_matches$games_won == existing_matches$games_lost &
+                      existing_matches$games_won > 0)
+
+    # Styled match rows
     match_rows <- lapply(seq_len(existing_count), function(j) {
       m <- existing_matches[j, ]
       opp_name <- if (!is.na(m$opponent_name)) m$opponent_name else "Bye"
-      record <- sprintf("%d-%d-%d", m$games_won, m$games_lost, m$games_tied)
-      tags$tr(
-        tags$td(class = "pe-2 text-muted", paste0("R", m$round_number)),
-        tags$td(class = "pe-3", opp_name),
-        tags$td(class = "pe-2", record),
-        tags$td(m$match_points)
+      is_win <- m$games_won > m$games_lost
+      is_loss <- m$games_won < m$games_lost
+      result_class <- if (is_win) "sr-result--win" else if (is_loss) "sr-result--loss" else "sr-result--tie"
+      result_letter <- if (is_win) "W" else if (is_loss) "L" else "T"
+
+      div(class = paste("sr-match-row", result_class),
+        span(class = "sr-match-round", paste0("R", m$round_number)),
+        span(class = "sr-match-result-badge", result_letter),
+        span(class = "sr-match-opponent", opp_name),
+        span(class = "sr-match-record", sprintf("%d-%d-%d", m$games_won, m$games_lost, m$games_tied))
       )
     })
 
-    div(
-      class = paste("alert", alert_class, "mt-2 mb-3"),
-      div(class = "d-flex align-items-center gap-2 mb-2",
-        bsicons::bs_icon("info-circle"),
-        tags$span(msg)
+    div(class = "sr-match-preview",
+      # Header bar with status
+      div(class = "sr-match-preview-header",
+        div(class = "d-flex align-items-center gap-2",
+          bsicons::bs_icon("bullseye"),
+          tags$span(class = "fw-semibold", "Current Match Data")
+        ),
+        span(class = paste("sr-match-status-badge", status_class), status_text)
       ),
-      tags$table(
-        class = "table table-sm table-borderless mb-0",
-        style = "font-size: 0.85rem;",
-        tags$tbody(match_rows)
-      )
+      # Win/loss summary
+      div(class = "sr-match-preview-summary",
+        span(class = "sr-result--win", paste0(total_wins, "W")),
+        span(class = "sr-preview-divider", "\u2022"),
+        span(class = "sr-result--loss", paste0(total_losses, "L")),
+        if (total_ties > 0) tagList(
+          span(class = "sr-preview-divider", "\u2022"),
+          span(class = "sr-result--tie", paste0(total_ties, "T"))
+        )
+      ),
+      # Match rows
+      div(class = "sr-match-preview-body", match_rows)
     )
   }
 
-  div(
-    class = "admin-form-section",
-
+  tagList(
     # Tournament context banner
+    div(class = "sr-split-panel-header",
+      bsicons::bs_icon("camera"),
+      tags$span("Upload Match History")
+    ),
+
     div(
       class = "sr-selected-tournament",
       bsicons::bs_icon("trophy-fill", class = "sr-selected-tournament-icon"),
@@ -405,14 +456,10 @@ output$sr_match_upload_form <- renderUI({
     existing_preview,
 
     # Screenshot upload
-    div(class = "admin-form-section-label",
-      bsicons::bs_icon("camera"),
-      "Match History Screenshot"
-    ),
     div(
-      class = "d-flex align-items-start gap-3",
+      class = "sr-match-upload-area",
       div(
-        class = "upload-dropzone flex-shrink-0",
+        class = "upload-dropzone",
         fileInput("sr_match_screenshots", NULL,
                   multiple = FALSE,
                   accept = c("image/png", "image/jpeg", "image/jpg", "image/webp",
@@ -420,12 +467,9 @@ output$sr_match_upload_form <- renderUI({
                   placeholder = "No file selected",
                   buttonLabel = tags$span(bsicons::bs_icon("cloud-upload"), " Browse"))
       ),
-      div(
-        class = "upload-tips",
-        tags$small(class = "sr-form-hint",
-          bsicons::bs_icon("info-circle", class = "me-1"),
-          "Screenshot from Bandai TCG+ match history screen")
-      )
+      tags$small(class = "sr-form-hint",
+        bsicons::bs_icon("info-circle", class = "me-1"),
+        "Screenshot from Bandai TCG+ match history screen")
     ),
 
     # Image thumbnail preview
