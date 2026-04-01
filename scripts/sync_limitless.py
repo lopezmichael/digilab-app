@@ -639,27 +639,23 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
             p1_points, p2_points = 1, 1
 
         # Insert two match rows (one per player perspective)
-        cursor.execute(
-            "SELECT COALESCE(MAX(match_id), 0) + 1 FROM matches"
-        )
-        next_match_id = cursor.fetchone()[0]
-
+        # Let IDENTITY generate match_id — do NOT use explicit IDs
         try:
             # Player 1's perspective
             cursor.execute("""
                 INSERT INTO matches
-                    (match_id, tournament_id, round_number, player_id, opponent_id,
+                    (tournament_id, round_number, player_id, opponent_id,
                      games_won, games_lost, games_tied, match_points, match_type, source, submitted_at)
-                VALUES (%s, %s, %s, %s, %s, 0, 0, 0, %s, 'normal', 'limitless', CURRENT_TIMESTAMP)
-            """, (next_match_id, next_tournament_id, round_number, player1_id, player2_id, p1_points))
+                VALUES (%s, %s, %s, %s, 0, 0, 0, %s, 'normal', 'limitless', CURRENT_TIMESTAMP)
+            """, (next_tournament_id, round_number, player1_id, player2_id, p1_points))
 
             # Player 2's perspective
             cursor.execute("""
                 INSERT INTO matches
-                    (match_id, tournament_id, round_number, player_id, opponent_id,
+                    (tournament_id, round_number, player_id, opponent_id,
                      games_won, games_lost, games_tied, match_points, match_type, source, submitted_at)
-                VALUES (%s, %s, %s, %s, %s, 0, 0, 0, %s, 'normal', 'limitless', CURRENT_TIMESTAMP)
-            """, (next_match_id + 1, next_tournament_id, round_number, player2_id, player1_id, p2_points))
+                VALUES (%s, %s, %s, %s, 0, 0, 0, %s, 'normal', 'limitless', CURRENT_TIMESTAMP)
+            """, (next_tournament_id, round_number, player2_id, player1_id, p2_points))
 
             matches_inserted += 2
         except Exception as e:
@@ -1038,25 +1034,21 @@ def repair_tournament(cursor, tournament_id, limitless_id):
         else:
             p1_points, p2_points = 1, 1
 
-        cursor.execute(
-            "SELECT COALESCE(MAX(match_id), 0) + 1 FROM matches"
-        )
-        next_match_id = cursor.fetchone()[0]
-
+        # Let IDENTITY generate match_id — do NOT use explicit IDs
         try:
             cursor.execute("""
                 INSERT INTO matches
-                    (match_id, tournament_id, round_number, player_id, opponent_id,
+                    (tournament_id, round_number, player_id, opponent_id,
                      games_won, games_lost, games_tied, match_points, match_type, source, submitted_at)
-                VALUES (%s, %s, %s, %s, %s, 0, 0, 0, %s, 'normal', 'limitless', CURRENT_TIMESTAMP)
-            """, (next_match_id, tournament_id, round_number, player1_id, player2_id, p1_points))
+                VALUES (%s, %s, %s, %s, 0, 0, 0, %s, 'normal', 'limitless', CURRENT_TIMESTAMP)
+            """, (tournament_id, round_number, player1_id, player2_id, p1_points))
 
             cursor.execute("""
                 INSERT INTO matches
-                    (match_id, tournament_id, round_number, player_id, opponent_id,
+                    (tournament_id, round_number, player_id, opponent_id,
                      games_won, games_lost, games_tied, match_points, match_type, source, submitted_at)
-                VALUES (%s, %s, %s, %s, %s, 0, 0, 0, %s, 'normal', 'limitless', CURRENT_TIMESTAMP)
-            """, (next_match_id + 1, tournament_id, round_number, player2_id, player1_id, p2_points))
+                VALUES (%s, %s, %s, %s, 0, 0, 0, %s, 'normal', 'limitless', CURRENT_TIMESTAMP)
+            """, (tournament_id, round_number, player2_id, player1_id, p2_points))
 
             matches_inserted += 2
         except Exception as e:
