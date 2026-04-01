@@ -330,15 +330,19 @@ output$sr_match_upload_form <- renderUI({
   tournament_id <- as.integer(selected$tournament_id)
   player_id <- as.integer(rv$sr_match_player$player_id)
 
-  # Query existing match data for this player + tournament
-  existing_matches <- safe_query(db_pool, "
-    SELECT m.round_number, m.games_won, m.games_lost, m.games_tied, m.match_points,
-           m.source, p.display_name as opponent_name
-    FROM matches m
-    LEFT JOIN players p ON m.opponent_id = p.player_id
-    WHERE m.tournament_id = $1 AND m.player_id = $2
-    ORDER BY m.round_number
-  ", params = list(tournament_id, player_id), default = data.frame())
+  # Query existing match data for this player + tournament (skip if none exist)
+  existing_matches <- if (!is.na(selected$match_count) && as.integer(selected$match_count) > 0) {
+    safe_query(db_pool, "
+      SELECT m.round_number, m.games_won, m.games_lost, m.games_tied, m.match_points,
+             m.source, p.display_name as opponent_name
+      FROM matches m
+      LEFT JOIN players p ON m.opponent_id = p.player_id
+      WHERE m.tournament_id = $1 AND m.player_id = $2
+      ORDER BY m.round_number
+    ", params = list(tournament_id, player_id), default = data.frame())
+  } else {
+    data.frame()
+  }
 
   existing_count <- nrow(existing_matches)
   rounds <- if (!is.na(selected$rounds)) as.integer(selected$rounds) else NA_integer_
@@ -999,6 +1003,7 @@ observeEvent(input$sr_match_submit, {
           opp_tied <- games_tied
           opp_points <- if (opp_won > opp_lost) 3L else if (opp_won < opp_lost) 0L else 1L
 
+          DBI::dbExecute(conn, sprintf("SAVEPOINT mirror_%d", i))
           tryCatch({
             DBI::dbExecute(conn, "
               INSERT INTO matches (tournament_id, round_number, player_id, opponent_id,
@@ -1018,7 +1023,9 @@ observeEvent(input$sr_match_submit, {
               "normal",
               "ocr"
             ))
+            DBI::dbExecute(conn, sprintf("RELEASE SAVEPOINT mirror_%d", i))
           }, error = function(me) {
+            tryCatch(DBI::dbExecute(conn, sprintf("ROLLBACK TO SAVEPOINT mirror_%d", i)), error = function(re) NULL)
             message("[MATCH SUBMIT] Mirror row error: ", me$message)
             if (sentry_enabled) tryCatch(sentryR::capture_exception(me, tags = sentry_context_tags()), error = function(se) NULL)
           })

@@ -5,6 +5,18 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.5] - 2026-03-31
+
+### Fixed
+- **Match submission sequence collision**: Limitless sync script used `MAX(match_id)+1` for explicit IDs, desynchronizing PostgreSQL's IDENTITY sequence. All OCR-submitted matches collided on `matches_pkey` and were silently skipped by a broad `unique|duplicate` error handler. Removed explicit ID assignment from `sync_limitless.py`; reset production sequence.
+- **Match submission upsert**: Replaced plain INSERT with `ON CONFLICT DO UPDATE` for player match rows (re-submissions update existing data) and `ON CONFLICT DO NOTHING` for mirror rows (opponent's self-submitted data takes priority). Removed overly broad duplicate error handler.
+- **Mirror row savepoint protection**: Added savepoint around mirror row INSERT so non-constraint DB errors don't poison the parent transaction.
+
+### Added
+- **Tournament completeness badges**: Match-by-match tournament list now shows "Complete (4/4)" (green), "Partial (2/4)" (yellow), or "No match data" (gray) based on submitted match count vs tournament rounds.
+- **Existing data preview**: When selecting a tournament with prior match data, a summary table of existing rounds is shown before the upload form — including opponent names, results, and source.
+- **Detailed submission toast**: Post-submit message now distinguishes new vs updated matches (e.g., "4 matches saved (2 new, 2 updated)").
+
 ## [Unreleased]
 
 ### Added

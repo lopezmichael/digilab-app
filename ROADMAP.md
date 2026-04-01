@@ -1,6 +1,6 @@
 ---
-currentVersion: "1.9.3"
-lastUpdated: "2026-03-30"
+currentVersion: "1.9.5"
+lastUpdated: "2026-03-31"
 
 inProgress: []
 
