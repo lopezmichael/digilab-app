@@ -307,12 +307,12 @@ observeEvent(input$sr_step1_next, {
   if (is.null(input$sr_format) || input$sr_format == "") {
     notify("Please select a format", type = "error"); return()
   }
-  player_count <- input$sr_players %||% 8
-  if (is.null(player_count) || player_count < 2) {
+  player_count <- as.integer(input$sr_players %||% 8)
+  if (is.null(player_count) || is.na(player_count) || player_count < 2) {
     notify("Player count must be at least 2", type = "error"); return()
   }
 
-  method <- rv$sr_active_method
+  method <- rv$sr_active_method %||% "unknown"
   record_fmt <- if (isTRUE(rv$is_admin)) (input$sr_record_format %||% "points") else "points"
   rv$sr_record_format <- record_fmt
 
@@ -405,11 +405,12 @@ observeEvent(input$sr_create_anyway, {
 
 sr_create_tournament_and_show_grid <- function() {
   store_id <- as.integer(input$sr_store)
+  if (is.na(store_id)) { notify("Invalid store selection", type = "error"); return() }
   event_date <- as.character(input$sr_date)
   event_type <- input$sr_event_type
   format_val <- input$sr_format
-  player_count <- input$sr_players %||% 8
-  rounds <- input$sr_rounds %||% 4
+  player_count <- as.integer(input$sr_players %||% 8)
+  rounds <- as.integer(input$sr_rounds %||% 4)
   record_fmt <- rv$sr_record_format
 
   submit_by_grid <- if (isTRUE(rv$is_admin)) current_admin_username(rv) else "public_submit"
@@ -484,7 +485,7 @@ output$sr_step2_content <- renderUI({
 
   # OCR summary badges (upload mode)
   match_summary <- NULL
-  if (rv$sr_active_method == "upload" && !is.null(rv$sr_ocr_results)) {
+  if (identical(rv$sr_active_method, "upload") && !is.null(rv$sr_ocr_results)) {
     results <- rv$sr_ocr_results
     matched_count <- sum(results$match_status == "matched", na.rm = TRUE)
     similar_count <- sum(results$match_status == "new_similar", na.rm = TRUE)
@@ -562,7 +563,7 @@ output$sr_step2_content <- renderUI({
     card_body(
       render_grid_ui(grid, record_format, is_release, deck_choices,
                      rv$sr_player_matches, "sr_",
-                     mode = if (rv$sr_active_method == "upload") "review" else "entry",
+                     mode = if (identical(rv$sr_active_method, "upload")) "review" else "entry",
                      ocr_rows = rv$sr_ocr_row_indices,
                      placement_editable = TRUE,
                      show_add_player_btn = TRUE,
@@ -571,7 +572,7 @@ output$sr_step2_content <- renderUI({
   )
 
   # Confirmation checkbox (upload/public flow)
-  confirm_section <- if (rv$sr_active_method == "upload") {
+  confirm_section <- if (identical(rv$sr_active_method, "upload")) {
     div(
       class = "mt-3",
       checkboxInput("sr_confirm", "I confirm this data is accurate", value = FALSE)
@@ -607,7 +608,7 @@ observeEvent(input$sr_wizard_back, {
   shinyjs::runjs("$('#sr_step2_indicator').removeClass('active'); $('#sr_step1_indicator').addClass('active').removeClass('completed');")
 
   # Show upload section if in upload mode
-  if (rv$sr_active_method == "upload") {
+  if (identical(rv$sr_active_method, "upload")) {
     shinyjs::show("sr_upload_section")
   }
 })
@@ -1287,7 +1288,7 @@ observeEvent(input$sr_submit_results, {
   req(rv$sr_grid_data)
 
   # Confirmation check for upload mode
-  if (rv$sr_active_method == "upload" && !isTRUE(input$sr_confirm)) {
+  if (identical(rv$sr_active_method, "upload") && !isTRUE(input$sr_confirm)) {
     notify("Please confirm the data is accurate before submitting.", type = "warning")
     return()
   }
@@ -1325,10 +1326,11 @@ observeEvent(input$sr_submit_results, {
   # For upload flow without pre-created tournament: create it now
   if (is.null(rv$sr_active_tournament_id)) {
     store_id <- as.integer(input$sr_store)
+    if (is.na(store_id)) { notify("Invalid store selection", type = "error"); return() }
     event_date <- as.character(input$sr_date)
     event_type <- input$sr_event_type
     format_val <- input$sr_format
-    rounds <- input$sr_rounds %||% 4
+    rounds <- as.integer(input$sr_rounds %||% 4)
 
     # Exact duplicate check
     existing <- safe_query(db_pool, "
@@ -1380,7 +1382,7 @@ observeEvent(input$sr_submit_results, {
         SELECT s.scene_id FROM tournaments t JOIN stores s ON t.store_id = s.store_id
         WHERE t.tournament_id = $1
       ", params = list(tournament_id))
-      scene_id <- if (nrow(tournament_store) > 0) tournament_store$scene_id[1] else NULL
+      scene_id <- if (nrow(tournament_store) > 0) tournament_store$scene_id[1] else NA_integer_
 
       # Phase 1: Resolve all players
       resolved_rows <- list()
