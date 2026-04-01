@@ -1269,32 +1269,30 @@ def clean_limitless_data(conn, cursor, organizer_ids=None):
 # Main
 # =============================================================================
 
-def get_incremental_since_date(cursor):
-    """Get the earliest last_tournament_date from sync state for incremental sync.
+def get_incremental_since_date_for_organizer(cursor, organizer_id):
+    """Get the last_tournament_date for a specific organizer from sync state.
 
-    Returns a date 1 day before the oldest last sync to ensure we catch everything.
-    Falls back to 30 days ago if no sync state exists.
+    Returns a date 1 day before the organizer's last synced tournament to catch
+    any tournaments that may have been added/updated since then.
+    Falls back to 30 days ago if no sync state exists for this organizer.
     """
     try:
         cursor.execute("""
-            SELECT MIN(last_tournament_date) FROM limitless_sync_state
-            WHERE last_tournament_date IS NOT NULL
-        """)
+            SELECT last_tournament_date FROM limitless_sync_state
+            WHERE organizer_id = %s AND last_tournament_date IS NOT NULL
+        """, (organizer_id,))
         result = cursor.fetchone()
 
         if result and result[0]:
-            # Parse the date and subtract 1 day for safety overlap
-            # psycopg2 may return a date object or string depending on column type
             last_date_val = result[0]
             if isinstance(last_date_val, str):
                 last_date = datetime.strptime(last_date_val, "%Y-%m-%d")
             else:
-                # It's a date/datetime object
                 last_date = datetime(last_date_val.year, last_date_val.month, last_date_val.day)
             since_date = last_date - timedelta(days=1)
             return since_date.strftime("%Y-%m-%d")
     except Exception as e:
-        print(f"  Warning: Could not read sync state: {e}")
+        print(f"  Warning: Could not read sync state for organizer {organizer_id}: {e}")
 
     # Default to 30 days ago
     default_date = datetime.now() - timedelta(days=30)
@@ -1455,7 +1453,7 @@ def main():
     parser.add_argument("--since",
                         help="Only sync tournaments on or after this date (YYYY-MM-DD)")
     parser.add_argument("--incremental", action="store_true",
-                        help="Auto-detect since date from last sync state")
+                        help="Auto-detect since date per organizer from sync state")
     parser.add_argument("--classify", action="store_true",
                         help="Run deck archetype auto-classification after sync")
     parser.add_argument("--dry-run", action="store_true",
@@ -1512,13 +1510,13 @@ def main():
     else:
         organizer_ids = [args.organizer]
 
-    # Determine since date (incremental mode auto-detects from sync state)
+    # Determine since date (incremental mode auto-detects per-organizer from sync state)
     since_date = args.since
     if args.incremental:
-        since_date = get_incremental_since_date(cursor)
-        print(f"Mode: INCREMENTAL (auto-detected since date)")
+        print(f"Mode: INCREMENTAL (per-organizer since dates from sync state)")
+    else:
+        print(f"Since: {since_date}")
 
-    print(f"Since: {since_date}")
     print(f"Organizers: {', '.join(str(o) for o in organizer_ids)}")
     if args.limit:
         print(f"Limit: {args.limit} tournaments per organizer")
@@ -1537,7 +1535,11 @@ def main():
     all_stats = []
     for organizer_id in organizer_ids:
         try:
-            stats = sync_organizer(conn, cursor, organizer_id, since_date, args.dry_run, args.limit)
+            if args.incremental:
+                org_since = get_incremental_since_date_for_organizer(cursor, organizer_id)
+            else:
+                org_since = since_date
+            stats = sync_organizer(conn, cursor, organizer_id, org_since, args.dry_run, args.limit)
             all_stats.append(stats)
         except Exception as e:
             print(f"\nERROR syncing organizer {organizer_id}: {e}")
