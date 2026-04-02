@@ -540,6 +540,47 @@ recalculate_ratings_cache <- function(db_con, from_date = NULL, use_legacy = FAL
     achievement_scores <- calculate_achievement_scores(db_con)
     store_ratings <- calculate_store_avg_player_rating(db_con, player_ratings[, c("player_id", "competitive_rating")])
 
+    # --- Pre-compute player stats from results table ---
+    player_stats <- safe_query_impl(db_con, "
+      SELECT r.player_id,
+             COALESCE(SUM(r.wins), 0)::int AS match_wins,
+             COALESCE(SUM(r.losses), 0)::int AS match_losses,
+             COALESCE(SUM(r.ties), 0)::int AS match_ties,
+             ROUND(SUM(r.wins) * 100.0 / NULLIF(SUM(r.wins) + SUM(r.losses), 0), 1) AS win_pct,
+             COUNT(CASE WHEN r.placement = 1 THEN 1 END)::int AS first_count,
+             COUNT(CASE WHEN r.placement <= 3 THEN 1 END)::int AS top3_count
+      FROM results r
+      GROUP BY r.player_id
+    ", default = data.frame(
+      player_id = integer(), match_wins = integer(), match_losses = integer(),
+      match_ties = integer(), win_pct = numeric(), first_count = integer(),
+      top3_count = integer()
+    ))
+
+    # --- Pre-compute top archetype per player (most-played deck) ---
+    top_archetypes <- safe_query_impl(db_con, "
+      SELECT DISTINCT ON (player_id) player_id, archetype_id AS top_archetype_id
+      FROM (
+        SELECT player_id, archetype_id, COUNT(*) AS cnt
+        FROM results
+        WHERE archetype_id IS NOT NULL
+        GROUP BY player_id, archetype_id
+      ) sub
+      ORDER BY player_id, cnt DESC
+    ", default = data.frame(player_id = integer(), top_archetype_id = integer()))
+
+    # --- Pre-compute player country (from most-played store's scene) ---
+    player_countries <- safe_query_impl(db_con, "
+      SELECT DISTINCT ON (r.player_id) r.player_id, sc.country
+      FROM results r
+      JOIN tournaments t ON r.tournament_id = t.tournament_id
+      JOIN stores s ON t.store_id = s.store_id
+      JOIN scenes sc ON s.scene_id = sc.scene_id
+      WHERE sc.country IS NOT NULL
+      GROUP BY r.player_id, sc.country
+      ORDER BY r.player_id, COUNT(*) DESC
+    ", default = data.frame(player_id = integer(), country = character()))
+
     # Merge player data
     if (nrow(player_ratings) > 0) {
       player_cache <- merge(player_ratings, achievement_scores, by = "player_id", all = TRUE)
@@ -547,16 +588,55 @@ recalculate_ratings_cache <- function(db_con, from_date = NULL, use_legacy = FAL
       player_cache$achievement_score[is.na(player_cache$achievement_score)] <- 0
       player_cache$events_played[is.na(player_cache$events_played)] <- 0
 
+      # Merge pre-computed stats
+      player_cache <- merge(player_cache, player_stats, by = "player_id", all.x = TRUE)
+      player_cache$match_wins[is.na(player_cache$match_wins)] <- 0L
+      player_cache$match_losses[is.na(player_cache$match_losses)] <- 0L
+      player_cache$match_ties[is.na(player_cache$match_ties)] <- 0L
+      player_cache$first_count[is.na(player_cache$first_count)] <- 0L
+      player_cache$top3_count[is.na(player_cache$top3_count)] <- 0L
+
+      # Merge top archetype and country
+      player_cache <- merge(player_cache, top_archetypes, by = "player_id", all.x = TRUE)
+      player_cache <- merge(player_cache, player_countries, by = "player_id", all.x = TRUE)
+
+      # Compute global rank (DENSE_RANK by competitive_rating DESC)
+      player_cache <- player_cache[order(-player_cache$competitive_rating), ]
+      cr <- player_cache$competitive_rating
+      player_cache$global_rank <- match(cr, sort(unique(cr), decreasing = TRUE))
+
       # Clear and repopulate player cache
       safe_execute_impl(db_con, "DELETE FROM player_ratings_cache")
+
+      # Build INSERT with new columns — use SQL NULL for NA values
+      fmt_nullable_int <- function(x) ifelse(is.na(x), "NULL", as.character(as.integer(x)))
+      fmt_nullable_num <- function(x) ifelse(is.na(x), "NULL", as.character(x))
+      fmt_nullable_str <- function(x) ifelse(is.na(x) | x == "", "NULL", paste0("'", gsub("'", "''", x), "'"))
+
+      values <- sprintf(
+        "(%d, %d, %d, %d, %d, %d, %d, %d, %s, %d, %d, %s, %s)",
+        player_cache$player_id,
+        player_cache$competitive_rating,
+        player_cache$achievement_score,
+        player_cache$events_played,
+        player_cache$global_rank,
+        player_cache$match_wins,
+        player_cache$match_losses,
+        player_cache$match_ties,
+        fmt_nullable_num(player_cache$win_pct),
+        player_cache$first_count,
+        player_cache$top3_count,
+        fmt_nullable_int(player_cache$top_archetype_id),
+        fmt_nullable_str(player_cache$country)
+      )
+
       safe_execute_impl(db_con, sprintf("
-        INSERT INTO player_ratings_cache (player_id, competitive_rating, achievement_score, events_played)
-        VALUES %s
-      ", paste(sprintf("(%d, %d, %d, %d)",
-               player_cache$player_id,
-               player_cache$competitive_rating,
-               player_cache$achievement_score,
-               player_cache$events_played), collapse = ", ")))
+        INSERT INTO player_ratings_cache (
+          player_id, competitive_rating, achievement_score, events_played,
+          global_rank, match_wins, match_losses, match_ties, win_pct,
+          first_count, top3_count, top_archetype_id, country
+        ) VALUES %s
+      ", paste(values, collapse = ", ")))
     }
 
     # Clear and repopulate store cache
@@ -567,6 +647,25 @@ recalculate_ratings_cache <- function(db_con, from_date = NULL, use_legacy = FAL
         VALUES %s
       ", paste(sprintf("(%d, %d)", store_ratings$store_id, store_ratings$avg_player_rating), collapse = ", ")))
     }
+
+    # --- Pre-compute leaderboard aggregate stats (median rating, total players) ---
+    tryCatch({
+      safe_execute_impl(db_con, "
+        INSERT INTO leaderboard_stats_cache (id, median_rating, total_rated_players, last_computed_at)
+        SELECT 1,
+               PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY competitive_rating),
+               COUNT(*),
+               CURRENT_TIMESTAMP
+        FROM player_ratings_cache
+        WHERE events_played >= 1
+        ON CONFLICT (id) DO UPDATE SET
+          median_rating = EXCLUDED.median_rating,
+          total_rated_players = EXCLUDED.total_rated_players,
+          last_computed_at = EXCLUDED.last_computed_at
+      ")
+    }, error = function(e) {
+      message("[ratings] Leaderboard stats cache update failed (non-fatal): ", e$message)
+    })
 
     message("[ratings] Cache updated: ", nrow(player_ratings), " players, ", nrow(store_ratings), " stores")
 

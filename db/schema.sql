@@ -351,8 +351,20 @@ CREATE TABLE IF NOT EXISTS player_ratings_cache (
     competitive_rating INTEGER NOT NULL DEFAULT 1500,
     achievement_score INTEGER NOT NULL DEFAULT 0,
     events_played INTEGER NOT NULL DEFAULT 0,
+    global_rank INT,
+    match_wins INT NOT NULL DEFAULT 0,
+    match_losses INT NOT NULL DEFAULT 0,
+    match_ties INT NOT NULL DEFAULT 0,
+    win_pct NUMERIC,
+    first_count INT NOT NULL DEFAULT 0,
+    top3_count INT NOT NULL DEFAULT 0,
+    top_archetype_id INT,
+    country TEXT,
     last_computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_prc_global_rank ON player_ratings_cache (global_rank);
+CREATE INDEX IF NOT EXISTS idx_prc_country ON player_ratings_cache (country);
 
 -- =============================================================================
 -- STORE RATINGS CACHE TABLE
@@ -361,6 +373,17 @@ CREATE TABLE IF NOT EXISTS player_ratings_cache (
 CREATE TABLE IF NOT EXISTS store_ratings_cache (
     store_id INTEGER PRIMARY KEY,
     avg_player_rating INTEGER NOT NULL DEFAULT 1500,
+    last_computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =============================================================================
+-- LEADERBOARD STATS CACHE TABLE
+-- Single-row table for aggregate leaderboard statistics (median rating, etc.)
+-- =============================================================================
+CREATE TABLE IF NOT EXISTS leaderboard_stats_cache (
+    id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    median_rating NUMERIC,
+    total_rated_players INT,
     last_computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
