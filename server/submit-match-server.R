@@ -250,9 +250,9 @@ output$sr_match_split_panel <- renderUI({
       uiOutput("sr_match_tournament_history")
     ),
 
-    # Right: Upload / detail panel
+    # Right: Upload / detail panel (hidden on mobile until tournament selected)
     div(
-      class = "sr-match-split-detail",
+      class = "sr-match-split-detail sr-match-detail--empty",
       uiOutput("sr_match_upload_form")
     )
   )
@@ -344,6 +344,19 @@ lapply(1:50, function(i) {
     rv$sr_match_uploaded_file <- NULL
     rv$sr_match_parsed_count <- 0
     rv$sr_match_total_rounds <- 0
+
+    # Show upload panel and scroll to it on mobile
+    shinyjs::runjs("
+      var detail = document.querySelector('.sr-match-split-detail');
+      if (detail) {
+        detail.classList.remove('sr-match-detail--empty');
+        if (window.innerWidth <= 768) {
+          setTimeout(function() {
+            detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 300);
+        }
+      }
+    ")
   }, ignoreInit = TRUE)
 })
 

@@ -7937,7 +7937,12 @@ select,
     grid-template-columns: 1fr;
   }
 
-  .sr-match-split-detail:has(.shiny-html-output:empty) {
+  .sr-match-split-detail.sr-match-detail--empty {
+    display: none;
+  }
+
+  /* Icon-only lookup button on mobile */
+  .sr-lookup-label {
     display: none;
   }
 }

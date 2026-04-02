@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Match-by-match mobile: upload panel not showing**: Selecting a tournament on mobile didn't reveal the upload file input. Replaced unreliable CSS `:has(:empty)` toggle with explicit class management from the server; panel now appears and auto-scrolls into view on selection.
+- **Match-by-match mobile: lookup button overflow**: "Look Up" button overflowed card boundaries on small screens. Button now shows icon-only (magnifying glass) on mobile.
+
 ### Added
 - **"vs Top Win %" meta column**: New `mv_archetype_matchups` materialized view tracks head-to-head win/loss records for every archetype pair per format. Meta tab shows each deck's win rate against the most-played deck in the selected format (minimum 10 matches). Column header dynamically shows the top deck name (e.g., "vs Royal Knights").
 - **Onboarding redesign**: New 3-step flow — Pick Your Scene (interactive map + geolocation + scene buttons), Find Yourself (player search by Bandai ID or name with fuzzy matching via pg_trgm), Your Scene at a Glance (30-day stats grid with dashboard-style value boxes, trending deck card image, rank banner). Player identity persisted to localStorage for future sessions.

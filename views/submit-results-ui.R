@@ -340,9 +340,8 @@ submit_results_ui <- tagList(
                 class = "sr-lookup-row",
                 textInput("sr_match_member_id", NULL,
                           placeholder = "e.g., 0000123456"),
-                actionButton("sr_match_lookup", "Look Up",
-                             class = "btn-primary",
-                             icon = icon("search"))
+                actionButton("sr_match_lookup", tagList(icon("search"), tags$span(class = "sr-lookup-label", "Look Up")),
+                             class = "btn-primary")
               ),
               tags$small(class = "sr-form-hint",
                          "Enter your Bandai TCG+ Member Number to find your tournaments")
@@ -401,9 +400,8 @@ submit_results_ui <- tagList(
               class = "sr-lookup-row",
               textInput("sr_decklist_member_id", NULL,
                         placeholder = "e.g., 0000123456"),
-              actionButton("sr_decklist_lookup", "Look Up",
-                           class = "btn-primary",
-                           icon = icon("search"))
+              actionButton("sr_decklist_lookup", tagList(icon("search"), tags$span(class = "sr-lookup-label", "Look Up")),
+                           class = "btn-primary")
             ),
             tags$small(class = "sr-form-hint",
                        "Enter your Bandai TCG+ Member Number to find your tournaments")
