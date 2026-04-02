@@ -31,36 +31,43 @@ run <- function(desc, sql) {
 
 message("\n=== Migration 016: Leaderboard Cache Columns ===\n")
 
-# Read and execute migration SQL
-sql <- readLines("db/migrations/016_leaderboard_cache_columns.sql")
-sql_text <- paste(sql, collapse = "\n")
+# Execute each statement individually for clear error reporting
+run("Add column global_rank",
+    "ALTER TABLE player_ratings_cache ADD COLUMN IF NOT EXISTS global_rank INT")
+run("Add column match_wins",
+    "ALTER TABLE player_ratings_cache ADD COLUMN IF NOT EXISTS match_wins INT NOT NULL DEFAULT 0")
+run("Add column match_losses",
+    "ALTER TABLE player_ratings_cache ADD COLUMN IF NOT EXISTS match_losses INT NOT NULL DEFAULT 0")
+run("Add column match_ties",
+    "ALTER TABLE player_ratings_cache ADD COLUMN IF NOT EXISTS match_ties INT NOT NULL DEFAULT 0")
+run("Add column win_pct",
+    "ALTER TABLE player_ratings_cache ADD COLUMN IF NOT EXISTS win_pct NUMERIC")
+run("Add column first_count",
+    "ALTER TABLE player_ratings_cache ADD COLUMN IF NOT EXISTS first_count INT NOT NULL DEFAULT 0")
+run("Add column top3_count",
+    "ALTER TABLE player_ratings_cache ADD COLUMN IF NOT EXISTS top3_count INT NOT NULL DEFAULT 0")
+run("Add column top_archetype_id",
+    "ALTER TABLE player_ratings_cache ADD COLUMN IF NOT EXISTS top_archetype_id INT")
+run("Add column country",
+    "ALTER TABLE player_ratings_cache ADD COLUMN IF NOT EXISTS country TEXT")
 
-# Split on semicolons and execute each statement
-statements <- strsplit(sql_text, ";")[[1]]
-statements <- trimws(statements)
-statements <- statements[nchar(statements) > 0 & !grepl("^--", statements)]
+run("Create leaderboard_stats_cache table",
+    "CREATE TABLE IF NOT EXISTS leaderboard_stats_cache (
+       id INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+       median_rating NUMERIC,
+       total_rated_players INT,
+       last_computed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+     )")
 
-for (stmt in statements) {
-  # Skip pure comment blocks
-  clean <- gsub("--[^\n]*", "", stmt)
-  clean <- trimws(clean)
-  if (nchar(clean) == 0) next
+run("Seed leaderboard_stats_cache",
+    "INSERT INTO leaderboard_stats_cache (id, median_rating, total_rated_players)
+     VALUES (1, 1500, 0)
+     ON CONFLICT (id) DO NOTHING")
 
-  # Extract a short description from the statement
-  desc <- if (grepl("ALTER TABLE", stmt, ignore.case = TRUE)) {
-    sub(".*ADD COLUMN IF NOT EXISTS (\\w+).*", "Add column \\1", stmt)
-  } else if (grepl("CREATE TABLE", stmt, ignore.case = TRUE)) {
-    sub(".*CREATE TABLE IF NOT EXISTS (\\w+).*", "Create table \\1", stmt)
-  } else if (grepl("CREATE INDEX", stmt, ignore.case = TRUE)) {
-    sub(".*CREATE INDEX IF NOT EXISTS (\\w+).*", "Create index \\1", stmt)
-  } else if (grepl("INSERT INTO", stmt, ignore.case = TRUE)) {
-    "Seed leaderboard_stats_cache"
-  } else {
-    substr(clean, 1, 60)
-  }
-
-  run(desc, paste0(stmt, ";"))
-}
+run("Create index idx_prc_global_rank",
+    "CREATE INDEX IF NOT EXISTS idx_prc_global_rank ON player_ratings_cache (global_rank)")
+run("Create index idx_prc_country",
+    "CREATE INDEX IF NOT EXISTS idx_prc_country ON player_ratings_cache (country)")
 
 message("\n=== Migration 016 complete ===")
 

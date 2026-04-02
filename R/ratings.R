@@ -479,8 +479,9 @@ calculate_achievement_scores <- function(db_con) {
 calculate_store_avg_player_rating <- function(db_con, player_ratings) {
 
   # Get player appearances per store (all time)
+  # Cast to int to avoid integer64 (bigint) issues with aggregate/cbind
   store_appearances <- safe_query_impl(db_con, "
-    SELECT t.store_id, r.player_id, COUNT(*) as appearances
+    SELECT t.store_id, r.player_id, COUNT(*)::int as appearances
     FROM results r
     JOIN tournaments t ON r.tournament_id = t.tournament_id
     JOIN stores s ON t.store_id = s.store_id
