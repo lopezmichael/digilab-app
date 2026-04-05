@@ -4513,6 +4513,16 @@ body.bslib-gap-spacing, body > .bslib-gap-spacing {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(255, 94, 91, 0.4);
 }
+.btn-digilab {
+  background: var(--dl-cyan);
+  color: #ffffff;
+}
+.btn-digilab:hover {
+  background: #00a0d0;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(var(--dl-cyan-rgb), 0.4);
+}
 
 /* =============================================================================
    PLACEMENT COLORS (Gold, Silver, Bronze)
@@ -9760,6 +9770,100 @@ div.player-match-indicator.new {
 
 [data-bs-theme="dark"] .community-filter-banner {
   background: linear-gradient(135deg, rgba(var(--bs-primary-rgb), 0.15), rgba(var(--bs-primary-rgb), 0.08));
+}
+
+/* =============================================================================
+   Migration Banner — persistent, non-dismissible
+   ============================================================================= */
+.migration-banner {
+  background: linear-gradient(135deg, rgba(var(--dl-cyan-rgb), 0.12), rgba(var(--dl-cyan-rgb), 0.05));
+  border: 1px solid rgba(var(--dl-cyan-rgb), 0.3);
+  border-left: 4px solid var(--dl-cyan);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+
+.migration-banner-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.migration-banner-text {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #1a3a5c;
+}
+
+.migration-banner-icon {
+  color: var(--dl-cyan);
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.migration-banner-text a {
+  color: var(--dl-cyan);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.migration-banner-text a:hover {
+  color: #00a0d0;
+}
+
+.migration-banner-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  background: var(--dl-cyan);
+  color: #fff !important;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none !important;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.migration-banner-btn:hover {
+  background: #00a0d0;
+  box-shadow: 0 2px 8px rgba(var(--dl-cyan-rgb), 0.3);
+}
+
+/* Dark mode */
+[data-bs-theme="dark"] .migration-banner {
+  background: linear-gradient(135deg, rgba(var(--dl-cyan-rgb), 0.1), rgba(var(--dl-cyan-rgb), 0.04));
+  border-color: rgba(var(--dl-cyan-rgb), 0.25);
+}
+
+[data-bs-theme="dark"] .migration-banner-text {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Mobile responsive */
+@media (max-width: 767px) {
+  .migration-banner-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .migration-banner-btn {
+    align-self: stretch;
+    justify-content: center;
+  }
+
+  .migration-banner-text {
+    font-size: 0.82rem;
+  }
 }
 
 /* =============================================================================

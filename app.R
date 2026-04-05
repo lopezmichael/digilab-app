@@ -446,6 +446,7 @@ if (nzchar(Sys.getenv("SENTRY_DSN", ""))) {
 source("views/submit-results-ui.R", local = TRUE)
 source("views/onboarding-modal-ui.R", local = TRUE)
 source("views/community-banner-ui.R", local = TRUE)
+source("views/migration-banner-ui.R", local = TRUE)
 
 # =============================================================================
 # UI
@@ -937,6 +938,9 @@ ui <- page_fillable(
       # Admin notification bar (pending requests — shown only to admins)
       uiOutput("admin_notification_bar"),
 
+      # Migration banner (persistent, non-dismissible)
+      uiOutput("migration_banner"),
+
       # Community filter banner (shown when filtering by store)
       uiOutput("community_banner"),
 
@@ -1165,6 +1169,7 @@ server <- function(input, output, session) {
   source("server/public-tournaments-server.R", local = TRUE)
   source("server/public-players-server.R", local = TRUE)
   source("server/public-dashboard-server.R", local = TRUE)
+  source("server/migration-server.R", local = TRUE)
   source("server/submit-shared-server.R", local = TRUE)
   source("server/submit-upload-server.R", local = TRUE)
   source("server/submit-match-server.R", local = TRUE)
