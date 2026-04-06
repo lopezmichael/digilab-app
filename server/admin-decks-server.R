@@ -216,7 +216,7 @@ observeEvent(input$add_archetype, {
   }
 
   tryCatch({
-    slug <- generate_slug(name)
+    slug <- generate_unique_archetype_slug(db_pool, name)
     safe_execute(db_pool, "
       INSERT INTO deck_archetypes (archetype_name, slug, display_card_id, primary_color, secondary_color, is_multi_color, updated_by)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -400,7 +400,7 @@ observeEvent(input$update_archetype, {
   }
 
   tryCatch({
-    slug <- generate_slug(name)
+    slug <- generate_unique_archetype_slug(db_pool, name, exclude_archetype_id = archetype_id)
     safe_execute(db_pool, "
       UPDATE deck_archetypes
       SET archetype_name = $1, slug = $2, primary_color = $3, secondary_color = $4, display_card_id = $5, is_multi_color = $6,
@@ -988,7 +988,7 @@ create_deck_from_request <- function(req_id, deck_name, primary_color, secondary
 
   tryCatch({
     # Create new archetype
-    slug <- generate_slug(deck_name)
+    slug <- generate_unique_archetype_slug(db_pool, deck_name)
     archetype_result <- safe_query(db_pool, "
       INSERT INTO deck_archetypes (archetype_name, slug, primary_color, secondary_color, display_card_id, updated_by)
       VALUES ($1, $2, $3, $4, $5, $6)
