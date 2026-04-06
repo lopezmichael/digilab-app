@@ -571,15 +571,37 @@ recalculate_ratings_cache <- function(db_con, from_date = NULL, use_legacy = FAL
     ", default = data.frame(player_id = integer(), top_archetype_id = integer()))
 
     # --- Pre-compute player country (from most-played store's scene) ---
+    # Priority: physical scene country first, then online store country as fallback.
+    # Online/Webcam scene has NULL country, so online-only players need the fallback
+    # to their most-played online store's country field.
     player_countries <- safe_query_impl(db_con, "
-      SELECT DISTINCT ON (r.player_id) r.player_id, sc.country
-      FROM results r
-      JOIN tournaments t ON r.tournament_id = t.tournament_id
-      JOIN stores s ON t.store_id = s.store_id
-      JOIN scenes sc ON s.scene_id = sc.scene_id
-      WHERE sc.country IS NOT NULL
-      GROUP BY r.player_id, sc.country
-      ORDER BY r.player_id, COUNT(*) DESC
+      SELECT DISTINCT ON (player_id) player_id, country
+      FROM (
+        -- Priority 1: physical scenes (sc.country from in-person stores)
+        SELECT r.player_id, sc.country, 1 AS priority, COUNT(*) AS cnt
+        FROM results r
+        JOIN tournaments t ON r.tournament_id = t.tournament_id
+        JOIN stores s ON t.store_id = s.store_id
+        JOIN scenes sc ON s.scene_id = sc.scene_id
+        WHERE s.is_online = FALSE
+          AND sc.country IS NOT NULL
+        GROUP BY r.player_id, sc.country
+
+        UNION ALL
+
+        -- Priority 2: online stores (s.country fallback for online-only players)
+        -- Normalize 'USA' to 'United States' to match scene country format
+        SELECT r.player_id,
+               CASE WHEN s.country = 'USA' THEN 'United States' ELSE s.country END AS country,
+               2 AS priority, COUNT(*) AS cnt
+        FROM results r
+        JOIN tournaments t ON r.tournament_id = t.tournament_id
+        JOIN stores s ON t.store_id = s.store_id
+        WHERE s.is_online = TRUE
+          AND s.country IS NOT NULL
+        GROUP BY r.player_id, s.country
+      ) combined
+      ORDER BY player_id, priority, cnt DESC
     ", default = data.frame(player_id = integer(), country = character()))
 
     # Merge player data
