@@ -976,7 +976,6 @@ observeEvent(input$sr_match_submit, {
       } else {
         opp_has_real_id <- has_real_member_number(opponent_member)
         clean_opp_member <- if (opp_has_real_id) opponent_member else NA_character_
-        opp_auto_anon <- should_auto_anonymize(opponent_username, opponent_member)
 
         # Use pre-matched player ID from auto-fill if available —
         # but only if the user hasn't edited the opponent name
@@ -1009,7 +1008,6 @@ observeEvent(input$sr_match_submit, {
               ", params = list(clean_opp_member, opponent_id))
             }
           } else {
-            opp_identity <- if (opp_has_real_id) "verified" else "unverified"
             # Check for existing player by member_number first to avoid duplicate key
             if (opp_has_real_id) {
               existing_opp <- DBI::dbGetQuery(conn,
@@ -1018,22 +1016,10 @@ observeEvent(input$sr_match_submit, {
               if (nrow(existing_opp) > 0) {
                 opponent_id <- existing_opp$player_id[1]
               } else {
-                opp_slug <- generate_unique_slug(conn, opponent_username)
-                new_opponent <- DBI::dbGetQuery(conn, "
-                  INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, created_by, updated_by)
-                  VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
-                  RETURNING player_id
-                ", params = list(opponent_username, opp_slug, clean_opp_member, opp_identity, match_scene_id, opp_auto_anon, "public_submit"))
-                opponent_id <- new_opponent$player_id[1]
+                opponent_id <- create_player(conn, opponent_username, clean_opp_member, match_scene_id, AUDIT_PUBLIC_SUBMIT)
               }
             } else {
-              opp_slug <- generate_unique_slug(conn, opponent_username)
-              new_opponent <- DBI::dbGetQuery(conn, "
-                INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, created_by, updated_by)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
-                RETURNING player_id
-              ", params = list(opponent_username, opp_slug, clean_opp_member, opp_identity, match_scene_id, opp_auto_anon, "public_submit"))
-              opponent_id <- new_opponent$player_id[1]
+              opponent_id <- create_player(conn, opponent_username, clean_opp_member, match_scene_id, AUDIT_PUBLIC_SUBMIT)
             }
           }
         }

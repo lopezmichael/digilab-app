@@ -160,7 +160,7 @@ CREATE TABLE IF NOT EXISTS players (
     is_anonymized BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by TEXT,                  -- Username/source who originally created the record
+    created_by TEXT DEFAULT 'unknown', -- Username/source who originally created the record
     updated_by TEXT                   -- Admin username who last modified
 );
 
@@ -260,7 +260,7 @@ CREATE TABLE IF NOT EXISTS tournaments (
     submission_method VARCHAR(30),    -- How data was entered: screenshot_ocr, csv_upload, manual_grid, paste_grid, limitless_sync
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    created_by TEXT,                  -- Username/source who originally created the record
+    created_by TEXT DEFAULT 'unknown', -- Username/source who originally created the record
     updated_by TEXT                   -- Admin username who last modified
 );
 

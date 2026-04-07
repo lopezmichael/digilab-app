@@ -9,7 +9,7 @@
 # ---------------------------------------------------------------------------
 
 current_admin_username <- function(rv) {
-  rv$admin_user$username %||% "unknown"
+  rv$admin_user$username %||% AUDIT_UNKNOWN
 }
 
 # ---------------------------------------------------------------------------

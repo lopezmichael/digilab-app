@@ -5,6 +5,13 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
+# Audit source constants — who created/modified a record
+# -----------------------------------------------------------------------------
+AUDIT_PUBLIC_SUBMIT  <- "public_submit"
+AUDIT_LIMITLESS_SYNC <- "limitless_sync"
+AUDIT_UNKNOWN        <- "unknown"
+
+# -----------------------------------------------------------------------------
 # Slug generation — global scope so both R/ files and server/ files can use them
 # (server/ files source with local=TRUE, so functions defined there aren't visible
 # to functions defined here in the global environment)
@@ -80,13 +87,31 @@ should_auto_anonymize <- function(name, member_number = NULL) {
 }
 
 # -----------------------------------------------------------------------------
+# create_player: Centralized player INSERT with all audit columns
+# Handles slug generation, identity status, and auto-anonymization internally.
+# Returns the new player_id.
+# -----------------------------------------------------------------------------
+create_player <- function(conn, name, member_number, scene_id, submitted_by) {
+  has_real_id <- has_real_member_number(member_number)
+  identity_status <- if (has_real_id) "verified" else "unverified"
+  clean_member <- if (has_real_id) member_number else NA_character_
+  auto_anon <- should_auto_anonymize(name, member_number)
+  player_slug <- generate_unique_slug(conn, name)
+  new_player <- DBI::dbGetQuery(conn,
+    "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, created_by, updated_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $7) RETURNING player_id",
+    params = list(name, player_slug, clean_member, identity_status, scene_id, auto_anon, submitted_by))
+  new_player$player_id[1]
+}
+
+# -----------------------------------------------------------------------------
 # detach_to_player: Create or find a player for a super admin detach operation
 # Used when a super admin changes a Bandai ID (with or without a name change)
 # to split a result away from the original player.
 # Returns player_id on success, or NULL if the target player is already in the
 # tournament (caller must ROLLBACK and notify).
 # -----------------------------------------------------------------------------
-detach_to_player <- function(conn, name, member_num, scene_id, tournament_id, admin_username = "unknown") {
+detach_to_player <- function(conn, name, member_num, scene_id, tournament_id, admin_username = AUDIT_UNKNOWN) {
   if (has_real_member_number(member_num)) {
     # Bandai ID changed to a different value — check if a player with that ID exists
     existing_player <- DBI::dbGetQuery(conn, "
@@ -101,23 +126,9 @@ detach_to_player <- function(conn, name, member_num, scene_id, tournament_id, ad
       if (nrow(already_in) > 0) return(NULL)
       return(existing_player$player_id[1])
     }
-    # Create new verified player with the new Bandai ID
-    auto_anon <- should_auto_anonymize(name, member_num)
-    player_slug <- generate_unique_slug(conn, name)
-    new_player <- DBI::dbGetQuery(conn,
-      "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, created_by, updated_by)
-       VALUES ($1, $2, $3, 'verified', $4, $5, $6, $6) RETURNING player_id",
-      params = list(name, player_slug, member_num, scene_id, auto_anon, admin_username))
-    return(new_player$player_id[1])
+    return(create_player(conn, name, member_num, scene_id, admin_username))
   } else {
-    # Bandai ID cleared — create new unverified, scene-locked player
-    auto_anon <- should_auto_anonymize(name, NULL)
-    player_slug <- generate_unique_slug(conn, name)
-    new_player <- DBI::dbGetQuery(conn,
-      "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, created_by, updated_by)
-       VALUES ($1, $2, NULL, 'unverified', $3, $4, $5, $5) RETURNING player_id",
-      params = list(name, player_slug, scene_id, auto_anon, admin_username))
-    return(new_player$player_id[1])
+    return(create_player(conn, name, NULL, scene_id, admin_username))
   }
 }
 
