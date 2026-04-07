@@ -105,8 +105,8 @@ detach_to_player <- function(conn, name, member_num, scene_id, tournament_id, ad
     auto_anon <- should_auto_anonymize(name, member_num)
     player_slug <- generate_unique_slug(conn, name)
     new_player <- DBI::dbGetQuery(conn,
-      "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, updated_by)
-       VALUES ($1, $2, $3, 'verified', $4, $5, $6) RETURNING player_id",
+      "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, created_by, updated_by)
+       VALUES ($1, $2, $3, 'verified', $4, $5, $6, $6) RETURNING player_id",
       params = list(name, player_slug, member_num, scene_id, auto_anon, admin_username))
     return(new_player$player_id[1])
   } else {
@@ -114,8 +114,8 @@ detach_to_player <- function(conn, name, member_num, scene_id, tournament_id, ad
     auto_anon <- should_auto_anonymize(name, NULL)
     player_slug <- generate_unique_slug(conn, name)
     new_player <- DBI::dbGetQuery(conn,
-      "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, updated_by)
-       VALUES ($1, $2, NULL, 'unverified', $3, $4, $5) RETURNING player_id",
+      "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, created_by, updated_by)
+       VALUES ($1, $2, NULL, 'unverified', $3, $4, $5, $5) RETURNING player_id",
       params = list(name, player_slug, scene_id, auto_anon, admin_username))
     return(new_player$player_id[1])
   }
