@@ -1297,7 +1297,7 @@ observeEvent(input$edit_grid_save, {
               auto_anon <- should_auto_anonymize(name, member_num)
               player_slug <- generate_unique_slug(conn, name)
               new_player <- DBI::dbGetQuery(conn,
-                "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, updated_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING player_id",
+                "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, created_by, updated_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $7) RETURNING player_id",
                 params = list(name, player_slug, clean_member, identity_status, scene_id, auto_anon, current_admin_username(rv)))
               player_id <- new_player$player_id[1]
             }

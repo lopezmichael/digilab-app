@@ -416,8 +416,8 @@ sr_create_tournament_and_show_grid <- function() {
   submit_by_grid <- if (isTRUE(rv$is_admin)) current_admin_username(rv) else "public_submit"
   tryCatch({
     result <- safe_query(db_pool, "
-      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds, record_format, updated_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds, record_format, created_by, updated_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
       RETURNING tournament_id
     ", params = list(store_id, event_date, event_type, format_val, player_count, rounds, record_fmt, submit_by_grid),
     default = data.frame(tournament_id = integer(0)))
@@ -1362,8 +1362,8 @@ observeEvent(input$sr_submit_results, {
       submission_method <- rv$sr_submission_method
       if (is.null(tournament_id)) {
         tourney_result <- DBI::dbGetQuery(conn, "
-          INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds, record_format, updated_by, submission_method)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds, record_format, created_by, updated_by, submission_method)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, $9)
           RETURNING tournament_id
         ", params = list(
           as.integer(input$sr_store), as.character(input$sr_date), input$sr_event_type,
@@ -1414,14 +1414,14 @@ observeEvent(input$sr_submit_results, {
               } else {
                 player_slug <- generate_unique_slug(conn, name)
                 new_player <- DBI::dbGetQuery(conn,
-                  "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, updated_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING player_id",
+                  "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, created_by, updated_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $7) RETURNING player_id",
                   params = list(name, player_slug, clean_member, identity_status, scene_id, auto_anon, submit_by))
                 player_id <- new_player$player_id[1]
               }
             } else {
               player_slug <- generate_unique_slug(conn, name)
               new_player <- DBI::dbGetQuery(conn,
-                "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, updated_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING player_id",
+                "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, created_by, updated_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $7) RETURNING player_id",
                 params = list(name, player_slug, clean_member, identity_status, scene_id, auto_anon, submit_by))
               player_id <- new_player$player_id[1]
             }

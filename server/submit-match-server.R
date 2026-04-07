@@ -1020,8 +1020,8 @@ observeEvent(input$sr_match_submit, {
               } else {
                 opp_slug <- generate_unique_slug(conn, opponent_username)
                 new_opponent <- DBI::dbGetQuery(conn, "
-                  INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, updated_by)
-                  VALUES ($1, $2, $3, $4, $5, $6, $7)
+                  INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, created_by, updated_by)
+                  VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
                   RETURNING player_id
                 ", params = list(opponent_username, opp_slug, clean_opp_member, opp_identity, match_scene_id, opp_auto_anon, "public_submit"))
                 opponent_id <- new_opponent$player_id[1]
@@ -1029,8 +1029,8 @@ observeEvent(input$sr_match_submit, {
             } else {
               opp_slug <- generate_unique_slug(conn, opponent_username)
               new_opponent <- DBI::dbGetQuery(conn, "
-                INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, updated_by)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, created_by, updated_by)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $7)
                 RETURNING player_id
               ", params = list(opponent_username, opp_slug, clean_opp_member, opp_identity, match_scene_id, opp_auto_anon, "public_submit"))
               opponent_id <- new_opponent$player_id[1]

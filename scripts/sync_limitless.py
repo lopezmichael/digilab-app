@@ -297,8 +297,8 @@ def resolve_player(cursor, limitless_username, display_name, player_cache):
     # Create new player (let PostgreSQL generate player_id via IDENTITY)
     # Limitless username is a reliable identifier — mark as verified
     cursor.execute("""
-        INSERT INTO players (display_name, limitless_username, is_active, identity_status)
-        VALUES (%s, %s, TRUE, 'verified')
+        INSERT INTO players (display_name, limitless_username, is_active, identity_status, created_by)
+        VALUES (%s, %s, TRUE, 'verified', 'limitless_sync')
         RETURNING player_id
     """, (display_name, limitless_username))
     new_id = cursor.fetchone()[0]
@@ -484,8 +484,8 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
     cursor.execute("""
         INSERT INTO tournaments
             (store_id, event_date, event_type, format, player_count,
-             rounds, limitless_id, record_format, notes, submission_method, created_at, updated_at)
-        VALUES (%s, %s, 'online', %s, %s, %s, %s, 'wlt', %s, 'limitless_sync', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+             rounds, limitless_id, record_format, notes, submission_method, created_by, created_at, updated_at)
+        VALUES (%s, %s, 'online', %s, %s, %s, %s, 'wlt', %s, 'limitless_sync', 'limitless_sync', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING tournament_id
     """, (
         store_id,
