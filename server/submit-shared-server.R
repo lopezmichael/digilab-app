@@ -1370,7 +1370,6 @@ observeEvent(input$sr_submit_results, {
           input$sr_format, nrow(filled_rows), rounds, record_format, submit_by, submission_method
         ))
         tournament_id <- tourney_result$tournament_id[1]
-        rv$sr_active_tournament_id <- tournament_id
       } else if (!is.null(submission_method)) {
         # Grid flow: tournament was created earlier, set submission_method now at final submit
         DBI::dbExecute(conn, "UPDATE tournaments SET submission_method = $1 WHERE tournament_id = $2",
@@ -1504,6 +1503,7 @@ observeEvent(input$sr_submit_results, {
       }
 
       DBI::dbExecute(conn, "COMMIT")
+      rv$sr_active_tournament_id <- tournament_id
     }, error = function(e) {
       tryCatch(DBI::dbExecute(conn, "ROLLBACK"), error = function(re) NULL)
       stop(e)
