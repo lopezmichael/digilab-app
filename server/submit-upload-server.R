@@ -566,7 +566,15 @@ observeEvent(input$sr_step1_next, {
     return()
   }
 
-  sr_complete_ocr_processing(combined, total_players, total_rounds, parsed_count)
+  tryCatch(
+    sr_complete_ocr_processing(combined, total_players, total_rounds, parsed_count),
+    error = function(e) {
+      message("[SUBMIT] Error in OCR post-processing: ", conditionMessage(e))
+      if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
+      notify("Something went wrong processing the screenshot data. Please try again or contact us if the problem persists.",
+             type = "error", duration = 10)
+    }
+  )
 }, priority = -1)
 # priority = -1 ensures this runs AFTER the shared sr_step1_next handler (which returns early for upload)
 
@@ -584,7 +592,15 @@ observeEvent(input$sr_ocr_proceed_anyway, {
   rv$sr_ocr_pending_parsed_count <- NULL
 
   if (!is.null(combined)) {
-    sr_complete_ocr_processing(combined, total_players, total_rounds, parsed_count)
+    tryCatch(
+      sr_complete_ocr_processing(combined, total_players, total_rounds, parsed_count),
+      error = function(e) {
+        message("[SUBMIT] Error in OCR post-processing: ", conditionMessage(e))
+        if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
+        notify("Something went wrong processing the screenshot data. Please try again or contact us if the problem persists.",
+               type = "error", duration = 10)
+      }
+    )
   }
 })
 
