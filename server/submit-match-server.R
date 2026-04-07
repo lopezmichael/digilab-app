@@ -1016,10 +1016,10 @@ observeEvent(input$sr_match_submit, {
               if (nrow(existing_opp) > 0) {
                 opponent_id <- existing_opp$player_id[1]
               } else {
-                opponent_id <- create_player(conn, opponent_username, clean_opp_member, match_scene_id, AUDIT_PUBLIC_SUBMIT)
+                opponent_id <- create_player(conn, opponent_username, opponent_member, match_scene_id, AUDIT_PUBLIC_SUBMIT)
               }
             } else {
-              opponent_id <- create_player(conn, opponent_username, clean_opp_member, match_scene_id, AUDIT_PUBLIC_SUBMIT)
+              opponent_id <- create_player(conn, opponent_username, opponent_member, match_scene_id, AUDIT_PUBLIC_SUBMIT)
             }
           }
         }
