@@ -375,6 +375,98 @@ def parse_digimoncard_app(url):
     return cards if cards else None
 
 
+def parse_digimoncard_dev_deckbuilder(url):
+    """
+    Parse digimoncard.dev /deckbuilder/{uuid} URLs.
+    POST to data8675309.php with m=14 and pubKey={uuid}.
+    Response: [{data: JSON string with deck[] and ddto[], ...}]
+    ddto = [egg_count, digimon_count, tamer_count, option_count]
+    deck = flat list of card IDs (duplicates = count)
+    Returns 4-category JSON dict directly, or None.
+    """
+    parsed = urlparse(url)
+    match = re.match(
+        r'^/deckbuilder/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$',
+        parsed.path,
+    )
+    if not match:
+        return None
+
+    uuid = match.group(1)
+
+    try:
+        body = f"m=14&pubKey={uuid}".encode()
+        req = urllib.request.Request(
+            "https://digimoncard.dev/data8675309.php",
+            data=body,
+            headers={
+                "User-Agent": "DigiLab/2.1.0",
+                "Origin": "https://digimoncard.dev",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            rows = json.loads(resp.read().decode("utf-8"))
+    except Exception as e:
+        print(f"    digimoncard.dev deckbuilder API error for {uuid}: {e}")
+        return None
+
+    if not rows or not isinstance(rows, list):
+        return None
+
+    data_str = rows[0].get("data")
+    if not data_str:
+        return None
+
+    try:
+        data = json.loads(data_str)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+    deck_list = data.get("deck", [])
+    ddto = data.get("ddto", [])  # [eggs, digimon, tamers, options]
+
+    if not deck_list:
+        return None
+
+    # Collapse flat list into (card_id, count) preserving order
+    ordered = []
+    prev = None
+    for card_id in deck_list:
+        if card_id == prev:
+            ordered[-1] = (card_id, ordered[-1][1] + 1)
+        else:
+            ordered.append((card_id, 1))
+            prev = card_id
+
+    # Use ddto to split into categories by card count
+    categories = ["egg", "digimon", "tamer", "option"]
+    result = {"digimon": [], "tamer": [], "option": [], "egg": []}
+
+    card_idx = 0  # index into the flat deck_list
+    for cat_idx, category in enumerate(categories):
+        cat_count = ddto[cat_idx] if cat_idx < len(ddto) and ddto[cat_idx] else 0
+        segment_end = card_idx + cat_count
+        # Collapse this segment
+        seen = {}
+        for i in range(card_idx, min(segment_end, len(deck_list))):
+            cid = deck_list[i]
+            seen[cid] = seen.get(cid, 0) + 1
+        for cid, count in seen.items():
+            parts = cid.split("-", 1)
+            card_name = _card_cache.get(cid, {}).get("name", cid)
+            result[category].append({
+                "count": count,
+                "name": card_name,
+                "set": parts[0] if len(parts) == 2 else "",
+                "number": parts[1] if len(parts) == 2 else cid,
+            })
+        card_idx = segment_end
+
+    total = sum(len(v) for v in result.values())
+    return result if total > 0 else None
+
+
 def parse_bandai_tcg_plus(url):
     """
     Parse bandai-tcg-plus.com /deck_code_recipe/{deck_code} URLs.
@@ -486,6 +578,15 @@ def parse_decklist_url(url):
     if domain in _DIRECT_PARSERS:
         return _DIRECT_PARSERS[domain](url)
 
+    # digimoncard.dev has two URL patterns:
+    #   /p/{DCG_CODE} → flat parser (DCG codec decode)
+    #   /deckbuilder/{uuid} → direct parser (API call)
+    if domain == "digimoncard.dev":
+        path = urlparse(url).path
+        if path.startswith("/deckbuilder/"):
+            return parse_digimoncard_dev_deckbuilder(url)
+        # Fall through to flat parser for /p/ URLs
+
     # Flat parsers return (card_id, count) lists needing enrichment
     if domain in _FLAT_PARSERS:
         flat_cards = _FLAT_PARSERS[domain](url)
@@ -588,7 +689,10 @@ def main():
                     uncommitted = 0
 
             # Rate limit API calls to external services
-            if domain in ("digimoncard.app", "bandai-tcg-plus.com"):
+            needs_api = domain in ("digimoncard.app", "bandai-tcg-plus.com")
+            if domain == "digimoncard.dev" and "/deckbuilder/" in url:
+                needs_api = True
+            if needs_api:
                 time.sleep(0.5)
 
         if not args.dry_run and uncommitted > 0:
