@@ -3,15 +3,15 @@
 Backfill decklist_json for results that have a decklist_url but no JSON.
 
 Supported domains:
-  1. digimoncard.dev /p/{DCG_CODE}  — decode DCG binary format (no network)
-  2. digimonmeta.com ?dg=...        — parse URL query param (no network)
-  3. digitalgateopen.com ?main=&egg= — parse URL query params (no network)
-  4. digimoncard.app /deck/{uuid}    — fetch from public REST API
+  1. digimoncard.dev /p/{DCG_CODE}        — decode DCG binary format (no network)
+  2. digimoncard.dev /deckbuilder/{uuid}  — POST to data8675309.php API
+  3. digimonmeta.com ?dg=...              — parse URL query param (no network)
+  4. digitalgateopen.com ?main=&egg=      — parse URL query params (no network)
+  5. digimoncard.app /deck/{uuid}         — fetch from public REST API
+  6. bandai-tcg-plus.com /deck_code_recipe — two-step public API
 
 Unsupported (stored as URL-only):
-  - digimoncard.io   — Cloudflare-protected, no API
-  - digimoncard.dev /deckbuilder/{uuid} — no public API for UUID lookups
-  - bandai-tcg-plus.com — JS SPA, no public API
+  - digimoncard.io — Cloudflare-protected, no server-side API access
   - Limitless URLs without JSON — deck wasn't shared publicly
 
 Usage:
@@ -206,19 +206,22 @@ def card_type_to_category(card_type):
     return mapping.get(card_type, "digimon")
 
 
+def make_card_dict(card_id, count, name=None):
+    """Build a Limitless-format card dict from a card ID, count, and optional name."""
+    parts = card_id.split("-", 1)
+    return {
+        "count": count,
+        "name": name or card_id,
+        "set": parts[0] if len(parts) == 2 else "",
+        "number": parts[1] if len(parts) == 2 else card_id,
+    }
+
+
 def enrich_card(card_id, count):
     """Build a Limitless-format card dict with name lookup from cards table."""
     info = _card_cache.get(card_id)
-    # Parse set and number from card_id (e.g., "BT13-087" -> "BT13", "087")
-    parts = card_id.split("-", 1)
-    card_set = parts[0] if len(parts) == 2 else ""
-    card_number = parts[1] if len(parts) == 2 else card_id
-    return {
-        "count": count,
-        "name": info["name"] if info else card_id,
-        "set": card_set,
-        "number": card_number,
-    }, (info["card_type"] if info else None)
+    card_dict = make_card_dict(card_id, count, info["name"] if info else None)
+    return card_dict, (info["card_type"] if info else None)
 
 
 def flat_cards_to_4cat(card_list):
@@ -429,17 +432,7 @@ def parse_digimoncard_dev_deckbuilder(url):
     if not deck_list:
         return None
 
-    # Collapse flat list into (card_id, count) preserving order
-    ordered = []
-    prev = None
-    for card_id in deck_list:
-        if card_id == prev:
-            ordered[-1] = (card_id, ordered[-1][1] + 1)
-        else:
-            ordered.append((card_id, 1))
-            prev = card_id
-
-    # Use ddto to split into categories by card count
+    # Use ddto to split flat deck_list into categories by card count
     categories = ["egg", "digimon", "tamer", "option"]
     result = {"digimon": [], "tamer": [], "option": [], "egg": []}
 
@@ -447,20 +440,14 @@ def parse_digimoncard_dev_deckbuilder(url):
     for cat_idx, category in enumerate(categories):
         cat_count = ddto[cat_idx] if cat_idx < len(ddto) and ddto[cat_idx] else 0
         segment_end = card_idx + cat_count
-        # Collapse this segment
+        # Collapse duplicates in this segment
         seen = {}
         for i in range(card_idx, min(segment_end, len(deck_list))):
             cid = deck_list[i]
             seen[cid] = seen.get(cid, 0) + 1
         for cid, count in seen.items():
-            parts = cid.split("-", 1)
             card_name = _card_cache.get(cid, {}).get("name", cid)
-            result[category].append({
-                "count": count,
-                "name": card_name,
-                "set": parts[0] if len(parts) == 2 else "",
-                "number": parts[1] if len(parts) == 2 else cid,
-            })
+            result[category].append(make_card_dict(cid, count, card_name))
         card_idx = segment_end
 
     total = sum(len(v) for v in result.values())
@@ -519,20 +506,17 @@ def parse_bandai_tcg_plus(url):
         return None
 
     # Build 4-category JSON directly from the API response
-    # API card types: "Digimon", "Tamer", "Option", "Digi-Egg"
-    BANDAI_TYPE_MAP = {"Digimon": "digimon", "Tamer": "tamer", "Option": "option", "Digi-Egg": "egg"}
+    # API card types match our card_type_to_category mapping
     result = {"digimon": [], "tamer": [], "option": [], "egg": []}
 
     for card in main_deck + extra_deck:
         card_number = card.get("card_number", "")
-        parts = card_number.split("-", 1)
-        card_dict = {
-            "count": card.get("card_count", 1),
-            "name": card.get("card_name", card_number),
-            "set": parts[0] if len(parts) == 2 else "",
-            "number": parts[1] if len(parts) == 2 else card_number,
-        }
-        category = BANDAI_TYPE_MAP.get(card.get("type", ""), "digimon")
+        card_dict = make_card_dict(
+            card_number,
+            card.get("card_count", 1),
+            card.get("card_name", card_number),
+        )
+        category = card_type_to_category(card.get("type", ""))
         result[category].append(card_dict)
 
     total = sum(len(v) for v in result.values())
