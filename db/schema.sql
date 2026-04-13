@@ -129,6 +129,10 @@ CREATE TABLE IF NOT EXISTS cards (
     dp INTEGER,                           -- Digimon DP (NULL for others)
     play_cost INTEGER,
     digi_type VARCHAR,                    -- e.g., "Demon Lord"
+    digi_type2 VARCHAR,                   -- Secondary trait (e.g., "LIBERATOR", "Witchelny")
+    digi_type3 VARCHAR,                   -- Tertiary trait (rarely populated)
+    digi_type4 VARCHAR,                   -- Quaternary trait (rarely populated)
+    attribute VARCHAR,                    -- e.g., "Data", "Vaccine", "Virus", "Free"
     stage VARCHAR,                        -- e.g., "Mega"
     rarity VARCHAR,                       -- e.g., "SR"
     set_code VARCHAR,                     -- e.g., "BT13" (extracted from card_id)
