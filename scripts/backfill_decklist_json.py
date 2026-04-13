@@ -23,8 +23,8 @@ import io
 import json
 import os
 import re
-import sys
 import time
+import urllib.request
 from base64 import urlsafe_b64decode
 from urllib.parse import urlparse, parse_qs, unquote
 
@@ -37,7 +37,9 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 # DCG Codec — vendored decode logic from niamu/digimon-card-game
 # https://github.com/niamu/digimon-card-game/tree/main/codec/python
+# Vendored from commit: latest as of 2026-04-12 (codec v5)
 # License: EPL-2.0
+# Note: Do NOT run this script with python -O (asserts are used for validation)
 # ---------------------------------------------------------------------------
 
 DCG_PREFIX = "DCG"
@@ -342,7 +344,6 @@ def parse_digimoncard_app(url):
     deck_uuid = match.group(1)
 
     try:
-        import urllib.request
         api_url = f"https://backend.digimoncard.app/api/decks/{deck_uuid}"
         req = urllib.request.Request(api_url, headers={"User-Agent": "DigiLab/2.1.0"})
         with urllib.request.urlopen(req, timeout=10) as resp:
@@ -378,31 +379,35 @@ def parse_digimoncard_app(url):
 # URL router
 # ---------------------------------------------------------------------------
 
+# Domains with implemented parsers — used for both routing and error tracking
+PARSEABLE_DOMAINS = {
+    "digimoncard.dev": parse_digimoncard_dev,
+    "digimonmeta.com": parse_digimonmeta,
+    "digitalgateopen.com": parse_digitalgateopen,
+    "digimoncard.app": parse_digimoncard_app,
+}
+
+
+def extract_domain(url):
+    """Extract and normalize the domain from a URL."""
+    hostname = urlparse(url).hostname or ""
+    return hostname.lower().removeprefix("www.")
+
+
 def parse_decklist_url(url):
     """
     Route a decklist URL to the appropriate parser.
     Returns 4-category JSON dict or None.
     """
-    if not url:
+    if not url or not url.strip():
         return None
 
-    parsed = urlparse(url)
-    domain = parsed.hostname or ""
-    domain = domain.lower().removeprefix("www.")
+    domain = extract_domain(url)
+    parser = PARSEABLE_DOMAINS.get(domain)
+    if not parser:
+        return None
 
-    flat_cards = None
-
-    if domain == "digimoncard.dev":
-        flat_cards = parse_digimoncard_dev(url)
-    elif domain == "digimonmeta.com":
-        flat_cards = parse_digimonmeta(url)
-    elif domain == "digitalgateopen.com":
-        flat_cards = parse_digitalgateopen(url)
-    elif domain == "digimoncard.app":
-        flat_cards = parse_digimoncard_app(url)
-    else:
-        return None  # Unsupported domain
-
+    flat_cards = parser(url)
     if not flat_cards:
         return None
 
@@ -412,6 +417,9 @@ def parse_decklist_url(url):
 # ---------------------------------------------------------------------------
 # Main backfill
 # ---------------------------------------------------------------------------
+
+COMMIT_BATCH_SIZE = 50
+
 
 def main():
     parser = argparse.ArgumentParser(description="Backfill decklist_json from decklist_url")
@@ -427,90 +435,96 @@ def main():
         sslmode="require",
     )
     print("Connected!")
-    cursor = conn.cursor()
 
-    # Load card cache for name/type lookups
-    print("Loading card cache...")
-    load_card_cache(cursor)
+    try:
+        cursor = conn.cursor()
 
-    # Fetch all results with URL but no JSON
-    cursor.execute("""
-        SELECT result_id, decklist_url
-        FROM results
-        WHERE decklist_url IS NOT NULL
-          AND decklist_url != ''
-          AND (decklist_json IS NULL OR decklist_json = '')
-        ORDER BY result_id
-    """)
-    rows = cursor.fetchall()
-    print(f"Found {len(rows)} results with decklist_url but no decklist_json\n")
+        # Load card cache for name/type lookups
+        print("Loading card cache...")
+        load_card_cache(cursor)
 
-    if not rows:
-        print("Nothing to backfill!")
-        conn.close()
-        return
+        # Fetch all results with URL but no JSON
+        cursor.execute("""
+            SELECT result_id, decklist_url
+            FROM results
+            WHERE decklist_url IS NOT NULL
+              AND decklist_url != ''
+              AND (decklist_json IS NULL OR decklist_json = '')
+            ORDER BY result_id
+        """)
+        rows = cursor.fetchall()
+        print(f"Found {len(rows)} results with decklist_url but no decklist_json\n")
 
-    # Track stats by domain
-    stats = {
-        "parsed": 0,
-        "skipped_unsupported": 0,
-        "skipped_error": 0,
-        "by_domain": {},
-    }
+        if not rows:
+            print("Nothing to backfill!")
+            return
 
-    for result_id, url in rows:
-        parsed = urlparse(url)
-        domain = (parsed.hostname or "").lower().removeprefix("www.")
-        stats["by_domain"].setdefault(domain, {"total": 0, "parsed": 0, "errors": 0})
-        stats["by_domain"][domain]["total"] += 1
+        # Track stats by domain
+        stats = {
+            "parsed": 0,
+            "skipped_unsupported": 0,
+            "skipped_error": 0,
+            "by_domain": {},
+        }
+        uncommitted = 0
 
-        decklist_json = parse_decklist_url(url)
+        for result_id, url in rows:
+            domain = extract_domain(url)
+            stats["by_domain"].setdefault(domain, {"total": 0, "parsed": 0, "errors": 0})
+            stats["by_domain"][domain]["total"] += 1
 
-        if decklist_json is None:
-            if domain in ("digimoncard.dev", "digimonmeta.com", "digitalgateopen.com", "digimoncard.app"):
-                # Parseable domain but failed — could be deckbuilder UUID or parse error
-                stats["skipped_error"] += 1
-                stats["by_domain"][domain]["errors"] += 1
-            else:
-                stats["skipped_unsupported"] += 1
-            continue
+            decklist_json = parse_decklist_url(url)
 
-        stats["parsed"] += 1
-        stats["by_domain"][domain]["parsed"] += 1
+            if decklist_json is None:
+                if domain in PARSEABLE_DOMAINS:
+                    stats["skipped_error"] += 1
+                    stats["by_domain"][domain]["errors"] += 1
+                else:
+                    stats["skipped_unsupported"] += 1
+                continue
 
-        json_str = json.dumps(decklist_json)
-        total_cards = sum(
-            card["count"]
-            for cat in decklist_json.values()
-            for card in cat
-        )
-        print(f"  [{result_id}] {domain} — {total_cards} cards total")
+            stats["parsed"] += 1
+            stats["by_domain"][domain]["parsed"] += 1
 
-        if not args.dry_run:
-            cursor.execute(
-                "UPDATE results SET decklist_json = %s, updated_at = CURRENT_TIMESTAMP WHERE result_id = %s",
-                (json_str, result_id),
+            json_str = json.dumps(decklist_json)
+            total_cards = sum(
+                card["count"]
+                for cat in decklist_json.values()
+                for card in cat
             )
+            print(f"  [{result_id}] {domain} — {total_cards} cards total")
 
-        # Rate limit API calls to digimoncard.app
-        if domain == "digimoncard.app":
-            time.sleep(0.5)
+            if not args.dry_run:
+                cursor.execute(
+                    "UPDATE results SET decklist_json = %s, updated_at = CURRENT_TIMESTAMP WHERE result_id = %s",
+                    (json_str, result_id),
+                )
+                uncommitted += 1
+                if uncommitted >= COMMIT_BATCH_SIZE:
+                    conn.commit()
+                    print(f"    (committed batch of {uncommitted})")
+                    uncommitted = 0
 
-    if not args.dry_run:
-        conn.commit()
-        print(f"\nCommitted {stats['parsed']} updates to database.")
-    else:
-        print(f"\n[DRY RUN] Would update {stats['parsed']} results.")
+            # Rate limit API calls to digimoncard.app
+            if domain == "digimoncard.app":
+                time.sleep(0.5)
 
-    print(f"\nSummary:")
-    print(f"  Parsed & backfilled: {stats['parsed']}")
-    print(f"  Skipped (unsupported domain): {stats['skipped_unsupported']}")
-    print(f"  Skipped (parse error): {stats['skipped_error']}")
-    print(f"\nBy domain:")
-    for domain, counts in sorted(stats["by_domain"].items()):
-        print(f"  {domain}: {counts['parsed']}/{counts['total']} parsed, {counts['errors']} errors")
+        if not args.dry_run and uncommitted > 0:
+            conn.commit()
+            print(f"\nCommitted {stats['parsed']} updates to database.")
+        elif args.dry_run:
+            print(f"\n[DRY RUN] Would update {stats['parsed']} results.")
 
-    conn.close()
+        print(f"\nSummary:")
+        print(f"  Parsed & backfilled: {stats['parsed']}")
+        print(f"  Skipped (unsupported domain): {stats['skipped_unsupported']}")
+        print(f"  Skipped (parse error): {stats['skipped_error']}")
+        print(f"\nBy domain:")
+        for domain, counts in sorted(stats["by_domain"].items()):
+            print(f"  {domain}: {counts['parsed']}/{counts['total']} parsed, {counts['errors']} errors")
+
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":
