@@ -166,7 +166,7 @@ def discover_prefixes() -> dict:
 
 def get_known_prefixes() -> set:
     """Return set of prefixes we currently handle."""
-    return {"BT", "EX", "ST", "LM", "RB", "P", "BO"}
+    return {"BT", "EX", "ST", "LM", "RB", "AD", "P", "BO"}
 
 
 def get_all_sets() -> list:
@@ -185,6 +185,9 @@ def get_all_sets() -> list:
 
     # Resurgence Booster
     rb_sets = ["RB-01"]
+
+    # Advanced Booster
+    ad_sets = ["AD-01"]
 
     # Excluded: BTC-01 (Ultimate Evolution - 438 cards, different game variant)
     # Excluded: DM (Demo Decks - 5 cards)
@@ -248,7 +251,7 @@ def get_all_sets() -> list:
         "Special Release Memorial Pack",
     ]
 
-    return bt_sets + ex_sets + st_sets + lm_sets + rb_sets + promo_packs
+    return bt_sets + ex_sets + st_sets + lm_sets + rb_sets + ad_sets + promo_packs
 
 
 def process_card(card: dict) -> dict:
