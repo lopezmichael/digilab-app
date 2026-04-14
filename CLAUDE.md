@@ -39,6 +39,7 @@ digimon-tcg-standings/
 │   ├── submit-grid-server.R       # Submit: paste/manual (admin, lazy-loaded)
 │   ├── admin-tournaments-server.R # Tournament management
 │   ├── admin-decks-server.R       # Deck archetype CRUD
+│   ├── admin-families-server.R    # Archetype family CRUD
 │   ├── admin-stores-server.R      # Store management
 │   ├── admin-players-server.R     # Player management
 │   └── admin-formats-server.R     # Format management
@@ -98,9 +99,9 @@ The architecture doc contains:
 
 ## Current Work
 
-### Latest Release: v1.9.5 - Match Submission Pipeline Fix
+### Latest Release: v2.1.0 - Archetype Families
 
-Fixed match-by-match submissions silently saving 0 matches due to PostgreSQL sequence collision with Limitless sync. Replaced plain INSERTs with upserts, added tournament completeness badges, and existing data preview in the match submission UI. See `CHANGELOG.md` for full details.
+New `archetype_families` table and admin UI for grouping related deck archetypes into families. 22 initial families seeded with 74 archetype assignments. Family CRUD on Edit Decks page, family dropdown on archetype editor, merge handler carries family_id forward. See `CHANGELOG.md` for full details.
 
 See `ROADMAP.md` for the full version plan.
 
@@ -108,6 +109,8 @@ See `ROADMAP.md` for the full version plan.
 
 | Version | Focus |
 |---------|-------|
+| v2.1.0 | Archetype Families |
+| v2.0.1 | OCR Graceful Error Handling |
 | v1.9.5 | Match Submission Pipeline Fix |
 | v1.9.4 | Sentry Error Reporting Blind Spots |
 | v1.9.3 | Country & State Scene Hierarchy |
@@ -416,6 +419,6 @@ See `ARCHITECTURE.md` > CSS Architecture for full documentation.
 
 ## Current Version
 
-**v2.0.1** - OCR Graceful Error Handling
+**v2.1.0** - Archetype Families
 
 See `CHANGELOG.md` for full version history and `ROADMAP.md` for upcoming features.
