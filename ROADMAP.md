@@ -18,6 +18,11 @@ planned:
     tags: [security, fix]
     targetVersion: "v1.9.0"
 
+  - id: round-multiplier-curve-b
+    title: "Round Multiplier Curve B — Large Event Rating Scaling"
+    description: "Adjust the round multiplier formula to better reward performance at larger, longer events. Current formula caps at 1.4 (7+ rounds), making 8-round regionals worth the same as 7-round events. Curve B keeps rounds 1-4 identical, then accelerates at 0.2/round above 4 (uncapped). Affects 133 tournaments (6%), 1,151 players (27%) — most shift by only 1-5 rating points. Requires full rating rebuild."
+    tags: [ratings, methodology]
+    targetVersion: "v2.1.0"
 
   # v1.10.0 — Onboarding & Dashboard Rework
   - id: onboarding-rework

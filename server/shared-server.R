@@ -9,7 +9,7 @@
 # ---------------------------------------------------------------------------
 
 current_admin_username <- function(rv) {
-  rv$admin_user$username %||% "unknown"
+  rv$admin_user$username %||% AUDIT_UNKNOWN
 }
 
 # ---------------------------------------------------------------------------
@@ -49,6 +49,38 @@ generate_unique_store_slug <- function(db_pool, text, exclude_store_id = NULL) {
     candidate <- paste0(base_slug, "-", i)
     check <- safe_query(db_pool,
       "SELECT COUNT(*) as n FROM stores WHERE slug = $1",
+      params = list(candidate), default = data.frame(n = 0))
+    if (check$n[1] == 0) return(candidate)
+  }
+
+  return(paste0(base_slug, "-", as.integer(Sys.time())))
+}
+
+#' Generate unique archetype slug, appending suffix if needed
+#' @param db_pool Database connection pool
+#' @param text Archetype name to slugify
+#' @param exclude_archetype_id Archetype ID to exclude from uniqueness check (for updates)
+#' @return Unique slug string, or NA if text is empty
+generate_unique_archetype_slug <- function(db_pool, text, exclude_archetype_id = NULL) {
+  base_slug <- generate_slug(text)
+  if (is.na(base_slug)) return(NA_character_)
+
+  if (!is.null(exclude_archetype_id)) {
+    existing <- safe_query(db_pool,
+      "SELECT COUNT(*) as n FROM deck_archetypes WHERE slug = $1 AND archetype_id != $2",
+      params = list(base_slug, as.integer(exclude_archetype_id)), default = data.frame(n = 0))
+  } else {
+    existing <- safe_query(db_pool,
+      "SELECT COUNT(*) as n FROM deck_archetypes WHERE slug = $1",
+      params = list(base_slug), default = data.frame(n = 0))
+  }
+
+  if (existing$n[1] == 0) return(base_slug)
+
+  for (i in 2:100) {
+    candidate <- paste0(base_slug, "-", i)
+    check <- safe_query(db_pool,
+      "SELECT COUNT(*) as n FROM deck_archetypes WHERE slug = $1",
       params = list(candidate), default = data.frame(n = 0))
     if (check$n[1] == 0) return(candidate)
   }

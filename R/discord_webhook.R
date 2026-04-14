@@ -258,7 +258,7 @@ discord_post_scene_request <- function(store_name, location, discord_username = 
 }
 
 # Post a data error report — creates a NEW forum thread per error
-# Returns thread_id or NULL. Falls back to bug_report if no scene.
+# Returns thread_id or NULL. Always posts to SCENE_COORDINATION.
 discord_post_data_error <- function(scene_id, item_type, item_name, description,
                                     discord_username = NA_character_, db_pool,
                                     request_id = NULL) {
@@ -301,26 +301,17 @@ discord_post_data_error <- function(scene_id, item_type, item_name, description,
   if (nrow(scene) > 0) {
     continent_tag <- get_continent_tag(scene$latitude[1], scene$longitude[1])
     if (nchar(continent_tag) > 0) tags <- c(tags, continent_tag)
-    data_error_tag <- Sys.getenv("DISCORD_TAG_DATA_ERROR", "")
-    if (nchar(data_error_tag) > 0) tags <- c(tags, data_error_tag)
-
-    thread_title <- paste0("Data Error: ", item_type, " - ", item_name)
-    return(discord_create_action_thread(
-      thread_title = thread_title,
-      message_content = mentions,
-      embeds = list(embed),
-      tags = tags
-    ))
   }
+  data_error_tag <- Sys.getenv("DISCORD_TAG_DATA_ERROR", "")
+  if (nchar(data_error_tag) > 0) tags <- c(tags, data_error_tag)
 
-  # Fallback: post as bug report (super_admin mentions added via discord_post_bug_report)
-  discord_post_bug_report(
-    title = paste("Data Error:", item_type, "-", item_name),
-    description = description,
-    context = "",
-    discord_username = discord_username,
-    db_pool = db_pool,
-    request_id = request_id
+  thread_title <- paste0("Data Error: ", item_type, " - ", item_name)
+
+  discord_create_action_thread(
+    thread_title = thread_title,
+    message_content = mentions,
+    embeds = list(embed),
+    tags = tags
   )
 }
 

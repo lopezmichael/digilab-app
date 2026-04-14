@@ -479,12 +479,14 @@ parse_standings_layout <- function(annotations, image_width, image_height,
   current_row <- 1
   row_ids[1] <- 1
 
-  for (i in 2:nrow(ann)) {
-    # Gap > 1.5% of image height = new row
-    if (ann$y_center_pct[i] - ann$y_center_pct[i - 1] > 1.5) {
-      current_row <- current_row + 1
+  if (nrow(ann) >= 2) {
+    for (i in 2:nrow(ann)) {
+      # Gap > 1.5% of image height = new row
+      if (ann$y_center_pct[i] - ann$y_center_pct[i - 1] > 1.5) {
+        current_row <- current_row + 1
+      }
+      row_ids[i] <- current_row
     }
-    row_ids[i] <- current_row
   }
 
   ann$row_id <- row_ids
@@ -1053,6 +1055,7 @@ parse_tournament_standings <- function(ocr_text, total_rounds = 4, verbose = TRU
     numbers_before_member <- c()
     numbers_after_member <- c()
 
+    if (idx + 1 > search_end) next  # Username is at/near end of text — no forward data to scan
     for (k in (idx + 1):search_end) {
       line <- lines[k]
 

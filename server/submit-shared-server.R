@@ -413,11 +413,11 @@ sr_create_tournament_and_show_grid <- function() {
   rounds <- as.integer(input$sr_rounds %||% 4)
   record_fmt <- rv$sr_record_format
 
-  submit_by_grid <- if (isTRUE(rv$is_admin)) current_admin_username(rv) else "public_submit"
+  submit_by_grid <- if (isTRUE(rv$is_admin)) current_admin_username(rv) else AUDIT_PUBLIC_SUBMIT
   tryCatch({
     result <- safe_query(db_pool, "
-      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds, record_format, updated_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds, record_format, created_by, updated_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)
       RETURNING tournament_id
     ", params = list(store_id, event_date, event_type, format_val, player_count, rounds, record_fmt, submit_by_grid),
     default = data.frame(tournament_id = integer(0)))
@@ -1358,19 +1358,18 @@ observeEvent(input$sr_submit_results, {
     tryCatch({
       # Create tournament if needed (upload flow) or update existing (grid flow)
       tournament_id <- rv$sr_active_tournament_id
-      submit_by <- if (isTRUE(rv$is_admin)) current_admin_username(rv) else "public_submit"
+      submit_by <- if (isTRUE(rv$is_admin)) current_admin_username(rv) else AUDIT_PUBLIC_SUBMIT
       submission_method <- rv$sr_submission_method
       if (is.null(tournament_id)) {
         tourney_result <- DBI::dbGetQuery(conn, "
-          INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds, record_format, updated_by, submission_method)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          INSERT INTO tournaments (store_id, event_date, event_type, format, player_count, rounds, record_format, created_by, updated_by, submission_method)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8, $9)
           RETURNING tournament_id
         ", params = list(
           as.integer(input$sr_store), as.character(input$sr_date), input$sr_event_type,
           input$sr_format, nrow(filled_rows), rounds, record_format, submit_by, submission_method
         ))
         tournament_id <- tourney_result$tournament_id[1]
-        rv$sr_active_tournament_id <- tournament_id
       } else if (!is.null(submission_method)) {
         # Grid flow: tournament was created earlier, set submission_method now at final submit
         DBI::dbExecute(conn, "UPDATE tournaments SET submission_method = $1 WHERE tournament_id = $2",
@@ -1400,37 +1399,25 @@ observeEvent(input$sr_submit_results, {
           if (match_info$status == "matched" || match_info$status == "ambiguous") {
             player_id <- if (match_info$status == "matched") match_info$player_id else match_info$candidates$player_id[1]
           } else {
-            has_real_id <- has_real_member_number(member_num)
-            identity_status <- if (has_real_id) "verified" else "unverified"
-            clean_member <- if (has_real_id) member_num else NA_character_
-            auto_anon <- should_auto_anonymize(name, member_num)
             # If member_number is real, try to find existing player first to avoid duplicate key
-            if (has_real_id) {
+            if (has_real_member_number(member_num)) {
               existing <- DBI::dbGetQuery(conn,
                 "SELECT player_id FROM players WHERE member_number = $1 LIMIT 1",
-                params = list(clean_member))
+                params = list(member_num))
               if (nrow(existing) > 0) {
                 player_id <- existing$player_id[1]
               } else {
-                player_slug <- generate_unique_slug(conn, name)
-                new_player <- DBI::dbGetQuery(conn,
-                  "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, updated_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING player_id",
-                  params = list(name, player_slug, clean_member, identity_status, scene_id, auto_anon, submit_by))
-                player_id <- new_player$player_id[1]
+                player_id <- create_player(conn, name, member_num, scene_id, submit_by)
               }
             } else {
-              player_slug <- generate_unique_slug(conn, name)
-              new_player <- DBI::dbGetQuery(conn,
-                "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, updated_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING player_id",
-                params = list(name, player_slug, clean_member, identity_status, scene_id, auto_anon, submit_by))
-              player_id <- new_player$player_id[1]
+              player_id <- create_player(conn, name, member_num, scene_id, submit_by)
             }
           }
         }
 
         # Update member number if needed
         if (has_real_member_number(member_num)) {
-          updated_by <- if (isTRUE(rv$is_admin)) current_admin_username(rv) else "public_submit"
+          updated_by <- if (isTRUE(rv$is_admin)) current_admin_username(rv) else AUDIT_PUBLIC_SUBMIT
           DBI::dbExecute(conn, "
             UPDATE players SET member_number = $1, identity_status = 'verified',
                    updated_at = CURRENT_TIMESTAMP, updated_by = $2
@@ -1516,6 +1503,7 @@ observeEvent(input$sr_submit_results, {
       }
 
       DBI::dbExecute(conn, "COMMIT")
+      rv$sr_active_tournament_id <- tournament_id
     }, error = function(e) {
       tryCatch(DBI::dbExecute(conn, "ROLLBACK"), error = function(re) NULL)
       stop(e)

@@ -409,7 +409,12 @@ observeEvent(input$sr_step1_next, {
         }, error = function(e) {
           ocr_errors <<- c(ocr_errors, paste("Parse error:", e$message))
           message("[SUBMIT] Parse error: ", e$message)
-          data.frame()
+          data.frame(
+            placement = integer(), username = character(),
+            member_number = character(), points = integer(),
+            wins = integer(), losses = integer(), ties = integer(),
+            stringsAsFactors = FALSE
+          )
         })
 
         if (nrow(parsed) > 0) {
@@ -437,9 +442,9 @@ observeEvent(input$sr_step1_next, {
     error_detail <- if (length(ocr_errors) > 0) {
       paste("\n\nDetails:", paste(ocr_errors, collapse = "\n"))
     } else if (length(ocr_texts) > 0) {
-      "\n\nWe extracted text from the image but couldn't identify player data. Make sure the screenshot shows the final standings with placements and usernames visible."
+      "\n\nWe extracted text from the image but couldn't identify player data. Make sure the screenshot shows the final standings from the Bandai TCG+ mobile app with placements and usernames visible. Desktop browser screenshots are not currently supported."
     } else {
-      "\n\nCould not read the screenshots. Make sure the image is clear and shows the Bandai TCG+ standings screen. If this keeps happening, try a different screenshot or contact us."
+      "\n\nCould not read the screenshots. Make sure the image is clear and shows the Bandai TCG+ standings screen (mobile app only). Desktop browser screenshots are not currently supported. If this keeps happening, try a different screenshot or contact us."
     }
     notify(
       paste0("Could not extract player data from uploaded files.", error_detail),
@@ -467,6 +472,20 @@ observeEvent(input$sr_step1_next, {
     df[, all_cols, drop = FALSE]
   })
   combined <- do.call(rbind, all_results)
+
+  # Validate combined result has required columns before proceeding
+  standings_required_cols <- c("placement", "username", "member_number",
+                               "points", "wins", "losses", "ties")
+  missing_cols <- setdiff(standings_required_cols, names(combined))
+  if (length(missing_cols) > 0) {
+    message("[SUBMIT] Combined results missing columns: ", paste(missing_cols, collapse = ", "))
+    notify(
+      paste0("Could not read the uploaded screenshots. The image may be from a desktop browser ",
+             "or an unsupported format.\n\nTip: Use screenshots from the Bandai TCG+ mobile app for best results."),
+      type = "error", duration = 10
+    )
+    return()
+  }
 
   # Smart deduplication for overlapping screenshots
   if (nrow(combined) > 1) {
@@ -531,6 +550,7 @@ observeEvent(input$sr_step1_next, {
                   parsed_count, total_players)),
         p("This might mean:"),
         tags$ul(
+          tags$li("The screenshot is from a desktop browser (only mobile app screenshots are supported)"),
           tags$li("The screenshot doesn't show Bandai TCG+ standings"),
           tags$li("The image is too blurry or cropped"),
           tags$li("The standings span multiple pages (upload all screenshots)")
@@ -546,7 +566,15 @@ observeEvent(input$sr_step1_next, {
     return()
   }
 
-  sr_complete_ocr_processing(combined, total_players, total_rounds, parsed_count)
+  tryCatch(
+    sr_complete_ocr_processing(combined, total_players, total_rounds, parsed_count),
+    error = function(e) {
+      message("[SUBMIT] Error in OCR post-processing: ", conditionMessage(e))
+      if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
+      notify("Something went wrong processing the screenshot data. Please try again or contact us if the problem persists.",
+             type = "error", duration = 10)
+    }
+  )
 }, priority = -1)
 # priority = -1 ensures this runs AFTER the shared sr_step1_next handler (which returns early for upload)
 
@@ -564,7 +592,15 @@ observeEvent(input$sr_ocr_proceed_anyway, {
   rv$sr_ocr_pending_parsed_count <- NULL
 
   if (!is.null(combined)) {
-    sr_complete_ocr_processing(combined, total_players, total_rounds, parsed_count)
+    tryCatch(
+      sr_complete_ocr_processing(combined, total_players, total_rounds, parsed_count),
+      error = function(e) {
+        message("[SUBMIT] Error in OCR post-processing: ", conditionMessage(e))
+        if (sentry_enabled) tryCatch(sentryR::capture_exception(e, tags = sentry_context_tags()), error = function(se) NULL)
+        notify("Something went wrong processing the screenshot data. Please try again or contact us if the problem persists.",
+               type = "error", duration = 10)
+      }
+    )
   }
 })
 

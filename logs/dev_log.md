@@ -4,6 +4,28 @@ This log tracks development decisions, blockers, and technical notes for DigiLab
 
 ---
 
+## 2026-04-13: Archetype Families (v2.1.0)
+
+### Design: Flat Hierarchy, One Family Per Archetype
+Archetype families use a flat one-level grouping: each archetype has an optional `family_id` FK to `archetype_families`. No nested hierarchies (family → sub-family). One family per archetype — no many-to-many. Standalone decks simply have `family_id = NULL`. This keeps queries simple: a single LEFT JOIN adds family context to any archetype query.
+
+### Nullable FK for Standalone Decks
+`deck_archetypes.family_id` is nullable rather than requiring a "Miscellaneous" catch-all family. This means standalone archetypes don't pollute family-level aggregations and don't need cleanup when new families are created.
+
+### UI Layout: Families Section Below Archetypes
+Originally attempted a collapsible accordion pattern (families collapsed by default below archetypes). Collapsible containers broke Shiny input initialization — inputs inside a collapsed `bslib::accordion_panel` don't bind until the panel is opened, so server-side `observeEvent` handlers on family form inputs never fired. Switched to a simple always-visible section below the archetype list with its own card container.
+
+### Delete Guards: Fail-Closed
+Family delete checks archetype count with `SELECT COUNT(*) ... WHERE family_id = $1`. If the query fails, the count defaults to `NA` and the delete is blocked (fail-closed). This follows the project's security pattern: DB failures deny the action rather than allowing it.
+
+### Duplicate Name Checks: Fail-Open
+Family name uniqueness check on save uses a SELECT before INSERT. If the SELECT fails, the save proceeds (fail-open) because the DB has a `UNIQUE` constraint on `archetype_families.name` — the real guard is at the database level. A false-positive block from a transient query failure would be worse UX than letting the DB constraint do its job.
+
+### Merge Handler
+When merging archetype A into archetype B, if B has no family but A does, the merge now copies A's `family_id` to B. This preserves family membership that would otherwise be lost when the source archetype is deleted.
+
+---
+
 ## 2026-03-31: Match Upload Side-by-Side Layout
 
 ### Problem

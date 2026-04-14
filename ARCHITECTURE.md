@@ -40,6 +40,7 @@ server/
 ├── submit-grid-server.R         # Submit Results: paste/manual grid (admin-only, lazy-loaded)
 ├── admin-tournaments-server.R   # Tournament management
 ├── admin-decks-server.R         # Deck archetype CRUD
+├── admin-families-server.R      # Archetype family CRUD (lazy-loaded with admin modules)
 ├── admin-stores-server.R        # Store management
 ├── admin-players-server.R       # Player management
 ├── admin-formats-server.R       # Format management

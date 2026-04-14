@@ -511,6 +511,73 @@ calculate_store_avg_player_rating <- function(db_con, player_ratings) {
 
 
 # -----------------------------------------------------------------------------
+# PLAYER SCENE ASSOCIATIONS
+# -----------------------------------------------------------------------------
+
+#' Refresh player_scenes junction table and sync home_scene_id
+#' Derives scene associations from tournament results (>= 3 events threshold)
+#' Home scene: physical scene with most events wins; online only if no physical
+#'
+#' @param db_con Database connection (pool or DBI)
+#' @param threshold Minimum events to qualify for a scene (default 3)
+#' @return Number of player-scene associations created
+refresh_player_scenes <- function(db_con, threshold = 3) {
+  tryCatch({
+    # Full rebuild: delete old rows and insert fresh in a single CTE statement
+    # to avoid a window where the table is empty
+    n_rows <- safe_execute_impl(db_con, sprintf("
+      WITH cleared AS (
+        DELETE FROM player_scenes
+      ),
+      player_scene_events AS (
+        SELECT
+          r.player_id,
+          st.scene_id,
+          COUNT(DISTINCT r.tournament_id) AS events_played,
+          MAX(t.event_date) AS last_event,
+          bool_or(st.is_online) AS is_online_scene
+        FROM results r
+        JOIN tournaments t USING (tournament_id)
+        JOIN stores st ON st.store_id = t.store_id
+        WHERE st.scene_id IS NOT NULL
+        GROUP BY r.player_id, st.scene_id
+        HAVING COUNT(DISTINCT r.tournament_id) >= %d
+      )
+      INSERT INTO player_scenes (player_id, scene_id, events_played, is_home)
+      SELECT
+        player_id,
+        scene_id,
+        events_played,
+        ROW_NUMBER() OVER (
+          PARTITION BY player_id
+          ORDER BY
+            is_online_scene ASC,
+            events_played DESC,
+            last_event DESC
+        ) = 1 AS is_home
+      FROM player_scene_events
+    ", threshold))
+
+    # Sync home_scene_id for players who have a qualifying home scene.
+    # Only touches players WITH qualifying scenes — players below threshold
+    # keep their original home_scene_id (set on creation for name-match scoping).
+    safe_execute_impl(db_con, "
+      UPDATE players p
+      SET home_scene_id = ps.scene_id
+      FROM player_scenes ps
+      WHERE ps.player_id = p.player_id AND ps.is_home = true
+    ")
+
+    message(sprintf("[player_scenes] Refreshed: %d player-scene associations", n_rows))
+    n_rows
+  }, error = function(e) {
+    message("[player_scenes] Refresh failed: ", e$message)
+    0L
+  })
+}
+
+
+# -----------------------------------------------------------------------------
 # RATINGS CACHE MANAGEMENT
 # -----------------------------------------------------------------------------
 
@@ -726,6 +793,13 @@ recalculate_ratings_cache <- function(db_con, from_date = NULL, use_legacy = FAL
       backfill_rating_snapshots(db_con)
     }, error = function(e) {
       message("[ratings] Snapshot backfill failed (non-fatal): ", e$message)
+    })
+
+    # Refresh player-scene associations and sync home_scene_id
+    tryCatch({
+      refresh_player_scenes(db_con)
+    }, error = function(e) {
+      message("[ratings] Player scenes refresh failed (non-fatal): ", e$message)
     })
 
     TRUE

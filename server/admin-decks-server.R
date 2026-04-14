@@ -166,6 +166,24 @@ output$selected_card_preview <- renderUI({
   )
 })
 
+# Family dropdown for archetype form (dynamically populated)
+output$archetype_family_dropdown <- renderUI({
+  # Refresh when families change
+  rv$refresh_decks
+
+  families <- safe_query(db_pool, "
+    SELECT family_id, family_name FROM archetype_families
+    WHERE is_active = TRUE ORDER BY family_name
+  ", default = data.frame(family_id = integer(), family_name = character()))
+
+  choices <- c("No family" = "", setNames(as.character(families$family_id), families$family_name))
+
+  # Preserve selection during re-render (renderUI replaces the DOM element)
+  current <- isolate(input$deck_family_id) %||% ""
+
+  selectInput("deck_family_id", "Archetype Family", choices = choices, selected = current)
+})
+
 # Add archetype
 observeEvent(input$add_archetype, {
   req(rv$is_superadmin, db_pool)
@@ -215,11 +233,14 @@ observeEvent(input$add_archetype, {
     }
   }
 
+  family_id <- if (!is.null(input$deck_family_id) && nchar(input$deck_family_id) > 0) as.integer(input$deck_family_id) else NA_integer_
+
   tryCatch({
+    slug <- generate_unique_archetype_slug(db_pool, name)
     safe_execute(db_pool, "
-      INSERT INTO deck_archetypes (archetype_name, display_card_id, primary_color, secondary_color, is_multi_color, updated_by)
-      VALUES ($1, $2, $3, $4, $5, $6)
-    ", params = list(name, card_id, primary_color, secondary_color, isTRUE(input$deck_multi_color), current_admin_username(rv)))
+      INSERT INTO deck_archetypes (archetype_name, slug, display_card_id, primary_color, secondary_color, is_multi_color, family_id, updated_by)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    ", params = list(name, slug, card_id, primary_color, secondary_color, isTRUE(input$deck_multi_color), family_id, current_admin_username(rv)))
 
     notify(paste("Added archetype:", name), type = "message")
 
@@ -230,6 +251,7 @@ observeEvent(input$add_archetype, {
     updateTextInput(session, "selected_card_id", value = "")
     updateTextInput(session, "card_search", value = "")
     updateCheckboxInput(session, "deck_multi_color", value = FALSE)
+    updateSelectInput(session, "deck_family_id", selected = "")
     output$card_search_results <- renderUI({ NULL })
 
     # Trigger refresh of public tables
@@ -354,10 +376,10 @@ observeEvent(input$archetype_list_clicked, {
 
   # Look up archetype directly by ID
   arch <- safe_query(db_pool, "
-    SELECT archetype_id, archetype_name, primary_color, secondary_color, display_card_id, is_multi_color
+    SELECT archetype_id, archetype_name, primary_color, secondary_color, display_card_id, is_multi_color, family_id
     FROM deck_archetypes
     WHERE archetype_id = $1
-  ", params = list(as.integer(archetype_id)), default = data.frame(archetype_id = integer(), archetype_name = character(), primary_color = character(), secondary_color = character(), display_card_id = character(), is_multi_color = logical()))
+  ", params = list(as.integer(archetype_id)), default = data.frame(archetype_id = integer(), archetype_name = character(), primary_color = character(), secondary_color = character(), display_card_id = character(), is_multi_color = logical(), family_id = integer()))
 
   if (nrow(arch) == 0) return()
 
@@ -370,6 +392,8 @@ observeEvent(input$archetype_list_clicked, {
   updateTextInput(session, "selected_card_id",
                   value = if (is.na(arch$display_card_id)) "" else arch$display_card_id)
   updateCheckboxInput(session, "deck_multi_color", value = isTRUE(arch$is_multi_color))
+  updateSelectInput(session, "deck_family_id",
+                    selected = if (is.na(arch$family_id)) "" else as.character(arch$family_id))
 
   # Show/hide buttons
   shinyjs::hide("add_archetype")
@@ -398,13 +422,16 @@ observeEvent(input$update_archetype, {
     return()
   }
 
+  family_id <- if (!is.null(input$deck_family_id) && nchar(input$deck_family_id) > 0) as.integer(input$deck_family_id) else NA_integer_
+
   tryCatch({
+    slug <- generate_unique_archetype_slug(db_pool, name, exclude_archetype_id = archetype_id)
     safe_execute(db_pool, "
       UPDATE deck_archetypes
-      SET archetype_name = $1, primary_color = $2, secondary_color = $3, display_card_id = $4, is_multi_color = $5,
-          updated_at = CURRENT_TIMESTAMP, updated_by = $6
-      WHERE archetype_id = $7
-    ", params = list(name, primary_color, secondary_color, card_id, isTRUE(input$deck_multi_color), current_admin_username(rv), archetype_id))
+      SET archetype_name = $1, slug = $2, primary_color = $3, secondary_color = $4, display_card_id = $5, is_multi_color = $6,
+          family_id = $7, updated_at = CURRENT_TIMESTAMP, updated_by = $8
+      WHERE archetype_id = $9
+    ", params = list(name, slug, primary_color, secondary_color, card_id, isTRUE(input$deck_multi_color), family_id, current_admin_username(rv), archetype_id))
 
     notify(sprintf("Updated archetype: %s", name), type = "message")
 
@@ -416,6 +443,7 @@ observeEvent(input$update_archetype, {
     updateTextInput(session, "selected_card_id", value = "")
     updateTextInput(session, "card_search", value = "")
     updateCheckboxInput(session, "deck_multi_color", value = FALSE)
+    updateSelectInput(session, "deck_family_id", selected = "")
     output$card_search_results <- renderUI({ NULL })
 
     shinyjs::show("add_archetype")
@@ -440,6 +468,7 @@ observeEvent(input$cancel_edit_archetype, {
   updateTextInput(session, "selected_card_id", value = "")
   updateTextInput(session, "card_search", value = "")
   updateCheckboxInput(session, "deck_multi_color", value = FALSE)
+  updateSelectInput(session, "deck_family_id", selected = "")
   output$card_search_results <- renderUI({ NULL })
 
   shinyjs::show("add_archetype")
@@ -521,6 +550,7 @@ observeEvent(input$confirm_delete_archetype, {
     updateTextInput(session, "selected_card_id", value = "")
     updateTextInput(session, "card_search", value = "")
     updateCheckboxInput(session, "deck_multi_color", value = FALSE)
+    updateSelectInput(session, "deck_family_id", selected = "")
     output$card_search_results <- renderUI({ NULL })
 
     shinyjs::show("add_archetype")
@@ -986,11 +1016,12 @@ create_deck_from_request <- function(req_id, deck_name, primary_color, secondary
 
   tryCatch({
     # Create new archetype
+    slug <- generate_unique_archetype_slug(db_pool, deck_name)
     archetype_result <- safe_query(db_pool, "
-      INSERT INTO deck_archetypes (archetype_name, primary_color, secondary_color, display_card_id, updated_by)
-      VALUES ($1, $2, $3, $4, $5)
+      INSERT INTO deck_archetypes (archetype_name, slug, primary_color, secondary_color, display_card_id, updated_by)
+      VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING archetype_id
-    ", params = list(deck_name, primary_color, secondary_color, card_id, current_admin_username(rv)),
+    ", params = list(deck_name, slug, primary_color, secondary_color, card_id, current_admin_username(rv)),
        default = data.frame())
     new_archetype_id <- archetype_result$archetype_id[1]
 
@@ -1204,7 +1235,15 @@ observeEvent(input$confirm_merge_decks, {
       UPDATE limitless_deck_map SET archetype_id = $1 WHERE archetype_id = $2
     ", params = list(target_id, source_id))
 
-    # 3. Delete the source archetype
+    # 3. Carry family_id forward if source has one and target doesn't
+    safe_execute(db_pool, "
+      UPDATE deck_archetypes
+      SET family_id = (SELECT family_id FROM deck_archetypes WHERE archetype_id = $1)
+      WHERE archetype_id = $2 AND family_id IS NULL
+        AND (SELECT family_id FROM deck_archetypes WHERE archetype_id = $1) IS NOT NULL
+    ", params = list(source_id, target_id))
+
+    # 4. Delete the source archetype
     safe_execute(db_pool, "DELETE FROM deck_archetypes WHERE archetype_id = $1",
                  params = list(source_id))
 

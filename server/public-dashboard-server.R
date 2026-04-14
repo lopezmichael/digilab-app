@@ -149,7 +149,7 @@ hot_deck <- reactive({
   ), params = filters$params, default = data.frame(n = 0))$n
 
   # Need at least 10 tournaments for meaningful trend data
-  if (tournament_count < 10) {
+  if (length(tournament_count) == 0 || tournament_count < 10) {
     return(list(insufficient_data = TRUE, tournament_count = tournament_count))
   }
 

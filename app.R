@@ -28,7 +28,7 @@ library(bcrypt)
 # - httr: Lazy-loaded via namespacing in R/digimoncard_api.R (rarely used, cards cached)
 
 # App version (update with each release)
-APP_VERSION <- "2.0.0"
+APP_VERSION <- "2.0.1"
 
 # Load modules
 source("R/db_connection.R")
@@ -1110,6 +1110,8 @@ server <- function(input, output, session) {
     editing_archetype = NULL,
     card_search_results = NULL,
     card_search_page = 1,
+    family_card_search_results = NULL,
+    family_card_search_page = 1,
 
     # === REFRESH TRIGGERS ===
     # Pattern: {scope}_refresh - increment to trigger reactive invalidation
@@ -1203,6 +1205,7 @@ server <- function(input, output, session) {
       source("server/submit-grid-server.R", local = TRUE)
       source("server/admin-tournaments-server.R", local = TRUE)
       source("server/admin-decks-server.R", local = TRUE)
+      source("server/admin-families-server.R", local = TRUE)
       source("server/admin-stores-server.R", local = TRUE)
       source("server/admin-formats-server.R", local = TRUE)
       source("server/admin-players-server.R", local = TRUE)

@@ -52,6 +52,7 @@ load_dotenv()
 
 API_BASE = "https://play.limitlesstcg.com/api"
 REQUEST_DELAY = 1.5  # seconds between API calls
+AUDIT_LIMITLESS_SYNC = "limitless_sync"
 
 # Tier 1 organizers for --all-tier1 flag
 # These are high-quality organizers with good deck coverage (50%+ decklists)
@@ -297,10 +298,10 @@ def resolve_player(cursor, limitless_username, display_name, player_cache):
     # Create new player (let PostgreSQL generate player_id via IDENTITY)
     # Limitless username is a reliable identifier — mark as verified
     cursor.execute("""
-        INSERT INTO players (display_name, limitless_username, is_active, identity_status)
-        VALUES (%s, %s, TRUE, 'verified')
+        INSERT INTO players (display_name, limitless_username, is_active, identity_status, created_by)
+        VALUES (%s, %s, TRUE, 'verified', %s)
         RETURNING player_id
-    """, (display_name, limitless_username))
+    """, (display_name, limitless_username, AUDIT_LIMITLESS_SYNC))
     new_id = cursor.fetchone()[0]
 
     player_cache[limitless_username] = new_id
@@ -484,8 +485,8 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
     cursor.execute("""
         INSERT INTO tournaments
             (store_id, event_date, event_type, format, player_count,
-             rounds, limitless_id, record_format, notes, submission_method, created_at, updated_at)
-        VALUES (%s, %s, 'online', %s, %s, %s, %s, 'wlt', %s, 'limitless_sync', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+             rounds, limitless_id, record_format, notes, submission_method, created_by, created_at, updated_at)
+        VALUES (%s, %s, 'online', %s, %s, %s, %s, 'wlt', %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING tournament_id
     """, (
         store_id,
@@ -495,6 +496,8 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
         total_rounds,
         limitless_id,
         f"Imported from Limitless TCG (organizer {organizer_id})",
+        AUDIT_LIMITLESS_SYNC,
+        AUDIT_LIMITLESS_SYNC,
     ))
     next_tournament_id = cursor.fetchone()[0]
 

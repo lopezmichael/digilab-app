@@ -166,7 +166,7 @@ def discover_prefixes() -> dict:
 
 def get_known_prefixes() -> set:
     """Return set of prefixes we currently handle."""
-    return {"BT", "EX", "ST", "LM", "RB", "P", "BO"}
+    return {"BT", "EX", "ST", "LM", "RB", "AD", "P", "BO"}
 
 
 def get_all_sets() -> list:
@@ -185,6 +185,9 @@ def get_all_sets() -> list:
 
     # Resurgence Booster
     rb_sets = ["RB-01"]
+
+    # Advanced Booster
+    ad_sets = ["AD-01"]
 
     # Excluded: BTC-01 (Ultimate Evolution - 438 cards, different game variant)
     # Excluded: DM (Demo Decks - 5 cards)
@@ -248,7 +251,7 @@ def get_all_sets() -> list:
         "Special Release Memorial Pack",
     ]
 
-    return bt_sets + ex_sets + st_sets + lm_sets + rb_sets + promo_packs
+    return bt_sets + ex_sets + st_sets + lm_sets + rb_sets + ad_sets + promo_packs
 
 
 def process_card(card: dict) -> dict:
@@ -266,7 +269,11 @@ def process_card(card: dict) -> dict:
         "level": int(card.get("level")) if card.get("level") else None,
         "dp": int(card.get("dp")) if card.get("dp") else None,
         "play_cost": int(card.get("play_cost")) if card.get("play_cost") else None,
-        "digi_type": card.get("digi_type") or card.get("digi_type2") or None,
+        "digi_type": card.get("digi_type") or None,
+        "digi_type2": card.get("digi_type2") or None,
+        "digi_type3": card.get("digi_type3") or None,
+        "digi_type4": card.get("digi_type4") or None,
+        "attribute": card.get("attribute") or None,
         "stage": card.get("stage") or None,
         "rarity": card.get("rarity") or None,
         "set_code": extract_set_code(card_id)
@@ -368,8 +375,9 @@ def sync_cards(conn, cursor, set_filter: str = None, by_set: bool = False, incre
             cursor.execute("""
                 INSERT INTO cards
                 (card_id, name, display_name, card_type, color, color2,
-                 level, dp, play_cost, digi_type, stage, rarity, set_code, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
+                 level, dp, play_cost, digi_type, digi_type2, digi_type3,
+                 digi_type4, attribute, stage, rarity, set_code, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, CURRENT_TIMESTAMP)
                 ON CONFLICT (card_id) DO UPDATE SET
                     name = EXCLUDED.name,
                     display_name = EXCLUDED.display_name,
@@ -380,6 +388,10 @@ def sync_cards(conn, cursor, set_filter: str = None, by_set: bool = False, incre
                     dp = EXCLUDED.dp,
                     play_cost = EXCLUDED.play_cost,
                     digi_type = EXCLUDED.digi_type,
+                    digi_type2 = EXCLUDED.digi_type2,
+                    digi_type3 = EXCLUDED.digi_type3,
+                    digi_type4 = EXCLUDED.digi_type4,
+                    attribute = EXCLUDED.attribute,
                     stage = EXCLUDED.stage,
                     rarity = EXCLUDED.rarity,
                     set_code = EXCLUDED.set_code,
@@ -395,6 +407,10 @@ def sync_cards(conn, cursor, set_filter: str = None, by_set: bool = False, incre
                 card_data["dp"],
                 card_data["play_cost"],
                 card_data["digi_type"],
+                card_data["digi_type2"],
+                card_data["digi_type3"],
+                card_data["digi_type4"],
+                card_data["attribute"],
                 card_data["stage"],
                 card_data["rarity"],
                 card_data["set_code"]
@@ -486,6 +502,10 @@ def main():
             dp INTEGER,
             play_cost INTEGER,
             digi_type VARCHAR,
+            digi_type2 VARCHAR,
+            digi_type3 VARCHAR,
+            digi_type4 VARCHAR,
+            attribute VARCHAR,
             stage VARCHAR,
             rarity VARCHAR,
             set_code VARCHAR,

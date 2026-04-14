@@ -5,27 +5,23 @@ All notable changes to DigiLab will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.9.5] - 2026-03-31
-
-### Fixed
-- **Match submission sequence collision**: Limitless sync script used `MAX(match_id)+1` for explicit IDs, desynchronizing PostgreSQL's IDENTITY sequence. All OCR-submitted matches collided on `matches_pkey` and were silently skipped by a broad `unique|duplicate` error handler. Removed explicit ID assignment from `sync_limitless.py`; reset production sequence.
-- **Match submission upsert**: Replaced plain INSERT with `ON CONFLICT DO UPDATE` for player match rows (re-submissions update existing data) and `ON CONFLICT DO NOTHING` for mirror rows (opponent's self-submitted data takes priority). Removed overly broad duplicate error handler.
-- **Mirror row savepoint protection**: Added savepoint around mirror row INSERT so non-constraint DB errors don't poison the parent transaction.
+## [2.1.0] - 2026-04-13
 
 ### Added
-- **Tournament completeness badges**: Match-by-match tournament list now shows "Complete (4/4)" (green), "Partial (2/4)" (yellow), or "No match data" (gray) based on submitted match count vs tournament rounds.
-- **Existing data preview**: When selecting a tournament with prior match data, a summary table of existing rounds is shown before the upload form — including opponent names, results, and source.
-- **Detailed submission toast**: Post-submit message now distinguishes new vs updated matches (e.g., "4 matches saved (2 new, 2 updated)").
+- **Archetype families**: New `archetype_families` table groups related deck archetypes (e.g., "Royal Knights" family covers RK variants). `deck_archetypes.family_id` nullable FK links archetypes to their family. Materialized views `mv_archetype_stats` and `mv_archetype_matchups` rebuilt with `family_id` propagated for future family-level aggregation.
+- **Family admin UI**: New "Archetype Families" CRUD section on the Edit Decks page with name/description fields and delete guard (prevents deleting families that still have assigned archetypes). Family dropdown added to the archetype editor for assigning archetypes to families.
+- **Initial family data**: 22 archetype families seeded with 74 archetype assignments via migration script.
 
 ### Changed
-- **Match-by-match side-by-side layout**: Replaced single-column scroll layout with a two-panel split — tournament list on the left, upload form on the right. Selecting a tournament instantly shows the upload area beside the list without scrolling. Tournament list scrolls independently at 520px max-height.
-- **Digital-styled match preview**: Existing match data now renders as a styled panel with navy gradient header, W/L/T summary, and per-round rows with color-coded result badges (green W, red L, gray T) — replacing the plain Bootstrap alert + table.
-- **Tournament selection highlighting**: Selected tournament gets a cyan left-border accent and subtle background highlight. Custom status badges (Complete/Partial/No data) use translucent styling consistent with the app's aesthetic.
-- **Mobile responsive**: Side-by-side collapses to stacked layout below 768px, hiding the empty detail panel until a tournament is selected.
-
-## [Unreleased]
+- **Merge handler**: Archetype merge now carries `family_id` from the source archetype to the target when the target has no family assigned.
 
 ### Fixed
+- **Dashboard hot_deck error**: `hot_deck` reactive crashed with "length-zero `tournament_count`" when the dashboard query returned zero rows. Added empty-result guard.
+
+## [2.0.1] - 2026-04-06
+
+### Fixed
+- **OCR crash on desktop screenshots**: Both tournament standings and match-by-match OCR flows crashed when parsers returned malformed or empty data frames (e.g., from desktop browser screenshots). Added column validation guards at three levels: parser error handlers now return properly-typed empty frames, post-parse validation catches malformed columns before grid rendering, and `ocr_to_grid_data` has defense-in-depth column checks.
 - **Match-by-match mobile: upload panel not showing**: Selecting a tournament on mobile didn't reveal the upload file input. Replaced unreliable CSS `:has(:empty)` toggle with explicit class management from the server; panel now appears and auto-scrolls into view on selection.
 - **Match-by-match mobile: lookup button overflow**: "Look Up" button overflowed card boundaries on small screens. Button now shows icon-only (magnifying glass) on mobile.
 
@@ -75,6 +71,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Match-by-match transaction abort**: PostgreSQL transaction poisoned by caught duplicate match error. Added SAVEPOINT/ROLLBACK TO SAVEPOINT pattern so subsequent inserts in the same transaction succeed.
 - **OCR OBANDAI noise**: Google Cloud Vision merges `©BANDAI` into `OBANDAI` token. Added to noise filter list.
 - **Meta filters not conjunctive**: "Top 3 Only" + "Has Decklist" applied independently — showed archetypes with any top-3 AND any decklist, not archetypes where a top-3 result has a decklist. Now queries with both conditions on the same result row. Same fix in deck profile modal.
+
+## [1.9.5] - 2026-03-31
+
+### Fixed
+- **Match submission sequence collision**: Limitless sync script used `MAX(match_id)+1` for explicit IDs, desynchronizing PostgreSQL's IDENTITY sequence. All OCR-submitted matches collided on `matches_pkey` and were silently skipped by a broad `unique|duplicate` error handler. Removed explicit ID assignment from `sync_limitless.py`; reset production sequence.
+- **Match submission upsert**: Replaced plain INSERT with `ON CONFLICT DO UPDATE` for player match rows (re-submissions update existing data) and `ON CONFLICT DO NOTHING` for mirror rows (opponent's self-submitted data takes priority). Removed overly broad duplicate error handler.
+- **Mirror row savepoint protection**: Added savepoint around mirror row INSERT so non-constraint DB errors don't poison the parent transaction.
+
+### Added
+- **Tournament completeness badges**: Match-by-match tournament list now shows "Complete (4/4)" (green), "Partial (2/4)" (yellow), or "No match data" (gray) based on submitted match count vs tournament rounds.
+- **Existing data preview**: When selecting a tournament with prior match data, a summary table of existing rounds is shown before the upload form — including opponent names, results, and source.
+- **Detailed submission toast**: Post-submit message now distinguishes new vs updated matches (e.g., "4 matches saved (2 new, 2 updated)").
+
+### Changed
+- **Match-by-match side-by-side layout**: Replaced single-column scroll layout with a two-panel split — tournament list on the left, upload form on the right. Selecting a tournament instantly shows the upload area beside the list without scrolling. Tournament list scrolls independently at 520px max-height.
+- **Digital-styled match preview**: Existing match data now renders as a styled panel with navy gradient header, W/L/T summary, and per-round rows with color-coded result badges (green W, red L, gray T) — replacing the plain Bootstrap alert + table.
+- **Tournament selection highlighting**: Selected tournament gets a cyan left-border accent and subtle background highlight. Custom status badges (Complete/Partial/No data) use translucent styling consistent with the app's aesthetic.
+- **Mobile responsive**: Side-by-side collapses to stacked layout below 768px, hiding the empty detail panel until a tournament is selected.
 
 ## [1.9.4] - 2026-03-30 - Sentry Error Reporting Blind Spots
 

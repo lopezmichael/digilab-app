@@ -584,7 +584,7 @@ observeEvent(input$sr_match_process_ocr, {
 
   if (is.null(ocr_text) || ocr_text == "") {
     removeModal()
-    notify("Could not read the screenshot. Make sure the image is clear and shows the match history screen.", type = "error")
+    notify("Could not read the screenshot. Make sure the image is clear and shows the match history screen from the Bandai TCG+ mobile app. Desktop browser screenshots are not currently supported.", type = "error")
     return()
   }
 
@@ -595,8 +595,35 @@ observeEvent(input$sr_match_process_ocr, {
     parse_match_history(ocr_result, verbose = TRUE)
   }, error = function(e) {
     message("[MATCH SUBMIT] Parse error: ", e$message)
-    data.frame()
+    data.frame(
+      round = integer(), opponent_username = character(),
+      opponent_member_number = character(), games_won = integer(),
+      games_lost = integer(), games_tied = integer(),
+      match_points = integer(), match_type = character(),
+      stringsAsFactors = FALSE
+    )
   })
+
+  # Validate parsed result has required columns (parser may return malformed frame)
+  match_required_cols <- c("round", "opponent_username", "opponent_member_number",
+                           "games_won", "games_lost", "games_tied")
+  if (!all(match_required_cols %in% names(parsed))) {
+    message("[MATCH SUBMIT] Parsed result missing required columns: ",
+            paste(setdiff(match_required_cols, names(parsed)), collapse = ", "))
+    parsed <- data.frame(
+      round = integer(), opponent_username = character(),
+      opponent_member_number = character(), games_won = integer(),
+      games_lost = integer(), games_tied = integer(),
+      match_points = integer(), match_type = character(),
+      stringsAsFactors = FALSE
+    )
+  }
+  if (!"match_type" %in% names(parsed)) {
+    parsed$match_type <- if (nrow(parsed) > 0) "normal" else character()
+  }
+  if (!"match_points" %in% names(parsed)) {
+    parsed$match_points <- if (nrow(parsed) > 0) 0L else integer()
+  }
 
   removeModal()
 
@@ -949,7 +976,6 @@ observeEvent(input$sr_match_submit, {
       } else {
         opp_has_real_id <- has_real_member_number(opponent_member)
         clean_opp_member <- if (opp_has_real_id) opponent_member else NA_character_
-        opp_auto_anon <- should_auto_anonymize(opponent_username, opponent_member)
 
         # Use pre-matched player ID from auto-fill if available —
         # but only if the user hasn't edited the opponent name
@@ -982,7 +1008,6 @@ observeEvent(input$sr_match_submit, {
               ", params = list(clean_opp_member, opponent_id))
             }
           } else {
-            opp_identity <- if (opp_has_real_id) "verified" else "unverified"
             # Check for existing player by member_number first to avoid duplicate key
             if (opp_has_real_id) {
               existing_opp <- DBI::dbGetQuery(conn,
@@ -991,22 +1016,10 @@ observeEvent(input$sr_match_submit, {
               if (nrow(existing_opp) > 0) {
                 opponent_id <- existing_opp$player_id[1]
               } else {
-                opp_slug <- generate_unique_slug(conn, opponent_username)
-                new_opponent <- DBI::dbGetQuery(conn, "
-                  INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, updated_by)
-                  VALUES ($1, $2, $3, $4, $5, $6, $7)
-                  RETURNING player_id
-                ", params = list(opponent_username, opp_slug, clean_opp_member, opp_identity, match_scene_id, opp_auto_anon, "public_submit"))
-                opponent_id <- new_opponent$player_id[1]
+                opponent_id <- create_player(conn, opponent_username, opponent_member, match_scene_id, AUDIT_PUBLIC_SUBMIT)
               }
             } else {
-              opp_slug <- generate_unique_slug(conn, opponent_username)
-              new_opponent <- DBI::dbGetQuery(conn, "
-                INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, updated_by)
-                VALUES ($1, $2, $3, $4, $5, $6, $7)
-                RETURNING player_id
-              ", params = list(opponent_username, opp_slug, clean_opp_member, opp_identity, match_scene_id, opp_auto_anon, "public_submit"))
-              opponent_id <- new_opponent$player_id[1]
+              opponent_id <- create_player(conn, opponent_username, opponent_member, match_scene_id, AUDIT_PUBLIC_SUBMIT)
             }
           }
         }

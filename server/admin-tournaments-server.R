@@ -1291,15 +1291,7 @@ observeEvent(input$edit_grid_save, {
             if (match_info$status == "matched" || match_info$status == "ambiguous") {
               player_id <- if (match_info$status == "matched") match_info$player_id else match_info$candidates$player_id[1]
             } else {
-              has_real_id <- has_real_member_number(member_num)
-              identity_status <- if (has_real_id) "verified" else "unverified"
-              clean_member <- if (has_real_id) member_num else NA_character_
-              auto_anon <- should_auto_anonymize(name, member_num)
-              player_slug <- generate_unique_slug(conn, name)
-              new_player <- DBI::dbGetQuery(conn,
-                "INSERT INTO players (display_name, slug, member_number, identity_status, home_scene_id, is_anonymized, updated_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING player_id",
-                params = list(name, player_slug, clean_member, identity_status, scene_id, auto_anon, current_admin_username(rv)))
-              player_id <- new_player$player_id[1]
+              player_id <- create_player(conn, name, member_num, scene_id, current_admin_username(rv))
             }
           }
         }

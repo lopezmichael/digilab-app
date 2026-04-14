@@ -105,7 +105,6 @@ docs/digilab-design-audit.html
 docs/onboarding-redesign-mockup.html
 docs/plans/2026-03-08-scene-onboarding-batch.html
 docs/plans/2026-03-08-scene-onboarding-batch_files/
-docs/plans/2026-03-13-decklist-json-collection-design.md
 docs/shared-database-access_files/
 scripts/run_migration_010.R
 scripts/scrub_shared_branch.sql
