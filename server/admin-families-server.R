@@ -234,6 +234,14 @@ output$family_list <- renderReactable({
     ORDER BY af.family_name
   ")
 
+  # Fetch member archetypes for row details expansion
+  members <- safe_query(db_pool, "
+    SELECT da.family_id, da.archetype_name, da.primary_color, da.secondary_color
+    FROM deck_archetypes da
+    WHERE da.family_id IS NOT NULL AND da.is_active = TRUE
+    ORDER BY da.archetype_name
+  ")
+
   if (nrow(data) == 0) {
     return(reactable(data.frame(Message = "No archetype families yet"), compact = TRUE))
   }
@@ -252,6 +260,23 @@ output$family_list <- renderReactable({
     defaultPageSize = 20,
     showPageSizeOptions = TRUE,
     pageSizeOptions = c(10, 20, 50),
+    details = function(index) {
+      fam_id <- data$family_id[index]
+      fam_members <- members[members$family_id == fam_id, ]
+      if (nrow(fam_members) == 0) {
+        return(div(class = "text-muted small p-2", "No archetypes assigned"))
+      }
+      div(class = "p-2",
+        tags$strong(class = "small", "Member Archetypes:"),
+        div(class = "d-flex flex-wrap gap-1 mt-1",
+          lapply(seq_len(nrow(fam_members)), function(i) {
+            deck_name_badge(fam_members$archetype_name[i],
+                           fam_members$primary_color[i],
+                           fam_members$secondary_color[i])
+          })
+        )
+      )
+    },
     columns = list(
       family_id = colDef(show = FALSE),
       Family = colDef(minWidth = 140, style = list(whiteSpace = "normal")),
