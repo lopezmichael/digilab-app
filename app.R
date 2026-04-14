@@ -1110,6 +1110,8 @@ server <- function(input, output, session) {
     editing_archetype = NULL,
     card_search_results = NULL,
     card_search_page = 1,
+    family_card_search_results = NULL,
+    family_card_search_page = 1,
 
     # === REFRESH TRIGGERS ===
     # Pattern: {scope}_refresh - increment to trigger reactive invalidation

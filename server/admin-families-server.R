@@ -343,7 +343,7 @@ observeEvent(input$add_family, {
   existing <- safe_query(db_pool, "
     SELECT family_id FROM archetype_families
     WHERE LOWER(family_name) = LOWER($1)
-  ", params = list(name), default = data.frame(family_id = 0L))
+  ", params = list(name), default = data.frame(family_id = integer()))
 
   if (nrow(existing) > 0) {
     notify(sprintf("Family '%s' already exists", name), type = "error")
@@ -461,7 +461,7 @@ observeEvent(input$update_family, {
   existing <- safe_query(db_pool, "
     SELECT family_id FROM archetype_families
     WHERE LOWER(family_name) = LOWER($1) AND family_id != $2
-  ", params = list(name, family_id), default = data.frame(family_id = 0L))
+  ", params = list(name, family_id), default = data.frame(family_id = integer()))
 
   if (nrow(existing) > 0) {
     notify(sprintf("Family '%s' already exists", name), type = "error")
