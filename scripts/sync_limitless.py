@@ -35,6 +35,7 @@ Prerequisites:
 import os
 import re
 import sys
+import math
 import time
 import json
 import argparse
@@ -379,6 +380,55 @@ def resolve_deck(cursor, deck_info, deck_map_cache):
 # Tournament Sync
 # =============================================================================
 
+def derive_round_from_match_field(match_field, api_round):
+    """Derive a unique round number from the bracket match field.
+
+    Limitless reports all bracket pairings with the same round number (e.g.,
+    all top-cut matches share round 6 after 5 Swiss rounds). The bracket tier
+    is encoded in the match field (T8-3, T4-2, T2-1). This offsets from the
+    API round so each bracket stage gets a distinct round number.
+
+    Works for both pure single-elim (api_round=1 for all) and mixed Swiss+Cut
+    (api_round=N+1 where N is the last Swiss round).
+
+    Args:
+        match_field: Match identifier from API (e.g., "T8-3", "T4-2")
+        api_round: The round number from the API
+
+    Returns:
+        Integer round number (derived from bracket tier, or api_round as fallback)
+    """
+    if not match_field or not isinstance(match_field, str):
+        return api_round
+
+    # Match bracket format: T<size>-<seat> (e.g., T8-3, T4-2, T2-1)
+    bracket_match = re.match(r'^T(\d+)-', match_field)
+    if not bracket_match:
+        return api_round
+
+    bracket_size = int(bracket_match.group(1))
+    if bracket_size <= 0:
+        return api_round
+
+    # Offset from api_round: largest bracket = first round of cut, smaller = later
+    # T8→+0, T4→+1, T2→+2 (using log2: log2(8)=3, log2(4)=2, log2(2)=1)
+    # offset = log2(max_bracket_in_this_set) - log2(this_bracket)
+    # Since we don't know max_bracket across all pairings, we use a simpler approach:
+    # offset = log2(largest_common) - log2(size), where largest_common = 128
+    # This gives T128→0, T64→1, T32→2, T16→3, T8→4, T4→5, T2→6
+    # But we want T8 (largest in set) to be +0. Since all bracket pairings share
+    # the same api_round, we just need unique offsets — the absolute value doesn't
+    # matter, only that larger brackets get smaller offsets.
+    try:
+        # log2(8)=3 → offset 0, log2(4)=2 → offset 1, log2(2)=1 → offset 2
+        max_log = 7  # covers up to T128
+        offset = max_log - int(math.log2(bracket_size))
+    except (ValueError, OverflowError):
+        return api_round
+
+    return api_round + offset
+
+
 def count_total_rounds(details):
     """Count total rounds across all phases in tournament details.
 
@@ -608,7 +658,9 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
     matches_inserted = 0
 
     for pairing in pairings:
-        round_number = pairing.get("round")
+        api_round = pairing.get("round")
+        match_field = pairing.get("match", "")
+        round_number = derive_round_from_match_field(match_field, api_round)
         player1_username = pairing.get("player1", "")
         player2_username = pairing.get("player2", "")
         winner = str(pairing.get("winner", ""))
@@ -643,7 +695,10 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
 
         # Insert two match rows (one per player perspective)
         # Let IDENTITY generate match_id — do NOT use explicit IDs
+        # Use SAVEPOINT so a failed insert doesn't abort the outer transaction
         try:
+            cursor.execute("SAVEPOINT match_insert")
+
             # Player 1's perspective
             cursor.execute("""
                 INSERT INTO matches
@@ -660,8 +715,10 @@ def sync_tournament(cursor, tournament, organizer_id, store_id, dry_run=False):
                 VALUES (%s, %s, %s, %s, 0, 0, 0, %s, 'normal', 'limitless', CURRENT_TIMESTAMP)
             """, (next_tournament_id, round_number, player2_id, player1_id, p2_points))
 
+            cursor.execute("RELEASE SAVEPOINT match_insert")
             matches_inserted += 2
         except Exception as e:
+            cursor.execute("ROLLBACK TO SAVEPOINT match_insert")
             if "unique" in str(e).lower() or "duplicate" in str(e).lower():
                 pass  # Duplicate pairing, skip silently
             else:
@@ -1001,7 +1058,9 @@ def repair_tournament(cursor, tournament_id, limitless_id):
     print(f"got {len(pairings)}")
 
     for pairing in pairings:
-        round_number = pairing.get("round")
+        api_round = pairing.get("round")
+        match_field = pairing.get("match", "")
+        round_number = derive_round_from_match_field(match_field, api_round)
         player1_username = pairing.get("player1", "")
         player2_username = pairing.get("player2", "")
         winner = str(pairing.get("winner", ""))
@@ -1038,7 +1097,10 @@ def repair_tournament(cursor, tournament_id, limitless_id):
             p1_points, p2_points = 1, 1
 
         # Let IDENTITY generate match_id — do NOT use explicit IDs
+        # Use SAVEPOINT so a failed insert doesn't abort the outer transaction
         try:
+            cursor.execute("SAVEPOINT match_insert")
+
             cursor.execute("""
                 INSERT INTO matches
                     (tournament_id, round_number, player_id, opponent_id,
@@ -1053,8 +1115,10 @@ def repair_tournament(cursor, tournament_id, limitless_id):
                 VALUES (%s, %s, %s, %s, 0, 0, 0, %s, 'normal', 'limitless', CURRENT_TIMESTAMP)
             """, (tournament_id, round_number, player2_id, player1_id, p2_points))
 
+            cursor.execute("RELEASE SAVEPOINT match_insert")
             matches_inserted += 2
         except Exception as e:
+            cursor.execute("ROLLBACK TO SAVEPOINT match_insert")
             if "unique" not in str(e).lower() and "duplicate" not in str(e).lower():
                 print(f"      Error inserting match: {e}")
 
